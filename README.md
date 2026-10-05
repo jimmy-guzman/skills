@@ -16,7 +16,7 @@ pnpx skills add jimmy-guzman/skills --skill='*' -g
 
 ## Skills
 
-_Nothing here yet._
+- [`create-pr`](skills/create-pr/SKILL.md): draft, open, or describe GitHub pull requests and GitLab merge requests that follow the repo's own conventions.
 
 ## Adding a skill
 
