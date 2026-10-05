@@ -16,31 +16,15 @@ pnpx skills add jimmy-guzman/skills --skill='*' -g
 
 ## Skills
 
-_Nothing here yet. See [AGENTS.md](AGENTS.md) for how generation works._
+_Nothing here yet._
 
-## Development
+## Adding a skill
 
-```sh
-pnpm install
-pnpm start          # Interactive CLI
-pnpm start init     # Clone submodules
-pnpm start sync     # Sync vendored skills
-pnpm start check    # Check for upstream updates
-pnpm start cleanup  # Remove unused submodules/skills
-```
-
-## Rolling your own
-
-1. Update `meta.ts` with your projects and skill sources
-2. Run `pnpm start init` to clone the submodules
-3. Run `pnpm start sync` to sync vendored skills
-4. Ask your agent to `Generate skills for <project>`
-
-See [AGENTS.md](AGENTS.md) for the full workflow.
+Create `skills/<name>/SKILL.md`. See [AGENTS.md](AGENTS.md) for conventions.
 
 ## Credit
 
-This repo borrows its structure and CLI tooling from [antfu/skills](https://github.com/antfu/skills). If you work in the Vue/Vite/Nuxt ecosystem, his collection is worth checking out.
+Inspired by [antfu/skills](https://github.com/antfu/skills) and [mattpocock/skills](https://github.com/mattpocock/skills).
 
 ## License
 

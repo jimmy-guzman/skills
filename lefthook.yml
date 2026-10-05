@@ -1,8 +1,0 @@
-pre-commit:
-  commands:
-    lint:
-      glob: "*.{js,ts,mjs,mts}"
-      run: npx eslint --fix {staged_files} && git add {staged_files}
-    format:
-      glob: "*.{js,ts,mjs,mts,json,yaml,yml,md}"
-      run: npx oxfmt {staged_files} && git add {staged_files}
