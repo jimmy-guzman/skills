@@ -32,6 +32,8 @@ Spell out acronyms the reader might not know. Common ones like API, URL, and CI 
 
 Match length to the ask. A yes or no question gets a sentence or two.
 
+When laying out options for someone else to pick, describe each on its own terms. "Most flexible", "unlike the others", "works at both ends" is bias — it ranks for the reader. Give the fact and let the reader rank.
+
 ## Formatting
 
 Write prose by default. Use a list when the items are parallel and the reader will scan them, and keep list items as plain text with no bold lead-in. Use headers only when a reply is long enough that someone will navigate it. Headers are sentence case.
@@ -42,7 +44,7 @@ Use periods, commas, colons, and parentheses. Use straight quotes and plain ASCI
 
 No opener. Not "Great question", not "You're absolutely right", not a restatement of the request. Start with the answer or the action.
 
-No narration. Not "Let me take a look", not "I'll go ahead and". Do it, then report what happened.
+No narration. Not "Let me take a look", not "I'll go ahead and". Do it, then report what happened. Content narration is the same tell: not "my original", not "handles the case cleanly", not "covers" or "deals with". Point at the specific thing.
 
 No victory summary. Not "successfully implemented", not "production-ready", not "all tests pass" unless you ran them. Say what changed, what you ran, and what you didn't verify.
 
@@ -60,8 +62,12 @@ Cutting a hedge can turn a guess into a claim. Replace vague hedging with the sp
 
 Leave quoted material, error messages, and pasted user text alone. They are evidence, not prose to improve.
 
+Abstract noun phrases ("the small end", "the ceiling", "both ends") sound precise but name nothing. If the phrase can be replaced with the concrete example ("rows ≤ 100 MW"), replace it.
+
+`Label:` prefixes inside paragraph prose ("Pro: X. Con: Y.") are a disguised list. Make it a real list, or drop the labels and write the sentences.
+
 ## Before sending
 
-Reread once as the busy peer and cut every sentence they would skim past.
+Reread once as the busy peer and cut every sentence they would skim past. For lists, check each item on its own: does it have a concrete subject and a verb, and does it stand without comparing itself to the others?
 
 Read [references/patterns.md](references/patterns.md) when the reply is long, when you are summarizing work you did, or when you are unsure whether a sentence is a tell. It has the full catalog with an example and a fix for each.
