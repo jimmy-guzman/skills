@@ -50,7 +50,7 @@ Each is a fresh subagent. Give it the diff command, the revision to read at, the
 **All reviewers**
 
 ```text
-Read around the diff: the callers of every changed function and the tests that cover them. Take line numbers from the file at the reviewed revision, not from diff output.
+Read around the diff: the callers of every changed function and the tests that cover them. Take line numbers from the file at the reviewed revision, not from diff output, and re-verify by grep at head SHA before posting.
 Verify each finding before returning it: reread the lines, follow the caller, and run the test or a quick repro when that is cheap. If the code can't be run, trace it in the source and say nothing was run. Prefix what you couldn't check either way with "unverified:" and say what you'd need.
 Skip anything a linter, formatter, or type checker already enforces.
 Never suggest a fix that needs a lint rule disabled, a shorter form that reads worse, or deleting a test because it is small.
@@ -153,7 +153,7 @@ In suggest mode the report must stand alone, because it gets handed to the autho
 Nothing applied. For an agent: verify each item against the current code, fix the ones that still hold, and skip the rest with a one-line reason.
 ```
 
-Then stop. Don't edit anything yet.
+Then stop. Don't edit anything yet. If the user asks to post, see §6.
 
 ### 5. Apply and re-review
 
@@ -174,6 +174,63 @@ Ran `pnpm check` and `pnpm test`: both pass.
 Then stop again, and say what you didn't run. On "apply until clean", keep applying new findings and re-reviewing without stopping, three rounds at most, then report what is left.
 
 Never commit, push, switch branches, or open a PR. File an issue only after a yes.
+
+### 6. Post findings as comments
+
+Only when the user asks ("post these", "comment on the PR", "leave inline"). The default is still §4: report and stop.
+
+- Plan mode is read-only; posting is a write to a shared system. Call `ExitPlanMode` first.
+- Re-verify every `file:line` right before posting. `grep -n '<symbol>' <path>` on the file at the reviewed revision. Diff hunks drift under rebase; the file at head wins.
+- Pick the anchor per finding:
+  - Default: inline on `file:line`.
+  - A finding that asks for a new test, with no line yet, anchors on the nearest sibling test, named by symbol in the body ("sibling of `test_X`").
+  - No file at all (e.g. "description is empty"): one general PR/MR note.
+- The comment body is the full §4 finding: title, label line, `file:line`, prose, fix. The comment IS a finding.
+
+**GitHub.** `gh pr review --comment` posts a review-level body only; inline comments go through the API.
+
+```bash
+HEAD_SHA=$(gh pr view <n> --json headRefOid --jq .headRefOid)
+gh api repos/:owner/:repo/pulls/<n>/comments \
+  -f commit_id="$HEAD_SHA" \
+  -f path="<file>" \
+  -F line=<N> \
+  -f side=RIGHT \
+  -f body="$BODY"
+```
+
+**GitLab.** Pull the three SHAs once, then post as a DiffNote on the MR's discussions.
+
+```bash
+GITLAB_HOST=<host> glab api projects/<path-encoded>/merge_requests/<n> \
+  | python3 -Ic "import sys,json; d=json.load(sys.stdin)['diff_refs']; print(d)"
+```
+
+Post an inline finding. Use capital `-F` so `position` is a JSON value; `-f 'position[field]=…'` returns `415 content-type not supported`.
+
+```bash
+POSITION='{"base_sha":"...","head_sha":"...","start_sha":"...","position_type":"text","new_path":"<file>","new_line":<N>}'
+GITLAB_HOST=<host> glab api --method POST \
+  'projects/<path-encoded>/merge_requests/<n>/discussions' \
+  -f "body=$BODY" -F "position=$POSITION"
+```
+
+Edit a note by id (same body shape, no position):
+
+```bash
+GITLAB_HOST=<host> glab api --method PUT \
+  'projects/<path-encoded>/merge_requests/<n>/notes/<note_id>' \
+  -f "body=$BODY"
+```
+
+Delete a note by id:
+
+```bash
+GITLAB_HOST=<host> glab api --method DELETE \
+  'projects/<path-encoded>/merge_requests/<n>/notes/<note_id>'
+```
+
+Then stop. Never commit, push, open a PR, or merge.
 
 ## Pasted findings
 
