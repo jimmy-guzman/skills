@@ -47,9 +47,15 @@ Group findings that share a root. One parent upgrade or removal often clears sev
 
 Work down this ladder for each finding. Stop at the first step that works.
 
+When you surface a choice to the user, the recommended option must be the lowest-letter rung that's viable. Never recommend a lower rung — dismissal, override — while an upgrade or removal is still on the table.
+
 **a. Refresh the lockfile.** Check the range the installed parent version declares for the package (_Investigating_). If it already allows the patched version, re-resolve just that package (_Fixing_). The lockfile was just stale. Most findings end here.
 
 **b. Upgrade the parent.** If the refresh changes nothing, the parent probably pins an exact version or its range excludes the fix. Check what the parent's newer releases declare (_Investigating_). Same major: upgrade it. Different major: stop and ask the user. Major upgrades need a decision and usually their own ticket.
+
+A matching peer range isn't enough on its own. Before asking the user to approve a major, read the parent's release notes for breaking config paths (`.eslintrc` → flat config), dropped output or input formats, stricter default rulesets, and deprecated flags this repo uses. Name these in the ask so "approve the major" isn't a blank cheque.
+
+After each parent upgrade, run the smallest repo check that would catch the parent's own breakage before moving to the next finding — typecheck for API changes, lint for config-format changes, `pnpm install` for peer-dep surprises. Don't batch upgrades and run the full suite once at the end; regressions get hard to attribute.
 
 **c. Remove the parent.** If nothing uses the parent, remove it. Umbrella packages are the usual case: they install every module a library offers. Search the code for imports (_Investigating_). If the app only uses a few scoped packages, depend on those directly and drop the umbrella. Dependencies left behind after a refactor are the other common case.
 
@@ -61,6 +67,8 @@ Dismiss only with evidence:
 - The vulnerable function never receives input the app doesn't control, in production, build, and CI alike.
 
 Read the advisory. The note has to name the precondition and why this repo can't meet it, not just "dev-only". Don't dismiss a production finding on a hunch. If you aren't sure, say so and ask.
+
+A dismissal trades the audit signal for a quieter report. If the finding has no upstream fix, leaving it visible in audit output — with a note in the report, not a config entry — is also valid, and sometimes preferable: the recurring signal is a useful reminder to re-check when upstream patches land.
 
 When you do dismiss (_Dismissals_):
 
