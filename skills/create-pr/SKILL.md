@@ -28,6 +28,8 @@ Detect every value. Sources, highest precedence first:
 
 When a source has a convention, follow it. When none does, use the fallback and say so in the confirmation step.
 
+A harness attribution footer (a "Generated with ..." line the session asks for on PR bodies) ranks below all three. If agent docs or the template limit what the body holds, leave it out. If the repo is silent, add it as the last line.
+
 ## Process
 
 ### 0. Preflight
@@ -62,16 +64,19 @@ Describe and update keep the PR's current title, description, base, labels, and 
 ```bash
 git status --porcelain
 git branch --show-current
-git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null
-git rev-list --count @{u}..HEAD 2>/dev/null   # commits ahead of upstream
+git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null   # names the remote, nothing more
+git ls-remote <remote> refs/heads/<branch>                         # empty: never pushed
+git rev-parse HEAD
 ```
+
+Ask the remote whether the branch exists; don't infer it from `@{u}`. A branch cut from the base (`git switch -c x origin/main`, `git worktree add -b x origin/main`) tracks `origin/main`, so `@{u}` reports an upstream and "1 ahead" for a branch that was never pushed.
 
 Stop and ask if:
 
 - The current branch is the default branch.
 - The working tree is dirty. List files; ask whether to commit, stash, or stop.
-- The branch has no upstream. Show the branch and remote; ask before `git push -u <remote> <branch>`. Never auto-push.
-- The local branch is ahead of its upstream. Ask before pushing. The PR shows the remote, not your local branch.
+- The branch is not on the remote (`ls-remote` prints nothing). Show the branch and remote; ask before `git push -u <remote> <branch>`. Never auto-push.
+- The remote branch's commit differs from `HEAD`. Ask before pushing. The PR shows the remote, not your local branch.
 
 ### 1. Detect conventions
 
@@ -79,7 +84,7 @@ Run in parallel. Record each value and its source for §5. Commands are under _L
 
 **Agent docs.** Read the repo's `AGENTS.md` and `CLAUDE.md` if present, plus the user's personal `CLAUDE.md` if it's in context. Take only pull request, merge request, branching, and commit guidance: base branch, title format, required sections, labels, ticket linking, draft state. Anything they state outranks what the repo implies. Ignore guidance unrelated to PRs.
 
-When sampling recent PRs anywhere below, exclude bot authors and reverts.
+When sampling recent PRs anywhere below, exclude bot authors and reverts. Review bots (CodeRabbit and similar) also write into human PRs: before reading a description, drop everything from `<!-- This is an auto-generated comment` to its `<!-- end of auto-generated comment` marker. If nothing human is left, that PR doesn't count; sample further back.
 
 **Base branch.** First hit wins:
 
@@ -132,6 +137,8 @@ No match means no ticket. Only ask if agent docs require one or nearly every rec
 ```bash
 git fetch <remote> <base>
 ```
+
+Run it even if the branch was cut from the remote base minutes ago; it's cheap and the base may have moved.
 
 Then in parallel:
 
@@ -209,8 +216,8 @@ Governs prose everywhere in the PR, template or not.
 ```markdown
 ## What
 
-- `<file or symbol>`: <specific change, one line>
-- `<file or symbol>`: <what changed and what to look at>.
+- `<file group or symbol>`: <specific change, one line>
+- `<file group or symbol>`: <what changed and what to look at>.
 
   | Before | After |
   |---|---|
@@ -229,6 +236,7 @@ Those two sections only. Nothing else gets a heading.
 
 - **Specificity over category.** Each change names the file, symbol, package, or flag. Never "updated the component" or "refactored the module".
 - **Why is for the reviewer, not the ticket.** Plain prose a reviewer can read without clicking through. Short sentences. Concrete nouns. No "This PR introduces", no "In order to".
+- **The body is about the change, not the session.** It carries the change and its risk. What you ran, didn't run, or skipped ("`pnpm dev` was not run on this branch") is nothing a reviewer can act on; it goes in the chat summary.
 - **Evidence lives with the claim.** Benchmarks, before/after numbers, and screenshots sit on the bullet they support, never in a trailing section. Evidence is a before and an after; "tests pass" alone is not evidence.
 - **Show shape when shape is the point.** When the change is about structure or flow (files moving, a call order changing), a bullet can carry the smallest visual that makes it clear: a file tree, call tree, or Mermaid diagram, or a diff of one. Otherwise plain bullets.
 
@@ -239,5 +247,5 @@ Those two sections only. Nothing else gets a heading.
        launchAgent
   ```
 
-- **Length scales with the change.** A one-column migration gets four lines. A shared-engine refactor earns more bullets, not more sections.
+- **Length scales with the change, then stops.** A one-column migration gets four lines. A ten-file change gets one bullet per group of files that change together, not one per file or symbol. One line per bullet. `## Why` stays at two short paragraphs. The diff holds the rest.
 - **No filler.** No em dashes, no sign-offs, no emoji, no summary of the summary.
