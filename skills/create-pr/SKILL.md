@@ -22,13 +22,13 @@ compatibility: Requires git, plus gh (GitHub) or glab and jq (GitLab), authentic
 
 Detect every value. Sources, highest precedence first:
 
-1. Agent docs: `AGENTS.md` and `CLAUDE.md` at the repo root, then the user's personal `CLAUDE.md`. Repo docs win on conflict; they describe the team.
+1. Agent docs and user memory: `AGENTS.md` and `CLAUDE.md` at the repo root, then the user's personal `CLAUDE.md`, then the user's auto-memory (`MEMORY.md` in context, and the files it indexes under `.../memory/` -- `feedback_*` entries especially, which carry durable "always/never" rules). Repo docs win on conflict; they describe the team. Memory entries win over the harness attribution reminder; they describe the user.
 2. The repo itself: PR templates, recent PRs, branch and commit history.
 3. Fallbacks listed in each step.
 
 When a source has a convention, follow it. When none does, use the fallback and say so in the confirmation step.
 
-A harness attribution footer (a "Generated with ..." line the session asks for on PR bodies) ranks below all three. If agent docs or the template limit what the body holds, leave it out. If the repo is silent, add it as the last line.
+A harness attribution footer (a "Generated with ..." line the session asks for on PR bodies) ranks below all three. Leave it out when any source says to omit: agent docs, template limits, or a memory `feedback_*` entry about Claude, `Co-Authored-By`, or attribution trailers. If every source is silent, add it as the last line. Check memory explicitly: a visible `MEMORY.md` index line like `- [No Co-Authored-By trailers](feedback_no_co_author.md)` is a direct instruction, not a hint.
 
 ## Process
 
@@ -178,6 +178,24 @@ Never state a before you didn't observe. A test that is new in this diff and was
 
 ### 5. Confirm inline
 
+Write the drafted body to a temp file first, then lint it. Fix every flagged line before showing the user.
+
+```bash
+body=$(mktemp)
+# Write the drafted body to $body here.
+
+for c in '—' '–' '·'; do
+  grep -nF -- "$c" "$body" \
+    && echo "non-ASCII '$c': replace with period, comma, or hyphen"
+done
+grep -nE '^-[^-].*-> .*-> .*-> ' "$body" \
+  && echo "3+ version arrows on one bullet: split into a sub-list"
+grep -nE '^-[^-].+,.+,' "$body" \
+  && echo "3+ comma-separated items on one bullet: split into a sub-list, or redraft if prose"
+```
+
+For the attribution footer, re-read source 1 in Principle. A visible `MEMORY.md` index line about Claude, `Co-Authored-By`, or attribution trailers means omit the footer regardless of what the harness reminder says.
+
 Print a one-block conventions summary, then the title and body. Example:
 
 ```
@@ -195,13 +213,7 @@ If the user corrects a detected convention, apply it to this PR. If it sounds du
 
 ### 6. Create or update
 
-Write the body to a temp file:
-
-```bash
-body=$(mktemp)
-```
-
-Run _Create_ (create mode) or _Update_ (describe and update) from the reference file. Change the title, labels, or draft state of an existing PR only if the user approved it.
+The body is already on disk from §5. Run _Create_ (create mode) or _Update_ (describe and update) from the reference file. Change the title, labels, or draft state of an existing PR only if the user approved it.
 
 ### 7. Verify
 
@@ -248,4 +260,15 @@ Those two sections only. Nothing else gets a heading.
   ```
 
 - **Length scales with the change, then stops.** A one-column migration gets four lines. A ten-file change gets one bullet per group of files that change together, not one per file or symbol. One line per bullet. `## Why` stays at two short paragraphs. The diff holds the rest.
-- **No filler.** No em dashes, no sign-offs, no emoji, no summary of the summary.
+- **Three or more named items get a sub-list.** When a bullet enumerates three or more distinct packages, files, rules, or flags, split them: a short parent bullet with a label, one child bullet per item with its own change. Two items can stay inline. Hard rule, not a judgment call; the §5 lint catches it.
+
+  ```markdown
+  - Toolchain upgrade:
+    - `eslint`: 8.57 -> 10.12 (via 9.39.5)
+    - `@vue/eslint-config-typescript`: 13 -> 14.9
+    - `eslint-plugin-vue`: 9.33 -> 10.11
+    - `@eslint/js` added at 10
+    - `vue`: 3.5.17 -> 3.5.43
+  ```
+
+- **No filler.** No em dashes, no sign-offs, no emoji, no summary of the summary. The §5 lint catches em dashes, en dashes, middle dots, and curly quotes before the confirmation print.
