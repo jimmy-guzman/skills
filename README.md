@@ -1,17 +1,15 @@
 # Jimmy Guzman's Skills
 
-[Agent Skills](https://agentskills.io/home) for the tools and frameworks I use. Opinionated where it matters.
-
 ## Installation
 
 ```sh
-pnpx skills add jimmy-guzman/skills --skill='*'
+pnpx skills add jimmy-guzman/skills
 ```
 
 Or globally:
 
 ```sh
-pnpx skills add jimmy-guzman/skills --skill='*' -g
+pnpx skills add jimmy-guzman/skills -g
 ```
 
 ## Skills
@@ -24,10 +22,6 @@ pnpx skills add jimmy-guzman/skills --skill='*' -g
 ## Adding a skill
 
 Create `skills/<name>/SKILL.md`. See [AGENTS.md](AGENTS.md) for conventions.
-
-## Credit
-
-Inspired by [antfu/skills](https://github.com/antfu/skills) and [mattpocock/skills](https://github.com/mattpocock/skills).
 
 ## License
 
