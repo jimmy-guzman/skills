@@ -2,6 +2,17 @@
 
 Host commands for `create-pr`. Read Gotchas before running anything.
 
+## Contents
+
+- Gotchas
+- Lookups
+- Templates
+- Issues
+- Existing MR diff
+- Create
+- Update
+- Verify
+
 ## Gotchas
 
 - **Pipe to `jq`.** Don't rely on a `--jq` flag; support varies by glab command and version.

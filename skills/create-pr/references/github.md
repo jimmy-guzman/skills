@@ -2,6 +2,17 @@
 
 Host commands for `create-pr`. Read Gotchas before running anything.
 
+## Contents
+
+- Gotchas
+- Lookups
+- Templates
+- Issues
+- Existing PR diff
+- Create
+- Update
+- Verify
+
 ## Gotchas
 
 - **Always `--json`, with `--jq` to filter.** Text layout changes between gh versions. The JSON shape is stable and `--jq` is built in.
