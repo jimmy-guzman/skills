@@ -53,7 +53,7 @@ It holds every host command named below and the gotchas for that CLI.
 
 **Mode.**
 
-- **describe**: the user named a PR by number or URL. Fetch it with _Lookups: PR by number or URL_. Skip the branch checks; nothing local is touched.
+- **describe**: the user named a PR by number or URL. Fetch it with _Lookups: PR by number or URL_. Skip the branch checks; nothing local is touched. If the PR lives in another repo (the URL or `gh pr view` output names a different owner/repo), record that repo and pass `--repo <owner>/<repo>` on gh or `-R <group>/<project>` on glab to every lookup in §1. Templates must come from the host API, not the local filesystem.
 - **update**: the current branch already has a PR (_Lookups: PR for the current branch_).
 - **create**: otherwise.
 
@@ -80,7 +80,15 @@ Stop and ask if:
 
 ### 1. Detect conventions
 
-Run in parallel. Record each value and its source for §5. Commands are under _Lookups_ in the reference file.
+Fetch first so every ref the parallel runs read actually exists locally:
+
+```bash
+git fetch <remote> <base>
+```
+
+The stacked-branch check below also reads candidate head refs; fetch those (`git fetch <remote> <candidate>`) before the ancestor check. Shallow and single-branch clones have neither otherwise.
+
+Then run in parallel. Record each value and its source for §5. Commands are under _Lookups_ in the reference file.
 
 **Agent docs.** Read the repo's `AGENTS.md` and `CLAUDE.md` if present, plus the user's personal `CLAUDE.md` if it's in context. Take only pull request, merge request, branching, and commit guidance: base branch, title format, required sections, labels, ticket linking, draft state. Anything they state outranks what the repo implies. Ignore guidance unrelated to PRs.
 
@@ -90,10 +98,10 @@ When sampling recent PRs anywhere below, exclude bot authors and reverts. Review
 
 1. The existing PR's base (describe and update).
 2. Agent docs.
-3. Stacked branch. For each head branch of the user's open PRs, check `git merge-base --is-ancestor <remote>/<candidate> HEAD`. If one is an ancestor and closer than the default branch (smaller `git rev-list --count <candidate>..HEAD`), propose it and ask.
+3. Stacked branch. For each head branch of the user's open PRs, fetch it (`git fetch <remote> <candidate>`), then check `git merge-base --is-ancestor <remote>/<candidate> HEAD`. If one is an ancestor and closer than the default branch (smaller `git rev-list --count <remote>/<candidate>..HEAD`), propose it and ask.
 4. Default branch.
 
-**Title shape.** Agent docs, then the dominant shape (not the words) of recent merged titles. Match it exactly: ticket prefix and its punctuation, `type(scope):` if used, casing, and whether identifiers are backticked. Fallbacks: the branch's first commit subject (`git log <base>..HEAD --format=%s | tail -1`), then plain English.
+**Title shape.** Agent docs, then the dominant shape (not the words) of recent merged titles. Match it exactly: ticket prefix and its punctuation, `type(scope):` if used, casing, and whether identifiers are backticked. Fallbacks: the branch's first commit subject (`git log <remote>/<base>..HEAD --format=%s | tail -1`), then plain English.
 
 **Description template.** First hit wins:
 
@@ -132,15 +140,7 @@ No match means no ticket. Only ask if agent docs require one or nearly every rec
 
 ### 2. Gather context
 
-**Create and update.** Fetch the base first:
-
-```bash
-git fetch <remote> <base>
-```
-
-Run it even if the branch was cut from the remote base minutes ago; it's cheap and the base may have moved.
-
-Then in parallel:
+**Create and update.** The base fetch ran in §1. In parallel:
 
 - `git diff --stat <remote>/<base>...HEAD` to size the change.
 - `git diff <remote>/<base>...HEAD` excluding lockfiles, generated code, snapshots, and vendored files. For large diffs, read per file guided by the stat.
@@ -181,10 +181,10 @@ Never state a before you didn't observe. A test that is new in this diff and was
 Print a one-block conventions summary, then the title and body. Example:
 
 ```
-host: GitLab · mode: create · base: develop (AGENTS.md)
-title: `TICKET: desc` (7/10 recent MRs) · template: Default.md
-ticket: PROJ-123 via recent MR descriptions · closing: Closes (6/10)
-labels: frontend (8/10 of yours) · assignee: @me · draft: yes
+host: GitLab | mode: create | base: develop (AGENTS.md)
+title: `TICKET: desc` (7/10 recent MRs) | template: Default.md
+ticket: PROJ-123 via recent MR descriptions | closing: Closes (6/10)
+labels: frontend (8/10 of yours) | assignee: @me | draft: yes
 ```
 
 For describe and update, also show what changed against the current description.

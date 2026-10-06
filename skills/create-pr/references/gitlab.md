@@ -83,19 +83,19 @@ glab mr list --author=@me --merged --per-page=10 -F json \
   | jq '[.[] | {labels, assignees: [.assignees[]?.username], reviewers: [.reviewers[]?.username]}]'
 ```
 
-Issue details: `glab issue view <n>`.
+Issue details: `glab issue view <n> -F json | jq '{title, description}'`.
 
 ## Templates
 
-First hit wins:
+GitLab applies the project-level default (set in project settings) over `Default.md` in the UI, so check it first. First hit wins:
 
-1. `.gitlab/merge_request_templates/Default.md` (any case). GitLab applies this one in the UI, so the team expects it.
-2. Project-level default template, if the API exposes it:
+1. Project-level default template, if the API exposes it (`merge_requests_template` is Premium/Ultimate only, so an empty value on Free is not proof that nothing is set):
 
    ```bash
    glab api projects/:id | jq -r '.merge_requests_template // empty'
    ```
 
+2. `.gitlab/merge_request_templates/Default.md` (any case). GitLab falls back to this one when no project default is set.
 3. Exactly one file in `.gitlab/merge_request_templates/`: use it. Several and none is the default: ask which.
 
 ## Issues
@@ -125,7 +125,7 @@ glab mr create --yes \
 
 Drop `--draft` when draft is false. Drop `--assignee` and `--label` when detection found nothing.
 
-Fork workflow: push to the fork, then create with `-R <upstream>` and `--head <fork>`.
+Fork workflow: push to the fork, then create with `-R <upstream>`, `--head <fork-namespace>/<project>`, and `--source-branch <branch>`. `--head` names the fork project, not a branch.
 
 ## Update
 
