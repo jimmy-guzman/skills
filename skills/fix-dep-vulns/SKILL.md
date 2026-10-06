@@ -53,14 +53,20 @@ Work down this ladder for each finding. Stop at the first step that works.
 
 **c. Remove the parent.** If nothing uses the parent, remove it. Umbrella packages are the usual case: they install every module a library offers. Search the code for imports (_Investigating_). If the app only uses a few scoped packages, depend on those directly and drop the umbrella. Dependencies left behind after a refactor are the other common case.
 
-**d. Dismiss as not reachable.** A finding isn't a vulnerability until untrusted input can reach it. Dismiss only with evidence:
+**d. Dismiss as not reachable.** A dismissal is an escape hatch like an override: it silences the signal without changing the tree. Hold it to the same bar. Only reach here when a code fix isn't available — no upstream fix exists yet, or the fix requires a major bump — **and** untrusted input can't reach the vulnerable code.
+
+Dismiss only with evidence:
 
 - The path is dev-only or build-time, **and** the advisory's precondition can't be met there. A build tool that parses attacker-controlled input, or a dev server reachable from a network, is still exploitable. **Or**
 - The vulnerable function never receives input the app doesn't control, in production, build, and CI alike.
 
-Read the advisory. The note has to name the precondition and why this repo can't meet it, not just "dev-only".
+Read the advisory. The note has to name the precondition and why this repo can't meet it, not just "dev-only". Don't dismiss a production finding on a hunch. If you aren't sure, say so and ask.
 
-When the fix also requires a major bump, write a dismissal note using the template in [references/report.md](references/report.md). If the ecosystem has a persisted ignore list (_Dismissals_), record the dismissal there with a comment so it lives in the repo, not only in the scanner. Don't dismiss a production finding on a hunch. If you aren't sure, say so and ask.
+When you do dismiss (_Dismissals_):
+
+- Record it where the repo can see it, not only in the scanner: `pnpm-workspace.yaml`, `[tool.uv]`, or the CI invocation. Use the template in [references/report.md](references/report.md).
+- Prefer the auto-expiring form where the ecosystem has one — uv's `ignore-until-fixed` clears itself once a patched version ships. Where there isn't one (pnpm `audit.ignore`, pip `--ignore-vuln`), write the removal condition into the comment: what has to be true for this entry to come out.
+- Tell the user explicitly that you dismissed and why a code fix wasn't available.
 
 **e. Override, as a last resort.** Only when one of these is true:
 
