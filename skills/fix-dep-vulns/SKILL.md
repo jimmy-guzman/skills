@@ -1,5 +1,5 @@
 ---
-name: fix-dependency-vulnerabilities
+name: fix-dep-vulns
 description: >
   Triage and fix security vulnerabilities in pnpm, uv, or pip dependencies
   without reaching for overrides first. Use this whenever the user shares a

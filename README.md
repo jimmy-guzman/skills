@@ -17,7 +17,7 @@ pnpx skills add jimmy-guzman/skills --skill='*' -g
 ## Skills
 
 - [`create-pr`](skills/create-pr/SKILL.md): draft, open, or describe GitHub pull requests and GitLab merge requests that follow the repo's own conventions.
-- [`fix-dependency-vulnerabilities`](skills/fix-dependency-vulnerabilities/SKILL.md): triage and fix dependency vulnerabilities in pnpm, uv, and pip projects, preferring lockfile refreshes and parent upgrades over overrides.
+- [`fix-dep-vulns`](skills/fix-dep-vulns/SKILL.md): triage and fix dependency vulnerabilities in pnpm, uv, and pip projects, preferring lockfile refreshes and parent upgrades over overrides.
 
 ## Adding a skill
 
