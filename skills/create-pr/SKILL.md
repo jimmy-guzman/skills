@@ -182,12 +182,16 @@ Write the drafted body to a temp file first, then lint it. Fix every flagged lin
 
 ```bash
 body=$(mktemp)
+trap 'rm -f "$body"' EXIT
 # Write the drafted body to $body here.
 
-for c in '—' '–' '·'; do
-  grep -nF -- "$c" "$body" \
-    && echo "non-ASCII '$c': replace with period, comma, or hyphen"
-done
+grep -nF -- '—' "$body" && echo "em dash: replace with period, comma, or hyphen"
+grep -nF -- '–' "$body" && echo "en dash: replace with period, comma, or hyphen"
+grep -nF -- '·' "$body" && echo "middle dot: replace with period, comma, or hyphen"
+grep -nF -- '“' "$body" && echo "curly quote: replace with straight quote"
+grep -nF -- '”' "$body" && echo "curly quote: replace with straight quote"
+grep -nF -- '‘' "$body" && echo "curly apostrophe: replace with straight apostrophe"
+grep -nF -- '’' "$body" && echo "curly apostrophe: replace with straight apostrophe"
 grep -nE '^-[^-].*-> .*-> .*-> ' "$body" \
   && echo "3+ version arrows on one bullet: split into a sub-list"
 grep -nE '^-[^-].+,.+,' "$body" \
@@ -248,7 +252,8 @@ Those two sections only. Nothing else gets a heading.
 
 - **Specificity over category.** Each change names the file, symbol, package, or flag. Never "updated the component" or "refactored the module".
 - **Why is for the reviewer, not the ticket.** Plain prose a reviewer can read without clicking through. Short sentences. Concrete nouns. No "This PR introduces", no "In order to".
-- **The body is about the change, not the session.** It carries the change and its risk. What you ran, didn't run, or skipped ("`pnpm dev` was not run on this branch") is nothing a reviewer can act on; it goes in the chat summary.
+- **The body is about the change, not the session.** It carries the change and its risk. What you ran, didn't run, or skipped ("`pnpm dev` was not run on this branch"), and coordination talk ("Deploy order", "This merges first", "Follow-up MR"), is nothing a reviewer can act on; it goes in the chat summary.
+- **Don't attribute to a role you can't verify.** No "reviewer flagged", "after feedback", "per discussion" unless a named reviewer actually said it in the thread. If the change came from reconsidering, say so directly, or just state the change.
 - **Evidence lives with the claim.** Benchmarks, before/after numbers, and screenshots sit on the bullet they support, never in a trailing section. Evidence is a before and an after; "tests pass" alone is not evidence.
 - **Show shape when shape is the point.** When the change is about structure or flow (files moving, a call order changing), a bullet can carry the smallest visual that makes it clear: a file tree, call tree, or Mermaid diagram, or a diff of one. Otherwise plain bullets.
 
