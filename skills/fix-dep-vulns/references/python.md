@@ -2,7 +2,13 @@
 
 Covers uv (a `uv.lock`) and pip (`requirements*.txt`, optionally compiled from `requirements.in` by pip-tools). Headings match the italic names in `SKILL.md`; each has a uv block and a pip block where they differ.
 
-`uv audit` needs uv 0.11 or newer. Check `uv --version`, and `required-version` under `[tool.uv]` if set.
+**Version floors.**
+
+- uv 0.10.8: `uv audit` (still experimental on 0.12.x).
+- uv 0.11.3: `ignore-until-fixed` under `[tool.uv.audit]`.
+- uv 0.11.25: scoped `override-dependencies` table form (`{ package = {...}, dependencies = [...] }`); older uv rejects it with "expected a string containing a PEP 508 requirement" and only accepts the bare-string form.
+
+Check `uv --version`, and `required-version` under `[tool.uv]` if set.
 
 ## Contents
 
@@ -29,22 +35,22 @@ pip:
 ```sh
 uvx pip-audit -r requirements.txt         # findings; resolves deps like pip install would. Or: pipx run pip-audit
 uvx pip-audit -r requirements.txt --no-deps   # fully pinned files only, much faster
-uvx pipdeptree -r -p <pkg>                # every path that pulls <pkg> in (needs the env installed). Or: pipx run pipdeptree
+uvx --python .venv/bin/python pipdeptree -r -p <pkg>   # every path that pulls <pkg> in. Or: pipx run pipdeptree
 pip index versions <pkg>                  # published versions
 ```
 
-`uvx` needs uv. If the repo has no uv, use `pipx run` or install the tool into the environment.
+`uvx` needs uv. If the repo has no uv, use `pipx run` or install the tool into the environment. pipdeptree reads the environment it runs in, so bare `uvx pipdeptree` inspects an ephemeral uv env and reports nothing useful: pass `--python <venv>/bin/python` or activate the project's venv first.
 
-Strip `-e` and local-path lines before passing a file to pip-audit; it can't resolve them. Audit each requirements file the repo installs. A finding only in `requirements-dev.txt` is dev-only.
+pip-audit skips `-e` and local-path lines with "Dependency not found on PyPI" and audits the rest. Don't strip them, but audit each local package's own dependencies separately. Audit each requirements file the repo installs. A finding only in `requirements-dev.txt` is dev-only.
 
 Both, for what a specific release declares (there is no `uv view`):
 
 ```sh
-curl -s https://pypi.org/pypi/<pkg>/<version>/json | jq -r '.info.requires_dist[]'
+curl -s https://pypi.org/pypi/<pkg>/<version>/json | jq -r '.info.requires_dist // [] | .[]'
 curl -s https://pypi.org/pypi/<pkg>/json | jq -r '.info.version'           # latest
 ```
 
-Empty `requires_dist` output for the dependency means that release no longer depends on it at all.
+PyPI returns `requires_dist: null` when metadata is missing: the `// []` guard treats that as unknown, not as "no dependencies". Empty output means either no declared dependencies or missing metadata; confirm with `pip install <pkg>==<version>` into a scratch venv before concluding the release dropped the dependency.
 
 Checking what the code imports, before removing a parent:
 

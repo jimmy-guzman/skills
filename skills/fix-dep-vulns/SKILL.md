@@ -26,8 +26,8 @@ An override clears a finding in one line, which is why it's the tempting first m
    - `uv.lock`: uv.
    - `requirements*.txt` or a `pyproject.toml` with no `uv.lock`: pip.
    - None of these: tell the user which ecosystems this skill covers and ask whether to adapt the same ladder to theirs.
-2. Read exactly one file: [references/pnpm.md](references/pnpm.md) or [references/python.md](references/python.md). It holds every command used below, under the headings named in italics (_Investigating_, _Fixing_, _Overrides_, _Dismissals_, _Release age_).
-3. List existing overrides. pnpm: `overrides` in `pnpm-workspace.yaml` and legacy `pnpm.overrides` in `package.json`. uv: `override-dependencies` and `constraint-dependencies` under `[tool.uv]`. pip: `constraints.txt`. Existing overrides are a common cause of findings. An exact pin added for an old advisory holds the package below a newer fix.
+2. Read exactly one ecosystem file: [references/pnpm.md](references/pnpm.md) or [references/python.md](references/python.md). It holds every command used below, under the headings named in italics (_Investigating_, _Fixing_, _Overrides_, _Dismissals_, _Release age_). `references/report.md` is used later in steps 3d and 6.
+3. List existing overrides. pnpm: `overrides` in `pnpm-workspace.yaml`. On pnpm 11+, entries under `pnpm.overrides` or `patchedDependencies` in `package.json` are ignored (pnpm warns "The `pnpm` field in package.json is no longer read"); flag them for removal or migration to `pnpm-workspace.yaml`. uv: `override-dependencies` and `constraint-dependencies` under `[tool.uv]`. pip: `constraints.txt`. Existing overrides are a common cause of findings. An exact pin added for an old advisory holds the package below a newer fix.
 
 ## Workflow
 
@@ -72,7 +72,9 @@ A dismissal trades the audit signal for a quieter report. If the finding has no 
 
 When you do dismiss (_Dismissals_):
 
-- Record it where the repo can see it, not only in the scanner: `pnpm-workspace.yaml`, `[tool.uv]`, or the CI invocation. Use the template in [references/report.md](references/report.md).
+- Every dismissal gets a note in the scanner and the comment on the config entry, using the dismissal template in [references/report.md](references/report.md).
+- If the dismissal is because the fix needs a major bump, also open a ticket for the upgrade and reference it in the note. The note explains "why not now"; the ticket is how it comes back.
+- Record it where the repo can see it, not only in the scanner: `pnpm-workspace.yaml`, `[tool.uv]`, or the CI invocation.
 - Prefer the auto-expiring form where the ecosystem has one — uv's `ignore-until-fixed` clears itself once a patched version ships. Where there isn't one (pnpm `audit.ignore`, pip `--ignore-vuln`), write the removal condition into the comment: what has to be true for this entry to come out.
 - Tell the user explicitly that you dismissed and why a code fix wasn't available.
 
@@ -91,7 +93,7 @@ When you do add one (_Overrides_):
 - Add a comment with the reason and the condition for removing it.
 - Tell the user explicitly that you added an override and why the earlier steps didn't work.
 
-Never run the auditor's auto-fix (`pnpm audit --fix`, `pip-audit --fix`). pnpm writes an override for every finding, which is the exact pattern this skill exists to avoid. pip-audit upgrades the environment, not the requirements file, so the fix disappears on the next install.
+Never run the auditor's auto-fix (`pnpm audit --fix`, `pip-audit --fix`). pnpm writes an override for every finding, which is the exact pattern this skill exists to avoid. pip-audit rewrites `requirements.txt` but bumps every vulnerable pin without regard to the ladder, and on pip-tools projects it edits the compiled file instead of `requirements.in`, so the next recompile reverts the fix.
 
 ### 4. Clean up existing overrides
 
@@ -117,7 +119,7 @@ If a production parent was upgraded, list what the user should smoke test by han
 
 Summarize using the template in [references/report.md](references/report.md): what was fixed and how, what's left and why, any dismissal notes, and any overrides added or removed.
 
-If the user wants a merge request or pull request, hand off to their MR or PR skill if one is available. Otherwise draft a description with a short "What" and "Why."
+If the user wants a merge request or pull request, hand off to the `create-pr` skill (shipped alongside this one) or whichever MR/PR skill they prefer. Otherwise draft a description with a short "What" and "Why."
 
 ## Things to watch
 

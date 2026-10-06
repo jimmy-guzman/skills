@@ -1,8 +1,14 @@
 # pnpm reference
 
-Check the repo's pnpm version in the `packageManager` field. Notes below name the release that introduced each setting.
+Check the repo's pnpm version in the `packageManager` field. Headings match the italic names in `SKILL.md`.
 
-Headings match the italic names in `SKILL.md`.
+**Version floors.**
+
+- 11.0: `minimumReleaseAge` defaults to 1440 minutes; `pnpm` field in `package.json` is no longer read (`pnpm.overrides`, `patchedDependencies` must move to `pnpm-workspace.yaml`).
+- 11.13: convergence overrides (`pkg@` selector).
+- 11.16: `audit.ignore` in `pnpm-workspace.yaml` (older repos use the deprecated `auditConfig.ignoreGhsas`).
+- 11.28 / 12.0: `audit.ignorePrune`.
+- 12.4: ignored advisories reported separately.
 
 ## Contents
 
@@ -54,7 +60,7 @@ On a stale lockfile, `pnpm update <pkg>` can still touch many unrelated entries 
 
 ## Overrides
 
-Overrides live in `pnpm-workspace.yaml`. Older repos may still have them under `pnpm.overrides` in `package.json`. YAML allows comments, so every override should carry one.
+Overrides live in `pnpm-workspace.yaml`. On pnpm 11+, `pnpm.overrides` in `package.json` is ignored (pnpm warns "The `pnpm` field in `package.json` is no longer read"); any entry there does nothing. Migrate it to `pnpm-workspace.yaml` or delete it. YAML allows comments, so every override should carry one.
 
 ```yaml
 overrides:
@@ -92,7 +98,7 @@ Use this instead of a plain override when the goal is a security floor and the p
 
 ## Patches
 
-Patched dependencies live under `patchedDependencies` in `pnpm-workspace.yaml` or `package.json`. To remove one:
+Patched dependencies live under `patchedDependencies` in `pnpm-workspace.yaml`. On pnpm 11+, entries under `patchedDependencies` in `package.json` are ignored for the same reason as `pnpm.overrides`; migrate or delete them. To remove one:
 
 ```sh
 pnpm patch-remove <pkg>@<version>
@@ -102,7 +108,7 @@ That removes the entry, deletes the patch file, and updates the lockfile. Patche
 
 ## Dismissals
 
-`audit.ignore` in `pnpm-workspace.yaml` takes GHSA ids (since 11.16; older repos use the deprecated `auditConfig.ignoreGhsas`). Ignored advisories are reported separately since 12.4.
+`audit.ignore` in `pnpm-workspace.yaml` takes GHSA ids. See Version floors for the setting floors.
 
 ```yaml
 audit:
@@ -115,4 +121,6 @@ Set `audit.ignorePrune: true` so stale entries get removed by `pnpm audit --fix=
 
 ## Release age
 
-Since pnpm 11, `minimumReleaseAge` defaults to 1440 minutes. pnpm won't install a version until it's been published for a day. If the patched version is newer than that, `pnpm update` won't pick it up yet. Report it to the user. Don't lower the setting unless they ask.
+`minimumReleaseAge` defaults to 1440 minutes on pnpm 11+. pnpm won't install a version until it's been published for a day. If the patched version is newer than that, `pnpm update` won't pick it up yet. Report it to the user. Don't lower the setting unless they ask.
+
+`pnpm audit --fix=update` can add exceptions to `minimumReleaseAgeExclude` to pull a fresh fix past the release-age wait. That's a workaround that disables the protection the skill tells you not to lower. After any `--fix=update`, diff `pnpm-workspace.yaml` and revert any new `minimumReleaseAgeExclude` entry unless the user asked for it.
