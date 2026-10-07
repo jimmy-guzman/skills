@@ -22,7 +22,7 @@
     {
       "id": 2,
       "prompt": "can you review PR 285 and suggest fixes for the author? it's sam's, not mine",
-      "expected_output": "Suggest mode. Runs scripts/pr.py state, reads files at the head SHA, edits and posts nothing, and ends with the standalone agent handoff line.",
+      "expected_output": "Suggest mode. Runs scripts/pr.py state, reads files at the head SHA, edits and posts nothing. The report ends with the standalone agent handoff line, and one line after the report offers to post the findings to the PR.",
       "files": [
         "evals/files/github-pr-285/"
       ],
@@ -30,7 +30,9 @@
         "scripts/pr.py state ran before any reviewer",
         "No local file was edited and no comment was posted",
         "The report does not refer to the conversation",
-        "The last line starts with 'Nothing applied. For an agent:'"
+        "The report's last line starts with 'Nothing applied. For an agent:'",
+        "After the report, one line offers to post the findings to #285",
+        "In a planning mode, the offer says that mode has to be turned off first"
       ]
     },
     {

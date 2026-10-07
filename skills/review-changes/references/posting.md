@@ -18,10 +18,9 @@ Write each finding's body to its own temp file, then:
 
 ```bash
 python3 <skill-dir>/scripts/pr.py post <pr> --head <sha> \
-  --path <file> --line <N or N-M> --body-file <tmp> [--marker]
+  --path <file> --line <N or N-M> --body-file <tmp>
 ```
 
-- Pass `--marker` on the first post of the round only. It adds `<!-- review-changes: <head_sha> -->`, which the next preflight reads to spot "already reviewed at this SHA".
 - The body is the full finding: title, label line with its evidence label, `file:line`, prose, the `Evidence:` line, and the fix. The evidence tells the author what was run and what was only read.
 - A finding about a new test, with no line yet, anchors on the nearest sibling test and names it in the body ("sibling of `test_x`").
 - A finding with no file (for example "the description is empty") leaves out `--path` and `--line` and becomes one general comment.
@@ -29,10 +28,20 @@ python3 <skill-dir>/scripts/pr.py post <pr> --head <sha> \
 - A retry is safe: an identical comment at the same spot comes back as `"posted": "skipped"`.
 - `--dry-run` prints what would be posted without posting it. Use it when the user wants to see the comments first.
 
-Report what landed in one block:
+After the findings, post one summary comment: the same command without `--path` and `--line`, plus `--marker`. The marker adds `<!-- review-changes: <head_sha> -->`, which the next preflight reads to spot "already reviewed at this SHA". The body is the `Reviewed:` line and one line per posted finding: number, title, `file:line`. Leave out the `Left out:` line and the agent handoff line.
 
 ```text
-Posted 4 to #285: 3 inline, 1 general (src/find.ts:52 is outside the diff).
+Reviewed at 1a2b3c4 against AGENTS.md and issue #41.
+
+1. Fall back to the previous tab when the last one closes, `src/store/tabs.ts:88`
+2. Delete the comment that restates the code, `src/store/tabs.ts:70-74`
+3. Keep the tab's scroll position, which the issue asks for, `src/store/tabs.ts:40`
+```
+
+Then report what landed in one block:
+
+```text
+Posted 4 to #285: 3 inline, 1 general (src/find.ts:52 is outside the diff), plus the summary.
 ```
 
 ## Fix or remove a posted comment

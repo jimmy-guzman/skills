@@ -37,7 +37,6 @@ If the user pasted findings from a bot or a person, read [references/pasted-find
 ## Gotchas
 
 - `gh pr view` and `glab mr view` don't return thread state or comment anchors. `scripts/pr.py state` does, for both.
-- Diff line numbers drift. Take them from the file at the reviewed revision.
 - Some shell wrappers condense or truncate long output. Get the raw diff.
 - `gh pr diff` and `glab mr diff` don't fetch the head commit, so `git show <sha>:<path>` fails on a PR that isn't checked out. Fetch it first: `git fetch <remote> pull/<n>/head` on GitHub, `git fetch <remote> merge-requests/<n>/head` on GitLab.
 
@@ -224,6 +223,10 @@ In Suggest mode the report must stand alone, because it gets handed to the autho
 ```text
 Nothing applied. For an agent: verify each item against the current code, fix the ones that still hold, and skip the rest with a one-line reason.
 ```
+
+For a PR, end the message with one line after the report, outside it, so the report still hands off clean: `Post these to <ref>? Say "post", or name the numbers.` In a read-only or planning mode, add that it needs that mode turned off first. Then wait.
+
+Only PRs get the offer. A branch that isn't checked out, or a merged commit, has nowhere to post.
 
 With Novel only, title the report `Supplemental review (<N> existing threads skipped)`, and add this above the mode's last line:
 
