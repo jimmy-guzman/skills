@@ -20,13 +20,13 @@ Host commands for `create-pr`. Read Gotchas before running anything.
 - **Always `--description-file`.** Never `--description "$(cat ...)"`. Shell quoting breaks on backticks and diff snippets.
 - **Always `--yes`.** The skill already confirmed with the user. glab's own prompt hangs the call.
 - **Never `--draft` on update.** It flips a ready MR back to draft.
-- **Uploading screenshots.** Ask the user for image paths. Uploads are project-scoped, so they work before the MR exists. Upload first and use the returned `markdown` field in the body:
+- **Uploading screenshots.** Ask the user for image paths. Uploads are project-scoped, so they work before the MR exists. Upload through `glab api`, which handles the host and auth, and use the returned `markdown` field in the body:
 
   ```bash
-  curl -sf -H "PRIVATE-TOKEN: ${GITLAB_TOKEN:-$(glab config get token --host <host>)}" \
-    -F "file=@before.png" \
-    "https://<host>/api/v4/projects/<id>/uploads" | jq -r .markdown
+  glab api --method POST projects/:id/uploads --form "file=@before.png" | jq -r .markdown
   ```
+
+  For a project other than the current one, replace `:id` with its URL-encoded path (`group%2Fproject`).
 
   Prefer this over `--attach`, which is experimental or absent depending on the glab version. No images yet: leave the placeholders and say so.
 
@@ -62,7 +62,7 @@ Recent merged titles, bots excluded (also drop access-token users named `*_bot_*
 
 ```bash
 glab mr list --merged --per-page=20 -F json \
-  | jq -r '.[] | select(.author.username | test("bot|renovate|dependabot") | not) | .title' \
+  | jq -r '.[] | select(.author.username | test("(^|[_-])bot([_-]|$)|renovate|dependabot"; "i") | not) | .title' \
   | head -10
 ```
 
@@ -98,6 +98,14 @@ GitLab applies the project-level default (set in project settings) over `Default
 2. `.gitlab/merge_request_templates/Default.md` (any case). GitLab falls back to this one when no project default is set.
 3. Exactly one file in `.gitlab/merge_request_templates/`: use it. Several and none is the default: ask which.
 
+**Another project** (describe mode). Read the same sources from the host, in the same order. `<project>` is the URL-encoded path (`group%2Fproject`):
+
+```bash
+glab api "projects/<project>" | jq -r '.merge_requests_template // empty'
+glab api "projects/<project>/repository/tree?path=.gitlab/merge_request_templates" | jq -r '.[].name'
+glab api "projects/<project>/repository/files/.gitlab%2Fmerge_request_templates%2F<name>/raw?ref=<default-branch>"
+```
+
 ## Issues
 
 `#123` links automatically. Close keywords: `Closes`, `Fixes`, `Resolves`.
@@ -113,6 +121,7 @@ glab api "projects/:id/merge_requests/<iid>/commits" \
 ## Create
 
 ```bash
+body="$(git rev-parse --git-dir)/PR_BODY.md"
 glab mr create --yes \
   --draft \
   --source-branch <branch> \
@@ -130,6 +139,7 @@ Fork workflow: push to the fork, then create with `-R <upstream>`, `--head <fork
 ## Update
 
 ```bash
+body="$(git rev-parse --git-dir)/PR_BODY.md"
 echo >> "$body"
 glab mr view <iid> -F json | jq -r '.description // empty' \
   | awk '/^<!-- This is an auto-generated comment/,/^<!-- end of auto-generated comment/' >> "$body"
