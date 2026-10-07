@@ -1,0 +1,22 @@
+[
+  { "query": "can u take a second look at what I changed in src/store before I push", "should_trigger": true },
+  { "query": "review PR 285", "should_trigger": true },
+  { "query": "https://gitlab.acme.io/platform/inventory/-/merge_requests/482 can you check this against our DESIGN.md and tell the author what to fix", "should_trigger": true },
+  { "query": "we just finished the retry refactor on this branch, is this ready?", "should_trigger": true },
+  { "query": "here's what the bot said on my MR, handle it: 'src/api/client.ts:120 timeout is never cleared'", "should_trigger": true },
+  { "query": "review our work on this branch against TASTE.md", "should_trigger": true },
+  { "query": "my teammate opened a PR for the auth middleware, can you look it over and leave inline comments", "should_trigger": true },
+  { "query": "check the last three commits for bugs, sha range abc123..def456", "should_trigger": true },
+  { "query": "does this diff follow the rules in our AGENTS.md? git diff main", "should_trigger": true },
+  { "query": "run review-changes on my uncommitted stuff", "should_trigger": true },
+  { "query": "write the PR description for this branch", "should_trigger": false },
+  { "query": "audit the whole repo for security issues before the pen test next week", "should_trigger": false },
+  { "query": "what does this diff do? just explain it, I'm trying to understand the codebase", "should_trigger": false },
+  { "query": "use coderabbit to review PR 285", "should_trigger": false },
+  { "query": "summarize the review comments on PR 285 so I can reply to them", "should_trigger": false },
+  { "query": "fix the failing test in src/store/tabs.test.ts", "should_trigger": false },
+  { "query": "write a code review checklist for our team wiki", "should_trigger": false },
+  { "query": "review my resume and tell me what to tighten", "should_trigger": false },
+  { "query": "approve and merge !482, CI is green", "should_trigger": false },
+  { "query": "refactor src/lib/retry.ts to use the platform AbortSignal.timeout", "should_trigger": false }
+]

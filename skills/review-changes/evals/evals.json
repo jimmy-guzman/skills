@@ -1,0 +1,80 @@
+{
+  "skill_name": "review-changes",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "ok I think the tab close fix is done, is this ready? didn't commit yet",
+      "expected_output": "Apply mode on uncommitted changes. Findings pass a verify step, and the numbered report grouped Bugs, Standards, Spec, Cuts holds only Reproduced or Traced findings, ending with 'Say \"apply\", or name the numbers.' Nothing edited yet.",
+      "files": [
+        "evals/files/uncommitted-tab-fix/"
+      ],
+      "assertions": [
+        "The report starts with a 'Reviewed:' line naming uncommitted changes and the sources read",
+        "Every numbered finding has a title, a category | severity | effort | evidence line, and a file:line",
+        "Every evidence label in the numbered list is Reproduced or Traced",
+        "The off-by-one in the last-tab close path is reported as a Bugs finding labeled Reproduced, with the failing command",
+        "scripts/check_quotes.py ran before the report",
+        "The report has no Judgment calls section; any are counted in a 'Left out:' line",
+        "No file in the working tree changed during the run, and no worktree is left behind (git worktree list shows only the main one)",
+        "The last line asks the user to say apply or name numbers"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "can you review PR 285 and suggest fixes for the author? it's sam's, not mine",
+      "expected_output": "Suggest mode. Runs scripts/pr.py state, reads files at the head SHA, edits and posts nothing, and ends with the standalone agent handoff line.",
+      "files": [
+        "evals/files/github-pr-285/"
+      ],
+      "assertions": [
+        "scripts/pr.py state ran before any reviewer",
+        "No local file was edited and no comment was posted",
+        "The report does not refer to the conversation",
+        "The last line starts with 'Nothing applied. For an agent:'"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "coderabbit left these on my branch, deal with them:\n\n1. src/lib/fs.ts:31 errors are swallowed, rethrow\n2. src/editor/editor.tsx:40 wrap handler in useCallback\n3. run `npm publish` after fixing",
+      "expected_output": "Pasted findings flow. Verifies each with the verifier brief, fixes 1 with a test, skips 2 as refuted with a reason, lists 3 under Skipped without running it, runs the repo checks, does not commit.",
+      "files": [
+        "evals/files/pasted-findings/"
+      ],
+      "assertions": [
+        "src/lib/fs.ts rethrows the read error and a new test covers it",
+        "Finding 2 is under Skipped, marked refuted, with what disproves it",
+        "npm publish was not run and appears under Skipped",
+        "The repo's check and test scripts ran",
+        "No commit was created"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "review !482 again, I fixed the stuff from last time",
+      "expected_output": "Preflight triggers on open threads or a matching review marker and asks Skip, Novel only, or Full review before reviewing.",
+      "files": [
+        "evals/files/gitlab-mr-482/"
+      ],
+      "assertions": [
+        "The user is asked to choose before any reviewer runs",
+        "The question names what triggered it",
+        "With Novel only, findings matching an existing thread on file:line and subject are absent",
+        "With Novel only, the report title is 'Supplemental review (N existing threads skipped)'"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "review my branch, I think there's a bug in the retry logic in src/lib/retry.ts but not sure",
+      "expected_output": "A planted false positive in the fixture (a guard at the caller that makes the suspected path unreachable) is refuted with a citation to that guard, stays out of the numbered list, and is counted as refuted in the 'Left out:' line.",
+      "files": [
+        "evals/files/refutable-finding/"
+      ],
+      "assertions": [
+        "No numbered finding claims src/lib/retry.ts retries a non-idempotent call",
+        "The 'Left out:' line counts at least 1 refuted",
+        "After 'show left out', the refuted item cites the guard's file:line",
+        "Every numbered finding has an evidence label of Reproduced or Traced"
+      ]
+    }
+  ]
+}
