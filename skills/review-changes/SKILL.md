@@ -169,7 +169,7 @@ Labels:
 - Category: Functional Correctness, Data Integrity & Integration, Stability & Availability, Security & Privacy, Performance & Scalability, or Maintainability & Code Quality. Pick by what goes wrong for the user. Broken rules that don't change behavior, comments, scope creep, and missing tests are Maintainability & Code Quality.
 - Severity: Critical is data loss, a security hole, or a crash, on a path users commonly take. Major is wrong behavior a user will hit, or a failure with no way back. Minor is everything else, including faults that are rare or cosmetic. Most findings are Minor.
 - Effort: Quick win is a contained change of a few lines. Heavy lift needs a design decision.
-- Evidence: Reproduced or Traced, from §4. Nothing else reaches the numbered list.
+- Evidence: Reproduced or Traced, from §4.
 
 ```text
 Reviewed: uncommitted changes (6 files, lockfile left out) against AGENTS.md and issue #41. Ran the tab tests; nothing else was run.
@@ -224,7 +224,7 @@ In Suggest mode the report must stand alone, because it gets handed to the autho
 Nothing applied. For an agent: verify each item against the current code, fix the ones that still hold, and skip the rest with a one-line reason.
 ```
 
-For a PR, end the message with one line after the report, outside it, so the report still hands off clean: `Post these to <ref>? Say "post", or name the numbers.` In a read-only or planning mode, add that it needs that mode turned off first. Then wait.
+For a PR, rerun `scripts/pr.py state`, then end the message with one line after the report, outside it, so the report still hands off clean: `Post these to <ref>? Say "post", or name the numbers.` Say if the PR merged or closed during the review, and if a read-only or planning mode must be turned off first. Then wait.
 
 Only PRs get the offer. A branch that isn't checked out, or a merged commit, has nowhere to post.
 

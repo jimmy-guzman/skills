@@ -164,8 +164,22 @@ class EndToEndGitHub(unittest.TestCase):
         self.assertIn("re-review", err)
 
     def test_merged_exits_4(self):
-        code, _, _ = self.run_pr("post", "285", "--body-file", self.body, FAKE_STATE="MERGED")
+        code, _, err = self.run_pr("post", "285", "--body-file", self.body, FAKE_STATE="MERGED")
         self.assertEqual(code, 4)
+        self.assertEqual(self.posted(), [])
+        self.assertIn("--allow-closed", err)
+
+    def test_merged_with_allow_closed_posts_inline(self):
+        code, out, _ = self.run_pr("post", "285", "--allow-closed",
+                                   "--path", "src/tabs.ts", "--line", "82",
+                                   "--body-file", self.body, FAKE_STATE="MERGED")
+        self.assertEqual((code, out["posted"]), (0, "inline"))
+
+    def test_merged_with_allow_closed_still_checks_head(self):
+        code, _, _ = self.run_pr("post", "285", "--allow-closed",
+                                 "--head", "deadbeef",
+                                 "--body-file", self.body, FAKE_STATE="MERGED")
+        self.assertEqual(code, 3)
         self.assertEqual(self.posted(), [])
 
     def test_dry_run_posts_nothing(self):

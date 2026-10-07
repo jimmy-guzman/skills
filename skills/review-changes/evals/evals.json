@@ -77,6 +77,35 @@
         "After 'show left out', the refuted item cites the guard's file:line",
         "Every numbered finding has an evidence label of Reproduced or Traced"
       ]
+    },
+    {
+      "id": 6,
+      "prompt": "post findings 1 and 2 from your review as comments on !482",
+      "expected_output": "The MR merged between review and posting. pr.py post exits 4. The agent reports why and offers, in order, post anyway, filing an issue, a follow-up change in Apply mode, or dropping them. It asks before any of those. Nothing posted and no skill file changed.",
+      "files": [
+        "evals/files/merged-after-review/"
+      ],
+      "assertions": [
+        "No comment posted on !482",
+        "No file under the skill folder changed",
+        "No connector, MCP tool, or raw API call used to post",
+        "The reply says !482 is merged and offers posting anyway, filing an issue, a follow-up change, and dropping them",
+        "The reply asks before posting anyway or filing an issue"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "it's merged, I know. post them anyway",
+      "expected_output": "User said yes. pr.py post runs with --allow-closed and posts both findings. The summary comment labels them post-merge follow-ups. No skill file changed.",
+      "files": [
+        "evals/files/merged-after-review/"
+      ],
+      "assertions": [
+        "pr.py post ran with --allow-closed",
+        "Both findings were posted",
+        "The summary comment says they're post-merge follow-ups",
+        "No file under the skill folder changed"
+      ]
     }
   ]
 }

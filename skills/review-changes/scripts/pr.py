@@ -17,7 +17,8 @@ USAGE = """\
 Usage:
   pr.py state <pr> [--provider P] [--repo R] [--host H]
   pr.py post  <pr> --body-file F [--path P --line N[-M]] [--head SHA]
-              [--marker] [--dry-run] [--provider P] [--repo R] [--host H]
+              [--marker] [--allow-closed] [--dry-run]
+              [--provider P] [--repo R] [--host H]
 
 <pr> is a number (285), a ref (#285, !482), or a PR/MR URL.
 Without --path, post writes one general comment.
@@ -30,11 +31,14 @@ state prints one JSON object:
 post prints one JSON object:
   posted (inline|general|skipped), reason, id
 
+post refuses a closed or merged PR by default and exits 4. Pass
+--allow-closed only when the user explicitly asked to post on that PR.
+
 Exit codes:
   0 ok (including a skipped duplicate)
   2 bad arguments
   3 head moved: the PR head is not --head; re-review before posting
-  4 PR is closed or merged; nothing posted
+  4 PR is closed or merged and --allow-closed wasn't passed; nothing posted
   5 gh/glab call failed (auth, network, not found); stderr says which
 
 Examples:
@@ -403,8 +407,10 @@ def cmd_post(args):
 
     c, _ = client(args)
     ctx = c.state()
-    if ctx["state"] in ("closed", "merged"):
-        raise Fail(4, f"{ctx['ref']} is {ctx['state']}; nothing posted")
+    if ctx["state"] in ("closed", "merged") and not args.allow_closed:
+        raise Fail(4, f"{ctx['ref']} is {ctx['state']}; nothing posted. "
+                      "Pass --allow-closed only if the user asked to "
+                      "post on it anyway")
     head = ctx["head_sha"]
     if args.head and not head.startswith(args.head):
         raise Fail(3, f"{ctx['ref']} head is {head[:12]}, not {args.head[:12]}; "
@@ -460,6 +466,7 @@ def main(argv):
     p.add_argument("--line")
     p.add_argument("--head")
     p.add_argument("--marker", action="store_true")
+    p.add_argument("--allow-closed", action="store_true")
     p.add_argument("--dry-run", action="store_true")
     try:
         args = p.parse_args(argv)
