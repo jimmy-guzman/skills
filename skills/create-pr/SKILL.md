@@ -247,9 +247,10 @@ Those two sections only. Nothing else gets a heading.
 
 **Rules:**
 
-- **Specificity over category.** Each change names the file, symbol, package, or flag. Never "updated the component" or "refactored the module".
+- **Specificity over category.** Each change names the file, symbol, package, or flag, or the concrete behavior that changed ("the 320px cap is gone"). Never "updated the component" or "refactored the module".
+- **What, not how.** Each bullet says what changed for a user or reviewer. How it works is in the diff. One or two short clauses per bullet, at most one semicolon. Sub-bullets too.
 - **Why is for the reviewer, not the ticket.** Plain prose a reviewer can read without clicking through. Short sentences. Concrete nouns. No "This PR introduces", no "In order to".
-- **The body is about the change, not the session.** It carries the change and its risk. What you ran, didn't run, or skipped ("`pnpm dev` was not run on this branch"), and coordination talk ("Deploy order", "This merges first", "Follow-up MR"), is nothing a reviewer can act on; it goes in the chat summary.
+- **The body is about the change, not the session.** A risk gets one clause on the bullet it belongs to, and only when the reviewer has something specific to check. Never a paragraph of failure modes. What you ran, didn't run, or skipped ("`pnpm dev` was not run on this branch"), and coordination talk ("Deploy order", "This merges first", "Follow-up MR"), is nothing a reviewer can act on; it goes in the chat summary.
 - **Don't attribute to a role you can't verify.** No "reviewer flagged", "after feedback", "per discussion" unless a named reviewer actually said it in the thread. If the change came from reconsidering, say so directly, or just state the change.
 - **Evidence lives with the claim.** Benchmarks, before/after numbers, and screenshots sit on the bullet they support, never in a trailing section. Evidence is a before and an after; "tests pass" alone is not evidence.
 - **Show shape when shape is the point.** When the change is about structure or flow (files moving, a call order changing), a bullet can carry the smallest visual that makes it clear: a file tree, call tree, or Mermaid diagram, or a diff of one. Otherwise plain bullets.
@@ -261,8 +262,8 @@ Those two sections only. Nothing else gets a heading.
        launchAgent
   ```
 
-- **Length scales with the change, then stops.** A one-column migration gets four lines. A ten-file change gets one bullet per group of files that change together, not one per file or symbol. One line per bullet. `## Why` stays at two short paragraphs. The diff holds the rest.
-- **Three or more named items get a sub-list.** When a bullet enumerates three or more distinct packages, files, rules, or flags, split them: a short parent bullet with a label, one child bullet per item with its own change. Two items can stay inline. Hard rule, not a judgment call; the §5 lint catches it when the items are backticked, as they should be.
+- **Length scales with the change, then stops.** A one-column migration gets four lines. A ten-file change gets one bullet per group of files that change together, not one per file or symbol. One line per bullet. `## What` holds at most 6 top-level bullets and 10 in all, sub-bullets included. `## Why` stays at two short paragraphs and 80 words or fewer, not counting the ticket line. Past that, group harder or cut. The diff holds the rest.
+- **Sub-list only when each item has its own change.** A toolchain upgrade, where each package moves to its own version, gets a short labeled parent and one child per item. Items that share one change get a group name on one bullet ("Docs: spec, design, README"). Two items stay inline.
 
   ```markdown
   - Toolchain upgrade:
@@ -273,4 +274,4 @@ Those two sections only. Nothing else gets a heading.
     - `vue`: 3.5.17 -> 3.5.43
   ```
 
-- **No filler.** No em dashes, no sign-offs, no emoji in the body, no summary of the summary. The §5 lint catches em dashes, en dashes, middle dots, and curly quotes before the confirmation print.
+- **No filler.** No em dashes, no sign-offs, no emoji in the body, no summary of the summary. Before the confirmation print, the §5 lint catches em dashes, en dashes, middle dots, curly quotes, bullets over 25 words or with more than one semicolon, 3+ version arrows on a bullet, and `## What` or `## Why` over the limits above.
