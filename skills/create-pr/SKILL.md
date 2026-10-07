@@ -174,7 +174,7 @@ Never state a before you didn't observe. A test that is new in this diff and was
 - Jira or Linear: `[TICKET-ID](<link base>TICKET-ID)`, prefixed with the close keyword from §1 if any.
 - Host issue: `#123`, prefixed with the close keyword if any.
 
-**Describe and update.** Redraft from the full diff, then merge with the current description. Keep what a human added that the diff can't reproduce: uploaded images, ticked checkboxes, sections you didn't write, notes for reviewers. An empty current description needs no merge.
+**Describe and update.** Redraft from the full diff, then merge with the current description. Keep everything you did not write: uploaded images, ticked checkboxes, sections you didn't write, notes for reviewers. Drop bot spans (the auto-generated markers from §1) from the merge; §6 re-adds them from the live body at write time, so a bot that wrote after §0 still survives. An empty current description needs no merge.
 
 ### 5. Confirm inline
 
@@ -218,6 +218,8 @@ If the user corrects a detected convention, apply it to this PR. If it sounds du
 ### 6. Create or update
 
 The body is already on disk from §5. Run _Create_ (create mode) or _Update_ (describe and update) from the reference file. Change the title, labels, or draft state of an existing PR only if the user approved it.
+
+**Every body write is a full replacement.** Bots append to the body after §0 reads it (CodeRabbit lands within minutes of the open). Right before the write, re-fetch the live body and append every bot span to the draft; the _Update_ snippet in the reference file does both. This holds for any later edit of the body too, inside this skill or a one-line touch-up after it.
 
 ### 7. Verify
 

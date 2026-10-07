@@ -130,10 +130,13 @@ Fork workflow: push to the fork, then create with `-R <upstream>`, `--head <fork
 ## Update
 
 ```bash
+echo >> "$body"
+glab mr view <iid> -F json | jq -r '.description // empty' \
+  | awk '/^<!-- This is an auto-generated comment/,/^<!-- end of auto-generated comment/' >> "$body"
 glab mr update <iid> --yes --description-file "$body"
 ```
 
-Add `--title` or `--label` only if the user approved changing them.
+The fetch and awk carry every bot span from the live body; skip neither, even for a one-line touch-up. Add `--title` or `--label` only if the user approved changing them.
 
 ## Verify
 

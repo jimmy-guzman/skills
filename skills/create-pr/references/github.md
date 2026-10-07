@@ -122,10 +122,13 @@ Fork workflow: push to the fork, then create with `--repo <upstream>` and `--hea
 ## Update
 
 ```bash
+echo >> "$body"
+gh pr view <number-or-url> --json body --jq .body \
+  | awk '/^<!-- This is an auto-generated comment/,/^<!-- end of auto-generated comment/' >> "$body"
 gh pr edit <number-or-url> --body-file "$body"
 ```
 
-Add `--title` or `--add-label` only if the user approved changing them. Pass `--attach <file>` once per screenshot the same way as on create (gh 2.99.0+, see Gotchas).
+The fetch and awk carry every bot span from the live body; skip neither, even for a one-line touch-up. Add `--title` or `--add-label` only if the user approved changing them. Pass `--attach <file>` once per screenshot the same way as on create (gh 2.99.0+, see Gotchas).
 
 ## Verify
 
