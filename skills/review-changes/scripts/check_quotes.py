@@ -32,10 +32,12 @@ Prints a JSON list, one entry per finding:
                                                     around the claimed line,
                                                     to re-quote from
   {"id": 4, "status": "no-file"}                    path doesn't exist at REV
+  {"id": 5, "status": "no-quote"}                   the finding has no quote;
+                                                    add one and rerun
 
 Exit codes:
   0 every quote is where its finding says
-  1 at least one moved, missing, or no-file; fix or drop those findings
+  1 at least one moved, missing, no-file, or no-quote; fix those findings
   2 bad arguments or input
 """
 
@@ -70,9 +72,9 @@ def span(raw):
 
 def check(finding, rev, cache):
     fid = finding.get("id")
-    path, quote = finding["path"], normalize(finding["quote"])
+    path, quote = finding["path"], normalize(finding.get("quote") or "")
     if not quote:
-        return {"id": fid, "status": "missing", "reason": "empty quote"}
+        return {"id": fid, "status": "no-quote"}
     if path not in cache:
         lines = read_file(path, rev)
         cache[path] = (lines, [normalize(t) for t in lines] if lines is not None else None)
@@ -107,7 +109,7 @@ def main(argv):
         cache = {}
         results = [check(f, rev, cache) for f in findings]
     except (OSError, ValueError, KeyError, TypeError) as e:
-        print(f"error: can't read findings ({e}). Each needs path, line, and quote.", file=sys.stderr)
+        print(f"error: can't read findings ({e}). Each needs path and line.", file=sys.stderr)
         return 2
     print(json.dumps(results, indent=1))
     return 0 if all(r["status"] == "ok" for r in results) else 1

@@ -98,6 +98,15 @@ class CheckQuotes(unittest.TestCase):
         self.assertEqual(sorted(r["near"], key=int), ["1", "2", "3", "4", "5", "6"])
         self.assertIn("next[index]", r["near"]["3"])
 
+    def test_missing_or_empty_quote_is_per_finding(self):
+        code, out = self.run_check([
+            {"id": 1, "path": "src/tabs.ts", "line": "3", "quote": "next[index]"},
+            {"id": 2, "path": "src/tabs.ts", "line": "1-3"},
+            {"id": 3, "path": "src/tabs.ts", "line": "2", "quote": "   "},
+        ], self.sha)
+        self.assertEqual(code, 1)
+        self.assertEqual([r["status"] for r in out], ["ok", "no-quote", "no-quote"])
+
     def test_no_file(self):
         self.assertEqual(self.one("1", "x", path="src/nope.ts")[1]["status"], "no-file")
 
