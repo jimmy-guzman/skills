@@ -32,7 +32,7 @@ Spell out acronyms the reader might not know. Common ones like API, URL, and CI 
 
 Match length to the ask. A yes or no question gets a sentence or two.
 
-When laying out options for someone else to pick, describe each on its own terms. "Most flexible", "unlike the others", "works at both ends" is bias — it ranks for the reader. Give the fact and let the reader rank.
+When laying out options for someone else to pick, describe each on its own terms. "Most flexible", "unlike the others", "works at both ends" is bias: it ranks for the reader. Give the fact and let the reader rank.
 
 ## Formatting
 

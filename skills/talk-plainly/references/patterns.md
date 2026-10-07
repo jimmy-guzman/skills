@@ -56,12 +56,12 @@ plain: "The agents spend more time waiting on approval than the task saves."
 Looks like: one point restated several ways, every section ending with a summary of itself, "In summary" at the end.
 Instead: make the point once, in the place it belongs.
 less-plain: "In summary, the fix is to add the null check, which addresses the null-check issue."
-plain: (delete the summary — the fix is already stated above)
+plain: (delete the summary; the fix is already stated above)
 
 ### Comparative framing in options
-Looks like: "most flexible", "unlike the others", "works at both ends", "every other column uses one" — when presenting options to someone else for them to pick.
+Looks like: "most flexible", "unlike the others", "works at both ends", "every other column uses one". Shows up when presenting options to someone else for them to pick.
 Instead: describe each option on its own terms. Let the reader rank.
-less-plain: "Option B is the most flexible — unlike A, it works at both ends."
+less-plain: "Option B is the most flexible. Unlike A, it works at both ends."
 plain: "Option B accepts strings and numbers. Option A accepts only strings."
 
 ### Abstract noun gesturing
@@ -103,7 +103,7 @@ Instead: say the literal thing.
 ### Negative parallelism
 Looks like: "It's not a bug, it's a design flaw." "This isn't just a refactor." "Not because X, but because Y." "The question isn't X. The question is Y."
 Instead: say what it is.
-less-plain: "This isn't just a refactor — it's a redesign."
+less-plain: "This isn't just a refactor. It's a redesign."
 plain: "This is a redesign: the data model changes."
 
 ### Countdown
@@ -187,7 +187,7 @@ plain: three paragraphs in a row
 ### Openers
 "Great question!", "You're absolutely right!", "Perfect!", restating the request.
 Instead: start with the answer or the action.
-less-plain: "Great question! You're asking about the retry logic — let me explain."
+less-plain: "Great question! You're asking about the retry logic. Let me explain."
 plain: "The retry logic uses exponential backoff with a 2s floor."
 
 ### Narration
@@ -199,7 +199,7 @@ plain: "The function returns `null` when `rows` is empty."
 ### Victory summaries
 "I've successfully implemented", "production-ready", "all tests pass" without having run them, checkmark lists.
 Instead: say what changed, what you ran, and what you didn't verify.
-less-plain: "Successfully implemented and production-ready — all tests pass."
+less-plain: "Successfully implemented and production-ready. All tests pass."
 plain: "Added the null check in `fetch_rows`. Ran `pytest tests/fetch_test.py`: 12 pass. Didn't touch integration tests."
 
 ### Closers
@@ -211,5 +211,5 @@ plain: "Next step: run the migration on staging."
 ### Compliment sandwich in reviews
 "This is a solid start, but...", "Great work overall! One small thing...".
 Instead: state the issue and the fix. Praise only what is specifically good, and say why.
-less-plain: "Great work overall! One small thing — the error handling could be stronger."
+less-plain: "Great work overall! One small thing: the error handling could be stronger."
 plain: "`fetch_user` swallows `IntegrityError`. Let it bubble; the caller already catches it."

@@ -1,0 +1,34 @@
+[settings]
+lockfile = true
+
+[tools]
+python = "3.13.16"
+uv = "0.12.23"
+ruff = "0.16.10"
+
+[tasks.validate]
+description = "Validate every SKILL.md against the Agent Skills spec and this repo's rules"
+run = "uv run scripts/validate_skills.py"
+
+[tasks.lint]
+description = "Run ruff over skills and scripts"
+run = "ruff check skills scripts"
+
+[tasks.test]
+description = "Run every test suite"
+run = '''
+set -e
+if [ -d tests ]; then
+  echo "test: tests"
+  python -m unittest discover -s tests -t tests
+fi
+for d in skills/*/tests; do
+  [ -d "$d" ] || continue
+  echo "test: $(dirname "$d")"
+  python -m unittest discover -s "$d" -t "$d"
+done
+'''
+
+[tasks.check]
+description = "Run validate, lint, and test"
+depends = ["validate", "lint", "test"]
