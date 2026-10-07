@@ -10,7 +10,7 @@ Every command here uses `scripts/pr.py` in this skill's directory. Resolve it to
 - Posting writes to a shared system. If the agent is in a read-only or planning mode, ask the user to leave it first.
 - Use the head SHA from the preflight `state` call. Pass it as `--head` on every post. The script exits 3 when the PR has moved since the review. Then stop, say so, and offer to re-review the new head.
 - The script exits 4 for a closed or merged PR. Offer, in this order: post anyway, which still notifies the author; file an issue with the findings; a follow-up change in Apply mode, if the code is the user's; or drop them. Post anyway only on an explicit yes, by rerunning with `--allow-closed`, and say in the summary comment that these are post-merge follow-ups. File an issue only after a yes. A draft is fine when the user asked.
-- Re-check every `file:line` at the head with `python3 <skill-dir>/scripts/check_quotes.py --rev <head> <findings.json>`, the same file §4 used. Hunks drift under rebase, and the file at head wins. Fix a `moved` line before posting. Don't post a `missing` one.
+- Re-check every `file:line` at the head: pipe the findings to `python3 <skill-dir>/scripts/check_quotes.py --rev <head> -` as in §4, with ids matching the report's numbers. Hunks drift under rebase, and the file at head wins. Fix a `moved` line before posting. Don't post a `missing` one.
 - Post the numbered findings only. Left-out items (judgment calls, unverified, refuted, overflow from "Worth an issue") stay off the PR unless the user names them.
 
 ## Post each finding
