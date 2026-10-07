@@ -1,0 +1,10 @@
+# Ruff defaults for the repo. One scoped exception.
+#
+# review-changes was ported in verbatim before this tooling existed. Three rules
+# fire on it: PLW1510 (subprocess.run without explicit check), SIM115 (open
+# without with-context), RUF059 (unused unpacked variable in a test). Fixing
+# those would change the skill's shipped scripts, which we agreed not to touch.
+# Grandfathered here; future skills get the full default rule set.
+
+[lint.per-file-ignores]
+"skills/review-changes/**" = ["PLW1510", "SIM115", "RUF059"]

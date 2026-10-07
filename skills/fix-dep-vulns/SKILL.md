@@ -47,7 +47,7 @@ Group findings that share a root. One parent upgrade or removal often clears sev
 
 Work down this ladder for each finding. Stop at the first step that works.
 
-When you surface a choice to the user, the recommended option must be the lowest-letter rung that's viable. Never recommend a lower rung — dismissal, override — while an upgrade or removal is still on the table.
+When you surface a choice to the user, the recommended option must be the lowest-letter rung that's viable. Never recommend a lower rung (dismissal, override) while an upgrade or removal is still on the table.
 
 **a. Refresh the lockfile.** Check the range the installed parent version declares for the package (_Investigating_). If it already allows the patched version, re-resolve just that package (_Fixing_). The lockfile was just stale. Most findings end here.
 
@@ -55,11 +55,11 @@ When you surface a choice to the user, the recommended option must be the lowest
 
 A matching peer range isn't enough on its own. Before asking the user to approve a major, read the parent's release notes for breaking config paths (`.eslintrc` → flat config), dropped output or input formats, stricter default rulesets, and deprecated flags this repo uses. Name these in the ask so "approve the major" isn't a blank cheque.
 
-After each parent upgrade, run the smallest repo check that would catch the parent's own breakage before moving to the next finding — typecheck for API changes, lint for config-format changes, `pnpm install` for peer-dep surprises. Don't batch upgrades and run the full suite once at the end; regressions get hard to attribute.
+After each parent upgrade, run the smallest repo check that would catch the parent's own breakage before moving to the next finding: typecheck for API changes, lint for config-format changes, `pnpm install` for peer-dep surprises. Don't batch upgrades and run the full suite once at the end; regressions get hard to attribute.
 
 **c. Remove the parent.** If nothing uses the parent, remove it. Umbrella packages are the usual case: they install every module a library offers. Search the code for imports (_Investigating_). If the app only uses a few scoped packages, depend on those directly and drop the umbrella. Dependencies left behind after a refactor are the other common case.
 
-**d. Dismiss as not reachable.** A dismissal is an escape hatch like an override: it silences the signal without changing the tree. Hold it to the same bar. Only reach here when a code fix isn't available — no upstream fix exists yet, or the fix requires a major bump — **and** untrusted input can't reach the vulnerable code.
+**d. Dismiss as not reachable.** A dismissal is an escape hatch like an override: it silences the signal without changing the tree. Hold it to the same bar. Only reach here when a code fix isn't available (no upstream fix exists yet, or the fix requires a major bump) **and** untrusted input can't reach the vulnerable code.
 
 Dismiss only with evidence:
 
@@ -68,14 +68,14 @@ Dismiss only with evidence:
 
 Read the advisory. The note has to name the precondition and why this repo can't meet it, not just "dev-only". Don't dismiss a production finding on a hunch. If you aren't sure, say so and ask.
 
-A dismissal trades the audit signal for a quieter report. If the finding has no upstream fix, leaving it visible in audit output — with a note in the report, not a config entry — is also valid, and sometimes preferable: the recurring signal is a useful reminder to re-check when upstream patches land.
+A dismissal trades the audit signal for a quieter report. If the finding has no upstream fix, leaving it visible in audit output (with a note in the report, not a config entry) is also valid, and sometimes preferable: the recurring signal is a useful reminder to re-check when upstream patches land.
 
 When you do dismiss (_Dismissals_):
 
 - Every dismissal gets a note in the scanner and the comment on the config entry, using the dismissal template in [references/report.md](references/report.md).
 - If the dismissal is because the fix needs a major bump, also open a ticket for the upgrade and reference it in the note. The note explains "why not now"; the ticket is how it comes back.
 - Record it where the repo can see it, not only in the scanner: `pnpm-workspace.yaml`, `[tool.uv]`, or the CI invocation.
-- Prefer the auto-expiring form where the ecosystem has one — uv's `ignore-until-fixed` clears itself once a patched version ships. Where there isn't one (pnpm `audit.ignore`, pip `--ignore-vuln`), write the removal condition into the comment: what has to be true for this entry to come out.
+- Prefer the auto-expiring form where the ecosystem has one: uv's `ignore-until-fixed` clears itself once a patched version ships. Where there isn't one (pnpm `audit.ignore`, pip `--ignore-vuln`), write the removal condition into the comment: what has to be true for this entry to come out.
 - Tell the user explicitly that you dismissed and why a code fix wasn't available.
 
 **e. Override, as a last resort.** Only when one of these is true:

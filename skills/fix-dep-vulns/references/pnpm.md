@@ -54,7 +54,7 @@ pnpm dedupe                       # collapse duplicate copies where ranges allow
 
 If `pnpm update <pkg>` reports "Already up to date" but the finding stays, a parent pins an exact version or its range excludes the fix. Move to upgrading the parent.
 
-On a stale lockfile, `pnpm update <pkg>` can still touch many unrelated entries — anything whose range now resolves to a newer release. The large diff isn't a bug; review it, but don't fight it with pinning.
+On a stale lockfile, `pnpm update <pkg>` can still touch many unrelated entries: anything whose range now resolves to a newer release. The large diff isn't a bug; review it, but don't fight it with pinning.
 
 `pnpm audit --fix=update` re-resolves every vulnerable package at once within existing ranges. Fine for a repo with many stale findings; plain `--fix` writes overrides instead and stays off limits.
 
