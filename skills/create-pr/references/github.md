@@ -26,6 +26,7 @@ Host commands for `create-pr`. Read Gotchas before running anything.
 - **`gh pr edit` fails with a Projects (classic) GraphQL error** on older gh. Fall back to:
 
   ```bash
+  body="$(git rev-parse --git-dir)/PR_BODY.md"
   gh api -X PATCH "repos/{owner}/{repo}/pulls/<number>" -F body=@"$body"
   ```
 
@@ -88,6 +89,15 @@ First hit wins:
 1. `pull_request_template.md` (any case) in `.github/`, the repo root, or `docs/`. GitHub applies this one in the UI, so the team expects it.
 2. Exactly one file in `.github/PULL_REQUEST_TEMPLATE/`: use it. Several: ask which.
 
+**Another repo** (describe mode). Read the same locations from the host, in the same order. The API is case-sensitive, so try `pull_request_template.md` and `PULL_REQUEST_TEMPLATE.md` in each place:
+
+```bash
+gh api -H 'Accept: application/vnd.github.raw' "repos/<owner>/<repo>/contents/.github/pull_request_template.md" 2>/dev/null
+gh api "repos/<owner>/<repo>/contents/.github/PULL_REQUEST_TEMPLATE" --jq '.[].name' 2>/dev/null
+```
+
+A 404 means that path doesn't exist; move to the next.
+
 ## Issues
 
 `#123` links automatically. Close keywords: `Closes`, `Fixes`, `Resolves`.
@@ -105,6 +115,7 @@ gh pr view <number-or-url> --json commits \
 ## Create
 
 ```bash
+body="$(git rev-parse --git-dir)/PR_BODY.md"
 gh pr create \
   --draft \
   --head <branch> \
@@ -122,6 +133,7 @@ Fork workflow: push to the fork, then create with `--repo <upstream>` and `--hea
 ## Update
 
 ```bash
+body="$(git rev-parse --git-dir)/PR_BODY.md"
 echo >> "$body"
 gh pr view <number-or-url> --json body --jq .body \
   | awk '/^<!-- This is an auto-generated comment/,/^<!-- end of auto-generated comment/' >> "$body"

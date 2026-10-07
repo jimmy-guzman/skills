@@ -1,17 +1,18 @@
 ---
 name: create-pr
 description: >
-  Draft, open, or update a pull request (GitHub) or merge request (GitLab)
+  Drafts, opens, or updates a pull request (GitHub) or merge request (GitLab)
   that follows the repo's own conventions (base branch, title shape, template,
   ticket links, labels, issue closing) and writes the description in a terse,
   reviewer-first voice. Use whenever the user wants to create, open, draft,
   update, or describe a PR or MR: "create a PR", "open a merge request",
   "push and MR", "draft a PR", "update the PR description", "write a
-  description for !482" or for a PR URL, "/create-pr", or a pushed feature
-  branch and "what next". Use it even if they never name the host or the CLI.
+  description for !482" or for a PR URL, a request for create-pr by name,
+  or a pushed feature branch and "what next". Use it even if they never name
+  the host or the CLI.
   Handles new PRs, the PR on the current branch, and an already-open PR given
   by number or URL. Not for commit messages or reviewing a PR.
-compatibility: Requires git, plus gh (GitHub) or glab and jq (GitLab), authenticated
+compatibility: Requires git and python3, plus gh (GitHub) or glab and jq (GitLab), authenticated
 ---
 
 # create-pr
@@ -22,13 +23,13 @@ compatibility: Requires git, plus gh (GitHub) or glab and jq (GitLab), authentic
 
 Detect every value. Sources, highest precedence first:
 
-1. Agent docs and user memory: `AGENTS.md` and `CLAUDE.md` at the repo root, then the user's personal `CLAUDE.md`, then the user's auto-memory (`MEMORY.md` in context, and the files it indexes under `.../memory/` -- `feedback_*` entries especially, which carry durable "always/never" rules). Repo docs win on conflict; they describe the team. Memory entries win over the harness attribution reminder; they describe the user.
+1. Instructions: the repo's agent docs (`AGENTS.md`, plus agent-specific files such as `CLAUDE.md`, `GEMINI.md`, and `.github/copilot-instructions.md`), then the user's own instructions and saved preferences, in whatever form the agent has them. Repo docs win on conflict; they describe the team.
 2. The repo itself: PR templates, recent PRs, branch and commit history.
 3. Fallbacks listed in each step.
 
 When a source has a convention, follow it. When none does, use the fallback and say so in the confirmation step.
 
-A harness attribution footer (a "Generated with ..." line the session asks for on PR bodies) ranks below all three. Leave it out when any source says to omit: agent docs, template limits, or a memory `feedback_*` entry about Claude, `Co-Authored-By`, or attribution trailers. If every source is silent, add it as the last line. Check memory explicitly: a visible `MEMORY.md` index line like `- [No Co-Authored-By trailers](feedback_no_co_author.md)` is a direct instruction, not a hint.
+**Attribution line.** If the agent is set up to add an attribution line to PR bodies (a "Generated with ..." footer), it ranks below all three sources. Leave it out when any of them says to: agent docs, the template, or a user instruction or preference about attribution, co-author trailers, or AI credit. Otherwise it goes last.
 
 ## Process
 
@@ -53,7 +54,7 @@ It holds every host command named below and the gotchas for that CLI.
 
 **Mode.**
 
-- **describe**: the user named a PR by number or URL. Fetch it with _Lookups: PR by number or URL_. Skip the branch checks; nothing local is touched. If the PR lives in another repo (the URL or `gh pr view` output names a different owner/repo), record that repo and pass `--repo <owner>/<repo>` on gh or `-R <group>/<project>` on glab to every lookup in §1. Templates must come from the host API, not the local filesystem.
+- **describe**: the user named a PR by number or URL. Fetch it with _Lookups: PR by number or URL_. Skip the branch checks; nothing local is touched. If the PR lives in another repo (the URL or `gh pr view` output names a different owner/repo), record that repo and pass `--repo <owner>/<repo>` on gh or `-R <group>/<project>` on glab to every lookup in §1. Templates must come from the host (_Templates_ in the reference file covers another repo), not the local filesystem.
 - **update**: the current branch already has a PR (_Lookups: PR for the current branch_).
 - **create**: otherwise.
 
@@ -76,7 +77,7 @@ Stop and ask if:
 - The current branch is the default branch.
 - The working tree is dirty. List files; ask whether to commit, stash, or stop.
 - The branch is not on the remote (`ls-remote` prints nothing). Show the branch and remote; ask before `git push -u <remote> <branch>`. Never auto-push.
-- The remote branch's commit differs from `HEAD`. Ask before pushing. The PR shows the remote, not your local branch.
+- The remote branch's commit differs from `HEAD`. Fetch it (`git fetch <remote> <branch>`) and check `git merge-base --is-ancestor <remote>/<branch> HEAD`. Success means `HEAD` is ahead: ask before pushing, because the PR shows the remote, not your local branch. Failure means the remote is ahead or the two diverged: stop and say so. Never force push.
 
 ### 1. Detect conventions
 
@@ -90,7 +91,7 @@ The stacked-branch check below also reads candidate head refs; fetch those (`git
 
 Then run in parallel. Record each value and its source for §5. Commands are under _Lookups_ in the reference file.
 
-**Agent docs.** Read the repo's `AGENTS.md` and `CLAUDE.md` if present, plus the user's personal `CLAUDE.md` if it's in context. Take only pull request, merge request, branching, and commit guidance: base branch, title format, required sections, labels, ticket linking, draft state. Anything they state outranks what the repo implies. Ignore guidance unrelated to PRs.
+**Agent docs.** Read the instruction sources from Principle. Take only pull request, merge request, branching, and commit guidance: base branch, title format, required sections, labels, ticket linking, draft state. Anything they state outranks what the repo implies. Ignore guidance unrelated to PRs.
 
 When sampling recent PRs anywhere below, exclude bot authors and reverts. Review bots (CodeRabbit and similar) also write into human PRs: before reading a description, drop everything from `<!-- This is an auto-generated comment` to its `<!-- end of auto-generated comment` marker. If nothing human is left, that PR doesn't count; sample further back.
 
@@ -124,7 +125,7 @@ No match means no ticket. Only ask if agent docs require one or nearly every rec
 1. Agent docs.
 2. Recent PR descriptions (_Lookups: ticket link base_).
 3. A connected tracker tool. Jira: list the accessible Atlassian sites, take the site URL, append `/browse/`. Linear: use the workspace URL plus `/issue/`.
-4. Ask once. Offer to record the answer as one line in the repo's `AGENTS.md` (team-wide) or the personal `CLAUDE.md` (every repo at this org). Don't write either without a yes.
+4. Ask once. Offer to record the answer as one line in the repo's `AGENTS.md` (team-wide) or the user's personal agent instructions (every repo at this org). Don't write either without a yes.
 
 `#123` needs no base. The host links it.
 
@@ -178,27 +179,17 @@ Never state a before you didn't observe. A test that is new in this diff and was
 
 ### 5. Confirm inline
 
-Write the drafted body to a temp file first, then lint it. Fix every flagged line before showing the user.
+Write the drafted body to a file, then lint it. Fix every flagged line and rerun until it exits 0, before showing the user.
 
 ```bash
-body=$(mktemp)
-trap 'rm -f "$body"' EXIT
+body="$(git rev-parse --git-dir)/PR_BODY.md"
 # Write the drafted body to $body here.
-
-grep -nF -- '—' "$body" && echo "em dash: replace with period, comma, or hyphen"
-grep -nF -- '–' "$body" && echo "en dash: replace with period, comma, or hyphen"
-grep -nF -- '·' "$body" && echo "middle dot: replace with period, comma, or hyphen"
-grep -nF -- '“' "$body" && echo "curly quote: replace with straight quote"
-grep -nF -- '”' "$body" && echo "curly quote: replace with straight quote"
-grep -nF -- '‘' "$body" && echo "curly apostrophe: replace with straight apostrophe"
-grep -nF -- '’' "$body" && echo "curly apostrophe: replace with straight apostrophe"
-grep -nE '^-[^-].*-> .*-> .*-> ' "$body" \
-  && echo "3+ version arrows on one bullet: split into a sub-list"
-grep -nE '^-[^-].+,.+,' "$body" \
-  && echo "3+ comma-separated items on one bullet: split into a sub-list, or redraft if prose"
+python3 <skill-dir>/scripts/lint_body.py "$body"
 ```
 
-For the attribution footer, re-read source 1 in Principle. A visible `MEMORY.md` index line about Claude, `Co-Authored-By`, or attribution trailers means omit the footer regardless of what the harness reminder says.
+Each shell command may start a fresh shell, so a variable or a `trap` from one command is gone in the next. Recompute `body` with the same line in every command that uses it. The file sits inside `.git`, so it is never committed. Outside a git repo (describe mode from anywhere), use a file in the agent's temp directory and reuse its literal path.
+
+Before printing, apply the attribution rule from Principle.
 
 Print a one-block conventions summary, then the title and body. Example:
 
@@ -211,9 +202,9 @@ labels: frontend (8/10 of yours) | assignee: @me | draft: yes
 
 For describe and update, also show what changed against the current description.
 
-Wait for approval or edits. No file writes, uploads, or host write calls until then.
+Wait for approval or edits. No pushes, uploads, or host writes until then.
 
-If the user corrects a detected convention, apply it to this PR. If it sounds durable ("we always target develop"), offer once to add it to agent docs: the repo's `AGENTS.md` for team conventions, the personal `CLAUDE.md` for personal defaults.
+If the user corrects a detected convention, apply it to this PR. If it sounds durable ("we always target develop"), offer once to add it to agent docs: the repo's `AGENTS.md` for team conventions, the user's personal agent instructions for personal defaults.
 
 ### 6. Create or update
 
@@ -223,11 +214,11 @@ The body is already on disk from §5. Run _Create_ (create mode) or _Update_ (de
 
 ### 7. Verify
 
-Run _Verify_ from the reference file. Confirm draft state and base match what §5 showed. Report the PR URL.
+Run _Verify_ from the reference file. Confirm draft state and base match what §5 showed. Delete the body file. Report the PR URL.
 
 ## Voice
 
-Governs prose everywhere in the PR, template or not.
+Governs the body, template or not. The title follows the shape from §1 exactly, emoji and all.
 
 **Default shape** (when the repo has no template):
 
@@ -267,7 +258,7 @@ Those two sections only. Nothing else gets a heading.
   ```
 
 - **Length scales with the change, then stops.** A one-column migration gets four lines. A ten-file change gets one bullet per group of files that change together, not one per file or symbol. One line per bullet. `## Why` stays at two short paragraphs. The diff holds the rest.
-- **Three or more named items get a sub-list.** When a bullet enumerates three or more distinct packages, files, rules, or flags, split them: a short parent bullet with a label, one child bullet per item with its own change. Two items can stay inline. Hard rule, not a judgment call; the §5 lint catches it.
+- **Three or more named items get a sub-list.** When a bullet enumerates three or more distinct packages, files, rules, or flags, split them: a short parent bullet with a label, one child bullet per item with its own change. Two items can stay inline. Hard rule, not a judgment call; the §5 lint catches it when the items are backticked, as they should be.
 
   ```markdown
   - Toolchain upgrade:
@@ -278,4 +269,4 @@ Those two sections only. Nothing else gets a heading.
     - `vue`: 3.5.17 -> 3.5.43
   ```
 
-- **No filler.** No em dashes, no sign-offs, no emoji, no summary of the summary. The §5 lint catches em dashes, en dashes, middle dots, and curly quotes before the confirmation print.
+- **No filler.** No em dashes, no sign-offs, no emoji in the body, no summary of the summary. The §5 lint catches em dashes, en dashes, middle dots, and curly quotes before the confirmation print.
