@@ -54,13 +54,13 @@ It holds every host command named below and the gotchas for that CLI.
 
 **Mode.**
 
-- **describe**: the user named a PR by number or URL. Fetch it with _Lookups: PR by number or URL_. Skip the branch checks; nothing local is touched. If the PR lives in another repo (the URL or `gh pr view` output names a different owner/repo), record that repo and pass `--repo <owner>/<repo>` on gh or `-R <group>/<project>` on glab to every lookup in §1. Templates must come from the host (_Templates_ in the reference file covers another repo), not the local filesystem.
+- **describe**: the user named a PR by number or URL. Fetch it with _Lookups: PR by number or URL_. Skip the branch checks; nothing local is touched. If the PR lives in another repo (the URL or `gh pr view` output names a different owner/repo), record that repo and use it in every lookup in §1: `<owner>/<repo>` in place of `{owner}/{repo}` on GitHub, or `-R <group>/<project>` on glab. Templates must come from the host (_Templates_ in the reference file covers another repo), not the local filesystem.
 - **update**: the current branch already has a PR (_Lookups: PR for the current branch_).
 - **create**: otherwise.
 
-Describe and update keep the PR's current title, description, base, labels, and draft state for §4 and §6.
+Describe and update keep the PR's current title, description, base, labels, and draft state for §4 and §6, so in §1 they skip Base branch, Title shape, Metadata, and Draft.
 
-**Branch checks** (create and update only).
+**Branch checks** (create and update only). Run them as one command.
 
 ```bash
 git status --porcelain
@@ -84,12 +84,12 @@ Stop and ask if:
 Fetch first so every ref the parallel runs read actually exists locally:
 
 ```bash
-git fetch <remote> <base>
+git fetch <remote> <base> <candidate>...
 ```
 
-The stacked-branch check below also reads candidate head refs; fetch those (`git fetch <remote> <candidate>`) before the ancestor check. Shallow and single-branch clones have neither otherwise.
+The candidates are the head branches of your open PRs, for the stacked-branch check below; one fetch covers them all. Shallow and single-branch clones have none of these refs otherwise.
 
-Then run in parallel. Record each value and its source for §5. Commands are under _Lookups_ in the reference file.
+Then run the lookups as parallel calls in one turn. Record each value and its source for §5. Commands are under _Lookups_ in the reference file. An error is a failed lookup: report it, never read it as "none found".
 
 **Agent docs.** Read the instruction sources from Principle. Take only pull request, merge request, branching, and commit guidance: base branch, title format, required sections, labels, ticket linking, draft state. Anything they state outranks what the repo implies. Ignore guidance unrelated to PRs.
 
@@ -99,7 +99,7 @@ When sampling recent PRs anywhere below, exclude bot authors and reverts. Review
 
 1. The existing PR's base (describe and update).
 2. Agent docs.
-3. Stacked branch. For each head branch of the user's open PRs, fetch it (`git fetch <remote> <candidate>`), then check `git merge-base --is-ancestor <remote>/<candidate> HEAD`. If one is an ancestor and closer than the default branch (smaller `git rev-list --count <remote>/<candidate>..HEAD`), propose it and ask.
+3. Stacked branch. For each candidate fetched above, check `git merge-base --is-ancestor <remote>/<candidate> HEAD`, all in one loop. If one is an ancestor and closer than the default branch (smaller `git rev-list --count <remote>/<candidate>..HEAD`), propose it and ask.
 4. Default branch.
 
 **Title shape.** Agent docs, then the dominant shape (not the words) of recent merged titles. Match it exactly: ticket prefix and its punctuation, `type(scope):` if used, casing, and whether identifiers are backticked. Fallbacks: the branch's first commit subject (`git log <remote>/<base>..HEAD --format=%s | tail -1`), then plain English.
@@ -141,17 +141,21 @@ No match means no ticket. Only ask if agent docs require one or nearly every rec
 
 ### 2. Gather context
 
-**Create and update.** The base fetch ran in §1. In parallel:
+**Create and update.** The base fetch ran in §1. One command:
 
-- `git diff --stat <remote>/<base>...HEAD` to size the change.
-- `git diff <remote>/<base>...HEAD` excluding lockfiles, generated code, snapshots, and vendored files. For large diffs, read per file guided by the stat.
-- `git log <remote>/<base>..HEAD --format='%h %s%n%b'`. Commit bodies carry intent.
+```bash
+git diff --stat <remote>/<base>...HEAD
+git log <remote>/<base>..HEAD --format='%h %s%n%b'
+git diff <remote>/<base>...HEAD -- . ':(exclude,glob)**/*.lock' ':(exclude,glob)**/*-lock.*' ':(exclude,glob)**/go.sum'
+```
+
+Commit bodies carry intent. Skip generated code, snapshots, and vendored files when reading. When the stat runs past about 1,500 lines, drop the last line and read the diff per file group instead.
 
 Diff against the fetched remote base, never the local one. A stale local base shows changes that aren't yours.
 
 **Describe.** Use _Existing PR diff_ in the reference file for the diff and commits. It reads from the host, so it works for branches that aren't checked out and for forks.
 
-**All modes.** Ticket details: a tracker tool for Jira or Linear ids, the host's issue view for `#n`.
+**All modes.** Ticket details only when the commits and diff don't already say why: a tracker tool for Jira or Linear ids, the host's issue view for `#n`. Tracker calls are often the slowest step.
 
 ### 3. Decide the evidence
 
@@ -202,7 +206,7 @@ labels: frontend (8/10 of yours) | assignee: @me | draft: yes
 
 For describe and update, also show what changed against the current description.
 
-Wait for approval or edits. No pushes, uploads, or host writes until then.
+Wait for approval or edits. No pushes, uploads, or host writes until then. If the request already said to go ahead ("just open it", "ship it"), that is the approval: print the summary and continue to §6.
 
 If the user corrects a detected convention, apply it to this PR. If it sounds durable ("we always target develop"), offer once to add it to agent docs: the repo's `AGENTS.md` for team conventions, the user's personal agent instructions for personal defaults.
 
