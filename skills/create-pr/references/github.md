@@ -23,6 +23,12 @@ Host commands for `create-pr`. Read Gotchas before running anything.
 - **Screenshots.** Ask the user for image paths. Reference each in the body as `![before](./before.png)` and pass `--attach ./before.png`; gh uploads the file and rewrites the matching reference, or appends the attachment if no reference matches. Works on `gh pr create` and `gh pr edit` since gh 2.99.0, on GitHub.com and Enterprise Cloud only. Older gh or Enterprise Server (check `gh pr edit --help` for `--attach`): leave the placeholders and tell the user to drag the images into the description in the browser. Never commit images to the branch just to link them.
 - **`gh pr edit` never changes draft state.** Only `gh pr ready` (and `--undo`) does. Don't run either unless the user asked.
 - **`--draft` rejected.** Some private repos don't support draft PRs. Ask before creating it as ready.
+- **Some sessions block GitHub GraphQL.** Hosted agent sessions (Claude Code in the cloud, for one) answer `gh pr view`, `gh pr list`, `gh pr diff`, `gh pr create`, `gh pr edit`, and `gh repo view` with HTTP 403 "GitHub GraphQL is not available". _Lookups_ already use REST. For the rest, use `gh api`:
+  - Create: `gh api -X POST "repos/{owner}/{repo}/pulls" -f title="<title>" -f head=<branch> -f base=<base> -F draft=true -F body=@"$body" --jq .number`. Then labels with `gh api -X POST "repos/{owner}/{repo}/issues/<n>/labels" -f 'labels[]=<a>'` and the assignee with `gh api -X POST "repos/{owner}/{repo}/issues/<n>/assignees" -f 'assignees[]=<login>'`.
+  - Update: the PATCH fallback below, after the bot-span append from _Update_.
+  - Diff and commits: `gh api -H 'Accept: application/vnd.github.diff' "repos/{owner}/{repo}/pulls/<n>"` and `gh api "repos/{owner}/{repo}/pulls/<n>/commits" --jq '.[] | "\(.sha[:7]) \(.commit.message)"'`.
+  - Verify: `gh api "repos/{owner}/{repo}/pulls/<n>" --jq '{number, title, draft, base: .base.ref, url: .html_url}'`.
+  - `--attach` has no REST form. Leave the image placeholders and say so.
 - **`gh pr edit` fails with a Projects (classic) GraphQL error** on older gh. Fall back to:
 
   ```bash
@@ -32,55 +38,63 @@ Host commands for `create-pr`. Read Gotchas before running anything.
 
 ## Lookups
 
-PR for the current branch (no output: none exists):
+These use REST (`gh api`), so they also work where GraphQL is blocked (see Gotchas). Run independent ones as parallel calls in one turn. An error is a failed lookup: report it, never read it as "none found". `{owner}/{repo}` fills in from the local repo; for another repo, write `<owner>/<repo>`.
+
+PR for the current branch (an empty result means none exists):
 
 ```bash
-gh pr view --json number,isDraft,title,body,baseRefName,labels,url 2>/dev/null
+gh api "repos/{owner}/{repo}/pulls?head={owner}:{branch}&state=open" \
+  --jq '.[] | {number, draft, title, body, base: .base.ref, labels: [.labels[].name], url: .html_url}'
 ```
 
-PR by number or URL (gh accepts either, including URLs in other repos):
+PR by number. For a URL, take the owner, repo, and number from it:
 
 ```bash
-gh pr view <number-or-url> --json number,isDraft,title,body,baseRefName,headRefName,labels,url
+gh api "repos/<owner>/<repo>/pulls/<n>" \
+  --jq '{number, draft, title, body, base: .base.ref, head: .head.ref, labels: [.labels[].name], url: .html_url}'
 ```
 
 Default branch:
 
 ```bash
-gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name'
+gh api "repos/{owner}/{repo}" --jq .default_branch
 ```
+
+Your login, for the two lookups that filter on it: `gh api user --jq .login`.
 
 Your open PR branches (stacked-branch check):
 
 ```bash
-gh pr list --author @me --json headRefName --jq '.[].headRefName'
+gh api "repos/{owner}/{repo}/pulls?state=open&per_page=100" \
+  --jq '.[] | select(.user.login == "<login>") | .head.ref'
 ```
 
 Recent merged titles, bots excluded:
 
 ```bash
-gh pr list --state merged --limit 20 --json title,author \
-  --jq '[.[] | select(.author.is_bot | not) | .title] | .[:10][]'
+gh api "repos/{owner}/{repo}/pulls?state=closed&sort=updated&direction=desc&per_page=50" \
+  --jq '[.[] | select(.merged_at != null and .user.type != "Bot") | .title][:10][]'
 ```
 
 Ticket link base:
 
 ```bash
-gh pr list --state merged --limit 20 --json body --jq '.[].body' \
+gh api "repos/{owner}/{repo}/pulls?state=closed&sort=updated&direction=desc&per_page=50" \
+  --jq '.[] | select(.merged_at != null and .user.type != "Bot") | .body // empty' \
   | grep -oE 'https?://[^ )>]+/[A-Z][A-Z0-9]+-[0-9]+' \
   | sed -E 's|[A-Z][A-Z0-9]+-[0-9]+$||' \
   | sort | uniq -c | sort -rn | head -1
 ```
 
-Your recent metadata:
+Your recent metadata. `requested_reviewers` empties once reviewers review, so it is often blank:
 
 ```bash
-gh pr list --author @me --state merged --limit 10 \
-  --json labels,assignees,latestReviews \
-  --jq '[.[] | {labels: [.labels[].name], assignees: [.assignees[].login], reviewers: [.latestReviews[].author.login]}]'
+gh api "repos/{owner}/{repo}/pulls?state=closed&sort=updated&direction=desc&per_page=50" \
+  --jq '[.[] | select(.merged_at != null and .user.login == "<login>")][:10]
+    | map({labels: [.labels[].name], assignees: [.assignees[].login], reviewers: [.requested_reviewers[].login]})'
 ```
 
-Issue details: `gh issue view <n> --json title,body`.
+Issue details: `gh api "repos/{owner}/{repo}/issues/<n>" --jq '{title, body}'`.
 
 ## Templates
 

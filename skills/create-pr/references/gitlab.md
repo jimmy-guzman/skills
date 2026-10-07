@@ -32,10 +32,12 @@ Host commands for `create-pr`. Read Gotchas before running anything.
 
 ## Lookups
 
-MR for the current branch (no output: none exists):
+Run independent lookups as parallel calls in one turn. An error is a failed lookup: report it, never read it as "none found".
+
+MR for the current branch. An error saying no merge request was found means none exists. Any other error, such as an HTTP 401 or 403, is a failed lookup: stop and say so, never fall through to create mode.
 
 ```bash
-glab mr view -F json 2>/dev/null \
+glab mr view -F json \
   | jq '{iid, draft, title, description, target_branch, labels, web_url}'
 ```
 
