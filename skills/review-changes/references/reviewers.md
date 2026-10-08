@@ -32,10 +32,10 @@ Briefs for the reviewers in SKILL.md §3 and the verifier in §4. A reviewer rea
 - Compare the diff with the spec sources and name the line each finding rests on. Unrelated config edits and a refactor riding along with a fix are scope creep.
 - Then check the words against the code: every factual claim the diff adds to docs or comments, and every doc that described behavior the diff changed (grep for it). Docs should be plain, factual, and short; flag filler, restated rationale, and em dashes.
 - Answer each question in `verdicts` with the ids of the findings that answer it, or "none" plus one sentence on what you checked. A bare "none" is not an answer.
-  - Missing or partial: is anything the spec asked for not done?
-  - Scope creep: did anything change that the spec didn't ask for?
-  - Implemented but wrong: does anything built behave unlike the spec?
-  - Docs vs code (only when the diff touches docs or documented behavior): do they disagree?
+  - Completeness: is anything the spec asked for not done?
+  - Scope: did anything change that the spec didn't ask for?
+  - Correctness: does anything built behave unlike the spec?
+  - Consistency (only when the diff touches docs or documented behavior): do they disagree?
 
 ## Reviewer output
 
@@ -78,7 +78,7 @@ Return one JSON object and nothing else: no preamble, no summary, no code fence.
 - `tag`: delete, stdlib, native, yagni, or shrink.
 - `left_out`: judgment calls and problems the diff didn't cause, one string each: file:line, kind, why.
 - Standards adds `"coverage": "Walked 12 rules from AGENTS.md against 6 changed files."`
-- Spec adds `"verdicts"`: `{"Missing or partial": ["P1"], "Scope creep": "none: only tabs.ts and types.ts change."}` and so on.
+- Spec adds `"verdicts"`: `{"Completeness": ["P1"], "Scope": "none: only tabs.ts and types.ts change."}` and so on.
 - Keep every key, with empty lists when there's nothing.
 
 ## Verifier

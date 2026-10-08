@@ -13,7 +13,7 @@
         "The second line is a 'Reviewed:' line naming uncommitted changes and the sources read",
         "The Standards group is headed with AGENTS.md; if it has no findings it is one line saying how many rules were walked against how many files",
         "Every numbered finding has a title, a severity | effort | evidence line, and a file:line",
-        "The Spec group names issue #41 and has Missing or partial, Scope creep, and Implemented but wrong lines, each giving finding numbers or 'none' with what was checked",
+        "The Spec group names issue #41 and has Completeness, Scope, and Correctness lines, each giving finding numbers or 'none' with what was checked",
         "Every evidence label in the numbered list is Reproduced or Traced",
         "The off-by-one in the last-tab close path is reported as a Bugs finding labeled Reproduced, with the failing command",
         "scripts/check_quotes.py ran before the report",

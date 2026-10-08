@@ -36,9 +36,9 @@ Not ready: 1 Major (1), 1 missing from issue #41 (3).
 Reviewed at 1a2b3c4 against AGENTS.md and issue #41.
 
 Spec (issue #41)
-Missing or partial: 3.
-Scope creep: none. Only `tabs.ts` and `types.ts` change; settings and routing are untouched.
-Implemented but wrong: none. `activate` restores the caret on every path the issue names.
+Completeness: 3.
+Scope: none. Only `tabs.ts` and `types.ts` change; settings and routing are untouched.
+Correctness: none. `activate` restores the caret on every path the issue names.
 
 1. Fall back to the previous tab when the last one closes, `src/store/tabs.ts:88`
 2. Delete the comment that restates the code, `src/store/tabs.ts:70-74`

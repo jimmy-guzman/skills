@@ -143,9 +143,9 @@ Standards (AGENTS.md)
    AGENTS.md allows doc comments only, and this one repeats the next four lines.
 
 Spec (issue #41)
-Missing or partial: 3.
-Scope creep: none. Only `tabs.ts` and `types.ts` change; settings and routing are untouched.
-Implemented but wrong: none. `activate` restores the caret on every path the issue names.
+Completeness: 3.
+Scope: none. Only `tabs.ts` and `types.ts` change; settings and routing are untouched.
+Correctness: none. `activate` restores the caret on every path the issue names.
 3. Keep the tab's scroll position, which the issue asks for
    Minor | Heavy lift | Traced
    `src/store/tabs.ts:40`
@@ -162,7 +162,7 @@ Left out: 1 judgment call, 2 unverified, 1 refuted. Say "show left out" to see t
 Say "apply", or name the numbers.
 ```
 
-The first line is the verdict, from the labels alone. `Not ready:` when any finding is Critical or Major or answers Missing or partial, with counts and finding numbers. Else `Ready.` and the count of Minor findings.
+The first line is the verdict, from the labels alone. `Not ready:` when any finding is Critical or Major or answers Completeness, with counts and finding numbers. Else `Ready.` and the count of Minor findings.
 
 The Standards and Spec groups print whenever they have a source, headed by it. Standards with no findings is one line: `Standards (AGENTS.md): none. Walked 12 rules against 6 changed files.` Spec gives a line per verdict, then its findings. Write the verdicts after §4, from what survived: finding numbers, or "none" with what was checked. No side notes in a verdict; anything worth noting is a finding or goes to `Left out:`.
 
