@@ -10,7 +10,8 @@
       ],
       "assertions": [
         "The report starts with a 'Reviewed:' line naming uncommitted changes and the sources read",
-        "Every numbered finding has a title, a category | severity | effort | evidence line, and a file:line",
+        "Every numbered finding has a title, a severity | effort | evidence line, and a file:line",
+        "The Spec group names issue #41 and has Missing or partial, Scope creep, and Implemented but wrong lines, each giving finding numbers or 'none' with what was checked",
         "Every evidence label in the numbered list is Reproduced or Traced",
         "The off-by-one in the last-tab close path is reported as a Bugs finding labeled Reproduced, with the failing command",
         "scripts/check_quotes.py ran before the report",
@@ -32,7 +33,8 @@
         "The report does not refer to the conversation",
         "The report's last line starts with 'Nothing applied. For an agent:'",
         "After the report, one line offers to post the findings to #285",
-        "In a planning mode, the offer says that mode has to be turned off first"
+        "In a planning mode, the offer says that mode has to be turned off first",
+        "If the PR names an issue, the report has the Spec verdict lines even when Spec has no findings"
       ]
     },
     {

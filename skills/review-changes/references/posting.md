@@ -29,10 +29,15 @@ python3 <skill-dir>/scripts/pr.py post <pr> --head <sha> \
 - A retry is safe: an identical comment at the same spot comes back as `"posted": "skipped"`.
 - `--dry-run` prints what would be posted without posting it. Use it when the user wants to see the comments first.
 
-After the findings, post one summary comment: the same command without `--path` and `--line`, plus `--marker`. The marker adds `<!-- review-changes: <head_sha> -->`, which the next preflight reads to spot "already reviewed at this SHA". The body is the `Reviewed:` line and one line per posted finding: number, title, `file:line`. Leave out the `Left out:` line and the agent handoff line.
+After the findings, post one summary comment: the same command without `--path` and `--line`, plus `--marker`. The marker adds `<!-- review-changes: <head_sha> -->`, which the next preflight reads to spot "already reviewed at this SHA". The body is the `Reviewed:` line, the Spec verdicts if the report has them, and one line per posted finding: number, title, `file:line`. Leave out the `Left out:` line and the agent handoff line.
 
 ```text
 Reviewed at 1a2b3c4 against AGENTS.md and issue #41.
+
+Spec (issue #41)
+Missing or partial: 3.
+Scope creep: none. Only `tabs.ts` and `types.ts` change; settings and routing are untouched.
+Implemented but wrong: none. `activate` restores the caret on every path the issue names.
 
 1. Fall back to the previous tab when the last one closes, `src/store/tabs.ts:88`
 2. Delete the comment that restates the code, `src/store/tabs.ts:70-74`

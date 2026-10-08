@@ -125,6 +125,11 @@ Then apply this baseline, which any repo rule overrides:
 ```text
 Compare the diff with the spec sources and name the line each finding rests on. Report what the spec asked for that is missing or partial, behavior nobody asked for (unrelated config edits, a refactor riding along with a fix), and what looks implemented but is wrong.
 Then check the words against the code: every factual claim the diff adds to docs or comments, and every doc that described behavior the diff changed (grep for it). Docs should be plain, factual, and short; flag filler, restated rationale, and em dashes.
+Answer each question with the findings that answer it, or "none" plus one sentence on what you checked. A bare "none" is not an answer.
+- Missing or partial: is anything the spec asked for not done?
+- Scope creep: did anything change that the spec didn't ask for?
+- Implemented but wrong: does anything built behave unlike the spec?
+- Docs vs code (only when the diff touches docs or documented behavior): do they disagree?
 ```
 
 When the user asks for a thorough review, run the Bugs reviewer twice, each with fresh context, and merge both lists. Two runs catch bugs one run misses, and §4 removes what doesn't hold.
@@ -159,7 +164,7 @@ Group the findings by reviewer in this order: Bugs, Standards, Spec, Cuts. Numbe
 Each finding has:
 
 - A title that is the fix, as a command.
-- A label line: category | severity | effort | evidence.
+- A label line: severity | effort | evidence.
 - `file:line`.
 - Up to three plain sentences: what triggers it, what the code does, what the user ends up seeing. Then the fix. A Standards or Spec finding names its source in a few words, with no quote.
 - An `Evidence:` line: the command and the failing output for Reproduced, or the file:line steps for Traced. Leave it out when the prose already shows the whole path. When §4 changed the severity, say why here.
@@ -167,7 +172,6 @@ Each finding has:
 
 Labels:
 
-- Category: Functional Correctness, Data Integrity & Integration, Stability & Availability, Security & Privacy, Performance & Scalability, or Maintainability & Code Quality. Pick by what goes wrong for the user. Broken rules that don't change behavior, comments, scope creep, and missing tests are Maintainability & Code Quality.
 - Severity: Critical is data loss, a security hole, or a crash, on a path users commonly take. Major is wrong behavior a user will hit, or a failure with no way back. Minor is everything else, including faults that are rare or cosmetic. Most findings are Minor.
 - Effort: Quick win is a contained change of a few lines. Heavy lift needs a design decision.
 - Evidence: Reproduced or Traced, from §4. Nothing else reaches the numbered list.
@@ -177,7 +181,7 @@ Reviewed: uncommitted changes (6 files, lockfile left out) against AGENTS.md and
 
 Bugs
 1. Fall back to the previous tab when the last one closes
-   Functional Correctness | Major | Quick win | Reproduced
+   Major | Quick win | Reproduced
    `src/store/tabs.ts:88`
    Closing the last tab reads `next[index]`, which is past the end after the removal. The app is left with tabs open and none active.
    Evidence: `pnpm test tabs -t "closes last tab"` fails: expected "t2", received null.
@@ -187,13 +191,16 @@ Bugs
 
 Standards
 2. Delete the comment that restates the code
-   Maintainability & Code Quality | Minor | Quick win | Traced
+   Minor | Quick win | Traced
    `src/store/tabs.ts:70-74`
    AGENTS.md allows doc comments only, and this one repeats the next four lines.
 
-Spec
+Spec (issue #41)
+Missing or partial: 3.
+Scope creep: none. Only `tabs.ts` and `types.ts` change; settings and routing are untouched.
+Implemented but wrong: none. `activate` restores the caret on every path the issue names.
 3. Keep the tab's scroll position, which the issue asks for
-   Functional Correctness | Minor | Heavy lift | Traced
+   Minor | Heavy lift | Traced
    `src/store/tabs.ts:40`
    Issue #41 asks for scroll and caret to survive a tab switch. The change saves the caret only, so switching back lands at the top. Store `scrollTop` beside the caret in `TabState` and restore both in `activate`.
    Evidence: `activate` (`tabs.ts:52`) restores the caret only, and `TabState` (`types.ts:12`) has no scroll field.
@@ -209,7 +216,9 @@ net: -40 lines possible.
 Say "apply", or name the numbers.
 ```
 
-`net` counts only what the cuts delete. Leave out any group or line that is empty. With nothing to report, write the `Reviewed:` line, the `Left out:` line if it has anything, and `Lean already. Ship.`
+The Spec group prints whenever there is a spec source, even with no findings: the source as its heading, a line per verdict, then its findings. Write the verdicts after §4, from what survived. Each gives finding numbers, or "none" with what was checked. No side notes in a verdict; anything worth noting is a finding or goes to `Left out:`.
+
+`net` counts only what the cuts delete. Leave out any other group or line that is empty. With nothing to report, write the `Reviewed:` line, the Spec verdicts, the `Left out:` line if it has anything, and `Lean already. Ship.`
 
 The report holds only what to act on. Judgment calls, unverified, refuted, and quote-not-found findings only get counted in the `Left out:` line, by kind. "Worth an issue" lists at most three; the rest count there as "N more worth an issue". On "show left out", print one line each, numbered `L1`, `L2`: `file:line`, kind, and why, with what would settle an unverified one and the proof for a refuted one.
 
