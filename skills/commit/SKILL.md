@@ -100,15 +100,17 @@ Use this for subject, scope, and type inference.
 
 **Type.** Requires an explicit behavior signal, never line or file count alone, this is the single most common way an AI gets `type` wrong.
 
-- `test`: diff is test files only.
-- `docs`: diff is docs or comments only.
-- `feat`: a new exported function, class, CLI flag, or API surface appears, or a capability a caller didn't have before is added. The diff must show the new surface, not just "a lot changed".
-- `fix`: the diff corrects behavior that was wrong, a bug keyword in the branch name or an in-progress message, or an issue reference; or the diff removes or guards a code path that produced an incorrect result. Not "touched a function that has bugs in general".
-- `chore` / `refactor`: everything else, including internal restructuring, deps, tooling, config, or formatting with no behavior change. This is the default when neither `feat` nor `fix` has a real signal; never stretch to `feat` or `fix` to seem more substantial.
+Classify by the effect on whoever consumes the artifact, never by which file or file type changed. A caller of a function, a user of a CLI flag, a reader of a doc, and a downstream agent following a skill's instructions are all consumers; the rule is the same for all of them. A markdown-only, config-only, or dependency-only diff is not automatically `docs` or `chore` just because of its extension, and a diff inside `src/` is not automatically `feat`/`fix` just because it's code. Check what actually changed for the consumer before reaching for the bullet that matches the file type:
+
+- `test`: diff is test files only, adding or changing coverage without touching what's covered.
+- `docs`: the diff explains, documents, or reorganizes something that already works the same way; nothing a consumer does or sees changes. A typo, a link fix, a comment, a README reshuffle, a reference restructured with the same content, regardless of which directory the file lives in.
+- `feat`: a consumer gains a capability they didn't have, a new exported function, class, CLI flag, API surface, a dependency bump that unlocks new behavior, or a skill's instructions gaining a rule or mode they didn't have. The diff must show the new surface, not just "a lot changed".
+- `fix`: something a consumer relied on was producing a wrong result, and the diff corrects it, a bug keyword in the branch name or an in-progress message, an issue reference, a guard on a code path that produced an incorrect result, a dependency bump that patches broken behavior, or instructions that previously produced a wrong, broken, or hard-to-use result, now corrected ("the old prose made the skill draft output that was hard to read" is a real fix signal, not generic rewording). Not "touched something that has bugs in general".
+- `chore` / `refactor`: everything else, internal restructuring, deps, tooling, or config with no consumer-visible effect. This is the default when neither `feat` nor `fix` has a real signal; never stretch to `feat` or `fix` to seem more substantial.
 
 Must be a member of the detected `type-enum` if one exists.
 
-**Verb/type cross-check.** After drafting the subject, check its leading verb against the chosen type. "add", "support", "introduce" implies `feat`; "correct", "guard", "stop" implies `fix`. If the verb and type disagree, that's a signal the type was guessed wrong, not that the verb needs rewording. Re-derive the type from the behavior signal above before showing step 4.
+**Verb/type cross-check.** After drafting the subject, check its leading verb against the chosen type. "add", "support", "introduce" implies `feat`; "correct", "guard", "stop", "trim", "reorder", "lead with" implies `fix`. This cross-check applies the same way regardless of file type; no extension is an exemption. If the verb and type disagree, that's a signal the type was guessed wrong, not that the verb needs rewording. Re-derive the type from the behavior signal above before showing step 4.
 
 **Scope.** The single top-level directory under `skills/`, `src/`, or `packages/*` touched. Omit if ambiguous or if repo history shows no scopes.
 
