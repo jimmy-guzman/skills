@@ -14,6 +14,7 @@ pnpx skills add jimmy-guzman/skills -g
 
 ## Skills
 
+- [`commit`](skills/commit/SKILL.md): stage changes and write a commit message that follows the repo's own convention, falling back to Conventional Commits otherwise.
 - [`create-pr`](skills/create-pr/SKILL.md): draft, open, or describe GitHub pull requests and GitLab merge requests that follow the repo's own conventions.
 - [`fix-dep-vulns`](skills/fix-dep-vulns/SKILL.md): triage and fix dependency vulnerabilities in pnpm, uv, and pip projects, preferring lockfile refreshes and parent upgrades over overrides.
 - [`review-changes`](skills/review-changes/SKILL.md): review a change with three parallel reviewers (bugs, the repo's standards, the spec), as one verified list that applies on request or leaves suggestions for the author.
