@@ -161,7 +161,7 @@ Diff against the fetched remote base, never the local one. A stale local base sh
 
 Evidence is a before and an after.
 
-- UI change (the diff touches `.vue`, `.tsx`, `.jsx`, `.svelte`, `.css`, `.scss`, chart or plot code, or the ticket is visual): screenshots. Draft the table with `<!-- before -->` and `<!-- after -->` placeholders; how real images get in is host-specific (see Gotchas in the reference file). Never fabricate a screenshot.
+- UI change (the diff touches `.vue`, `.tsx`, `.jsx`, `.svelte`, `.css`, `.scss`, chart or plot code, or the ticket is visual): screenshots. Draft `### Before` and `### After` headings with a `<!-- before -->` / `<!-- after -->` placeholder under each; how real images get in is host-specific (see Gotchas in the reference file). Only fall back to one table, one row per pair, when there's a real series of screens or states to show. Never fabricate a screenshot.
 - Anything else: the test that failed before and passes now, or the output that changed.
 
 Never state a before you didn't observe. A test that is new in this diff and was never run against the base is "new test", not "failed before".
@@ -222,56 +222,57 @@ Run _Verify_ from the reference file. Confirm draft state and base match what §
 
 ## Voice
 
-Governs the body, template or not. The title follows the shape from §1 exactly, emoji and all.
+Applies to the body, with or without a template. The title follows the shape from §1 exactly, emoji and all.
 
 **Default shape** (when the repo has no template):
 
 ```markdown
-## What
-
-- `<file group or symbol>`: <specific change, one line>
-- `<file group or symbol>`: <what changed and what to look at>.
-
-  | Before | After |
-  |---|---|
-  | <screenshot, failing test, or old output> | <screenshot, passing test, or new output> |
-
 ## Why
 
 <ticket reference>
 
 <One or two short paragraphs. Lead with the problem, not the solution.>
+
+## What
+
+- `<file group or symbol>`: <specific change, one line>
+- `<file group or symbol>`: <what changed and what to look at>
 ```
 
-Those two sections only. Nothing else gets a heading.
+Those two sections only. Nothing else gets a heading. Why comes first: it's the part a reviewer actually needs to read, and the part most worth getting right.
 
 **Rules:**
 
-- **Specificity over category.** Each change names the file, symbol, package, or flag, or the concrete behavior that changed ("the 320px cap is gone"). Never "updated the component" or "refactored the module".
-- **What, not how.** Each bullet says what changed for a user or reviewer. How it works is in the diff. One or two short clauses per bullet, at most one semicolon. Sub-bullets too.
-- **Why is for the reviewer, not the ticket.** Plain prose a reviewer can read without clicking through. Short sentences. Concrete nouns. No "This PR introduces", no "In order to".
-- **The body is about the change, not the session.** A risk gets one clause on the bullet it belongs to, and only when the reviewer has something specific to check. Never a paragraph of failure modes. What you ran, didn't run, or skipped ("`pnpm dev` was not run on this branch"), and coordination talk ("Deploy order", "This merges first", "Follow-up MR"), is nothing a reviewer can act on; it goes in the chat summary.
-- **Don't attribute to a role you can't verify.** No "reviewer flagged", "after feedback", "per discussion" unless a named reviewer actually said it in the thread. If the change came from reconsidering, say so directly, or just state the change.
-- **Evidence lives with the claim.** Benchmarks, before/after numbers, and screenshots sit on the bullet they support, never in a trailing section. Evidence is a before and an after; "tests pass" alone is not evidence.
-- **Show shape when shape is the point.** When the change is about structure or flow (files moving, a call order changing), a bullet can carry the smallest visual that makes it clear: a file tree, call tree, or Mermaid diagram, or a diff of one. Otherwise plain bullets.
+Say what changed, for the file, symbol, package, or flag it changed in, not the category it falls in ("the 320px cap is gone", not "updated the component"). Only earn a bullet if a reviewer couldn't already tell it from the diff or the file list: a behavior change, a default that flipped, something that used to work one way and now works another. A migration that just adds a column, a test file that just got stubbed, a doc that just got a new line, these don't need their own bullet unless something in them is surprising. How the change works is in the diff; say what changed, not how. One or two short clauses per bullet, at most one semicolon, sub-bullets too.
 
-  ```diff
-   submitForm
-     createSession
-  +    expandSkillMention
-       launchAgent
-  ```
+Write Why in plain prose a reviewer can read without clicking through the ticket. Short sentences, concrete nouns, no "This PR introduces", no "In order to".
 
-- **Length scales with the change, then stops.** A one-column migration gets four lines. A ten-file change gets one bullet per group of files that change together, not one per file or symbol. One line per bullet. `## What` holds at most 6 top-level bullets and 10 in all, sub-bullets included. `## Why` stays at two short paragraphs and 80 words or fewer, not counting the ticket line. Past that, group harder or cut. The diff holds the rest.
-- **Sub-list only when each item has its own change.** A toolchain upgrade, where each package moves to its own version, gets a short labeled parent and one child per item. Items that share one change get a group name on one bullet ("Docs: spec, design, README"). Two items stay inline.
+The body is about the change, not the session. A risk gets one clause on the bullet it belongs to, and only when the reviewer has something specific to check, never a paragraph of failure modes. What you ran, didn't run, or skipped ("`pnpm dev` was not run on this branch"), and coordination talk ("Deploy order", "This merges first", "Follow-up MR"), is nothing a reviewer can act on; it goes in the chat summary.
 
-  ```markdown
-  - Toolchain upgrade:
-    - `eslint`: 8.57 -> 10.12 (via 9.39.5)
-    - `@vue/eslint-config-typescript`: 13 -> 14.9
-    - `eslint-plugin-vue`: 9.33 -> 10.11
-    - `@eslint/js` added at 10
-    - `vue`: 3.5.17 -> 3.5.43
-  ```
+Don't attribute to a role you can't verify: no "reviewer flagged", "after feedback", "per discussion" unless a named reviewer actually said it in the thread. If the change came from reconsidering, say so directly, or just state the change.
 
-- **No filler.** No em dashes, no sign-offs, no emoji in the body, no summary of the summary. Before the confirmation print, the §5 lint catches em dashes, en dashes, middle dots, curly quotes, bullets over 25 words or with more than one semicolon, 3+ version arrows on a bullet, and `## What` or `## Why` over the limits above.
+Put evidence on the bullet it supports, never in a trailing section. Evidence is a real before and after a reviewer can't get elsewhere: a number, a screenshot, a test that failed and now passes. "Tests pass" alone is not evidence. Most bullets need none of this, just the one line of what changed. When a bullet does need it, use `### Before` / `### After` headings, not a table; a table earns its place only for a real series of pairs (several screens, several states), where one row per item beats repeating headings.
+
+When the change is about structure or flow (files moving, a call order changing), a bullet can carry the smallest visual that makes it clear: a file tree, call tree, or Mermaid diagram, or a diff of one. Otherwise plain bullets.
+
+```diff
+ submitForm
+   createSession
++    expandSkillMention
+     launchAgent
+```
+
+Length scales with the change, then stops. A one-column migration gets four lines. A ten-file change gets one bullet per group of files that change together, not one per file or symbol. One line per bullet. `## What` holds at most 6 top-level bullets and 10 in all, sub-bullets included. `## Why` stays at two short paragraphs and 80 words or fewer, not counting the ticket line. Past that, group harder or cut. The diff holds the rest.
+
+Give a sub-list only when each item has its own change. A toolchain upgrade, where each package moves to its own version, gets a short labeled parent and one child per item. Items that share one change get a group name on one bullet ("Docs: spec, design, README"). Two items stay inline.
+
+```markdown
+- Toolchain upgrade:
+  - `eslint`: 8.57 -> 10.12 (via 9.39.5)
+  - `@vue/eslint-config-typescript`: 13 -> 14.9
+  - `eslint-plugin-vue`: 9.33 -> 10.11
+  - `@eslint/js` added at 10
+  - `vue`: 3.5.17 -> 3.5.43
+```
+
+No filler: no em dashes, no sign-offs, no emoji in the body, no summary of the summary. Before the confirmation print, the §5 lint catches em dashes, en dashes, middle dots, curly quotes, bullets over 25 words or with more than one semicolon, 3+ version arrows on a bullet, and `## What` or `## Why` over the limits above.
