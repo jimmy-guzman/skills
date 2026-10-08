@@ -37,7 +37,6 @@ If the user pasted findings from a bot or a person, read [references/pasted-find
 
 ## Gotchas
 
-- `gh pr view` and `glab mr view` lack thread state and comment anchors; `scripts/pr.py state` has both.
 - Shell wrappers can truncate long output. Get the raw diff.
 - `gh pr diff` and `glab mr diff` don't fetch the head commit, so `git show <sha>:<path>` fails on a PR that isn't checked out. Fetch it first: `git fetch <remote> pull/<n>/head` on GitHub, `git fetch <remote> merge-requests/<n>/head` on GitLab.
 
@@ -53,7 +52,7 @@ First hit wins. The user's words override the order: "this branch" means the bra
 
 Leave out lockfiles, generated code, snapshots, and vendored files, unless they're the whole change. Stop if the diff is empty.
 
-For a PR, also run `python3 scripts/pr.py state <pr>`, where `<pr>` is the number, `#285`, `!482`, or the URL. It prints JSON with the PR's state, head SHA, description, thread anchors, and `reviewed_at_head`. Keep it for the preflight, the reviewers, and posting. If the script fails, say why, read state and description with `gh pr view` or `glab mr view`, and treat thread state as unknown.
+For a PR, also run `python3 scripts/pr.py state <pr>`. `<pr>` is a number, ref, or URL. It prints JSON with the PR's state, head SHA, description, thread anchors, and `reviewed_at_head`. If the script fails, say why, read state and description with `gh pr view` or `glab mr view`, and treat thread state as unknown.
 
 Preflight, PR only. It triggers when any of these hold:
 
@@ -73,9 +72,7 @@ When `truncated` is true, say the thread list may be incomplete. No trigger, no 
 Then pick the mode. The user's words win ("just suggest", "don't apply", "for the author"). Otherwise:
 
 - **Apply**: the change is the user's own and sits in the working tree or on the current branch. Report, wait, then §6.
-- **Suggest**: anything else, such as someone else's PR, a branch that isn't checked out, or a merged commit. Read files at the head with `git show <sha>:<path>`, edit nothing, and post nothing unless asked. Run none of their code (tests, scripts, installs) unless the user says it's safe; reviewers and the verifier trace instead. Asked to apply to a head that isn't checked out, say it has to be checked out first.
-
-Novel only filters findings; it doesn't change the mode.
+- **Suggest**: anything else, such as someone else's PR, a branch that isn't checked out, or a merged commit. Read files at the head with `git show <sha>:<path>`, edit nothing, and post nothing unless asked. Run none of their code (tests, scripts, installs) unless the user says it's safe; reviewers and the verifier trace instead.
 
 ### 2. Find the sources
 
@@ -87,6 +84,8 @@ Novel only filters findings; it doesn't change the mode.
 Each reviewer starts with fresh context: a subagent where the agent has them, all three in parallel where it can. Give each the diff command, the revision, the mode, its source files, any thread anchors, and the "All reviewers" block and its own brief, pasted in full. Don't give it the conversation: a reviewer who didn't write the change catches what the author explains away.
 
 Without subagents, make the three passes yourself, one at a time, judging the code as written, not as you meant it.
+
+A change of at most 50 lines in at most 3 files (`git diff --numstat`, after §1's exclusions) gets one fresh reviewer with all three briefs, unless the user asks for a full or thorough review. §4 still runs. Say "one reviewer, small change" in the `Reviewed:` line.
 
 **All reviewers**
 
@@ -114,16 +113,16 @@ When the change adds or leans on a dependency, check what it actually does: run 
 **Standards: the written rules**
 
 ```text
-Walk the rules in the source files one at a time against each changed file. Report every break and name the file and the rule. A break is a finding even when older code does the same, and so is a new lint suppression.
+Walk the rules in the source files one at a time against each changed file. Report every break and name the file and the rule. A break is a finding even when older code does the same, and so is a new lint suppression. End with one line: how many rules you walked, from which files, against how many changed files.
 Then apply this baseline, which any repo rule overrides:
-- Cuts. Code the change adds that doesn't need to exist: dead code, options nobody sets, an abstraction with one implementation, a layer with one caller, hand-rolled code the standard library or platform ships, a dependency added for what a few lines do, compatibility shims with nothing to be compatible with, and code working around a framework the repo already uses where it has the feature built in. Return each cut as one line: file:line, the line it rests on quoted exactly, a tag (delete, stdlib, native, yagni, or shrink), what replaces it, and how many lines it removes.
+- Cuts. Code the change adds that doesn't need to exist: dead code, options nobody sets, an abstraction with one implementation, a layer with one caller, hand-rolled code the standard library or platform ships, a dependency added for what a few lines do, compatibility shims with nothing to be compatible with, and code working around a framework the repo already uses where it has the feature built in. Return each cut as one line: file:line, the line it rests on quoted exactly, a tag (delete, stdlib, native, yagni, or shrink), and what replaces it.
 - Comments. A comment that restates the code goes. If the code doesn't tell the story, the fix is the code (a name, a smaller function), not a comment. A comment stays when it carries what the code can't: why, a non-obvious fix, or a doc comment stating a contract. A comment should read correctly to someone with only the file.
 ```
 
 **Spec: what was asked for**
 
 ```text
-Compare the diff with the spec sources and name the line each finding rests on. Report what the spec asked for that is missing or partial, behavior nobody asked for (unrelated config edits, a refactor riding along with a fix), and what looks implemented but is wrong.
+Compare the diff with the spec sources and name the line each finding rests on. Unrelated config edits and a refactor riding along with a fix are scope creep.
 Then check the words against the code: every factual claim the diff adds to docs or comments, and every doc that described behavior the diff changed (grep for it). Docs should be plain, factual, and short; flag filler, restated rationale, and em dashes.
 Answer each question with the findings that answer it, or "none" plus one sentence on what you checked. A bare "none" is not an answer.
 - Missing or partial: is anything the spec asked for not done?
@@ -140,7 +139,7 @@ The reviewer that found an issue is the worst judge of it.
 
 1. Merge duplicates into the group that found the cause. A bug and a cut on the same lines are one finding. Pipe the findings as JSON (`id`, `path`, `line`, `quote`) to `python3 scripts/check_quotes.py --rev <sha> -`. Leave out `--rev` whenever the review includes uncommitted changes. Fix the line of a `moved` finding. For `missing` or `no-quote`, re-quote once (from the `near` lines, if printed) and rerun. What still fails, and any `no-file`, goes to the left-out count as "quote not found". Exit 1 only means something needs fixing.
 2. Hand the survivors, cuts included, to a verifier with fresh context: a subagent where the agent has them, several findings per verifier when there are many. Give it the findings, the revision, the mode, and the brief below. Don't give it the reviewer's reasoning or the conversation. Without subagents, verify each finding yourself, one at a time, starting from the quoted line rather than the reviewer's explanation.
-3. Keep Reproduced and Traced findings. Refuted and Unverified findings go to the left-out count in §5 with their reasons, beside the reviewers' judgment calls.
+3. Keep Reproduced and Traced findings. The rest go to the left-out count in §5 with their reasons.
 
 **Verifier**
 
@@ -148,7 +147,7 @@ The reviewer that found an issue is the worst judge of it.
 You get findings from another reviewer. For each one, try to prove it wrong before you accept it, and judge each on its own.
 Check that the trigger can happen: follow the callers and the guards before the line.
 For a broken rule, check that the rule says what the finding claims and that the line breaks it. For a cut, check the callers, settings, or platform feature it relies on.
-When running code is cheap and the brief allows it, reproduce it: an existing test, a new test, or a short script. In Suggest mode, run nothing unless the brief says the user allowed it. Run existing tests in place. Put anything new in a temporary worktree, never the user's tree: `git worktree add --detach <tmp> <rev>`, then `git worktree remove --force <tmp>` after. For uncommitted changes the revision is the output of `git stash create` (HEAD if it prints nothing), plus the untracked files from the diff copied in. If the worktree can't run, for example dependencies are missing, trace instead.
+When running code is cheap and the brief allows it, reproduce it: an existing test, a new test, or a short script. In Suggest mode, run nothing unless the brief says the user allowed it. Run existing tests in place. Put anything new in a temporary worktree, never the user's tree: `git worktree add --detach <tmp> <rev>`, then `git worktree remove --force <tmp>` after. For uncommitted changes the revision is the output of `git stash create` (HEAD if it prints nothing), plus the untracked files from the diff copied in. If it can't run, trace instead.
 Return one label per finding, with evidence:
 - Reproduced: something you ran fails at the revision. Give the command and the failing line of output.
 - Traced: you followed it from trigger to wrong result, or from the rule to the line that breaks it, without running anything. Give the file:line steps.
@@ -177,6 +176,7 @@ Labels:
 - Evidence: Reproduced or Traced, from §4. Nothing else reaches the numbered list.
 
 ```text
+Not ready: 1 Major (1), 1 missing from issue #41 (3).
 Reviewed: uncommitted changes (6 files, lockfile left out) against AGENTS.md and issue #41. Ran the tab tests; nothing else was run.
 
 Bugs
@@ -189,7 +189,7 @@ Bugs
    -  const active = next[index] ?? null;
    +  const active = next[Math.min(index, next.length - 1)] ?? null;
 
-Standards
+Standards (AGENTS.md)
 2. Delete the comment that restates the code
    Minor | Quick win | Traced
    `src/store/tabs.ts:70-74`
@@ -212,13 +212,14 @@ Worth an issue
 - `src/editor/find.ts:52`: hidden matches show "0 / 0" in source mode. Not from this change.
 
 Left out: 1 judgment call, 2 unverified, 1 refuted. Say "show left out" to see them.
-net: -40 lines possible.
 Say "apply", or name the numbers.
 ```
 
-The Spec group prints whenever there is a spec source, even with no findings: the source as its heading, a line per verdict, then its findings. Write the verdicts after §4, from what survived. Each gives finding numbers, or "none" with what was checked. No side notes in a verdict; anything worth noting is a finding or goes to `Left out:`.
+The first line is the verdict, from the labels alone. `Not ready:` when any finding is Critical or Major or answers Missing or partial, with counts and finding numbers. Else `Ready.` and the count of Minor findings.
 
-`net` counts only what the cuts delete. Leave out any other group or line that is empty. With nothing to report, write the `Reviewed:` line, the Spec verdicts, the `Left out:` line if it has anything, and `Lean already. Ship.`
+The Standards and Spec groups print whenever they have a source, headed by it. Standards with no findings is one line: `Standards (AGENTS.md): none. Walked 12 rules against 6 changed files.` Spec gives a line per verdict, then its findings. Write the verdicts after §4, from what survived: finding numbers, or "none" with what was checked. No side notes in a verdict; anything worth noting is a finding or goes to `Left out:`.
+
+Leave out any other group or line that is empty. With nothing to report, write `Ready. Nothing to fix.`, the `Reviewed:` line, the Standards and Spec verdicts, and the `Left out:` line if it has anything.
 
 The report holds only what to act on. Judgment calls, unverified, refuted, and quote-not-found findings only get counted in the `Left out:` line, by kind. "Worth an issue" lists at most three; the rest count there as "N more worth an issue". On "show left out", print one line each, numbered `L1`, `L2`: `file:line`, kind, and why, with what would settle an unverified one and the proof for a refuted one.
 
@@ -234,13 +235,13 @@ In Suggest mode the report must stand alone, because it gets handed to the autho
 Nothing applied. For an agent: verify each item against the current code, fix the ones that still hold, and skip the rest with a one-line reason.
 ```
 
-For a PR, rerun `scripts/pr.py state`, then end the message with one line after the report, outside it, so the report still hands off clean: `Post these to <ref>? Say "post", or name the numbers.` Say if the PR merged or closed during the review, and if a read-only or planning mode must be turned off first. Then wait.
+For a PR, rerun `scripts/pr.py state`, then add one line after the report, outside it, so the report still hands off clean: `Post these to <ref>? Say "post", or name the numbers.` Say if the PR merged or closed during the review, and if a read-only or planning mode must be turned off first. Then wait.
 
-Then stop. Don't edit anything yet. If the user asks to post, see §7.
+Then stop. Don't edit anything yet.
 
 ### 6. Apply and re-review
 
-Apply mode only, once the user says "apply" or names numbers. Read [references/apply.md](references/apply.md) and follow it. Never commit, push, switch branches, or open a PR.
+Apply mode only, once the user says "apply" or names numbers. Read [references/apply.md](references/apply.md) and follow it.
 
 ### 7. Post findings as comments
 

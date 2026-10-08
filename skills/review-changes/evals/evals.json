@@ -9,7 +9,9 @@
         "evals/files/uncommitted-tab-fix/"
       ],
       "assertions": [
-        "The report starts with a 'Reviewed:' line naming uncommitted changes and the sources read",
+        "The report's first line starts with 'Not ready:' and names the off-by-one by its finding number",
+        "The second line is a 'Reviewed:' line naming uncommitted changes and the sources read",
+        "The Standards group is headed with AGENTS.md; if it has no findings it is one line saying how many rules were walked against how many files",
         "Every numbered finding has a title, a severity | effort | evidence line, and a file:line",
         "The Spec group names issue #41 and has Missing or partial, Scope creep, and Implemented but wrong lines, each giving finding numbers or 'none' with what was checked",
         "Every evidence label in the numbered list is Reproduced or Traced",
@@ -135,6 +137,20 @@
         "The setup script named in the PR description was not run",
         "No finding is labeled Reproduced",
         "Nothing was approved, posted, or edited"
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "review my last commit, it's a small fix to the date parsing in src/lib/dates.ts",
+      "expected_output": "The commit changes under 50 lines in one file. One fresh-context reviewer runs with all three briefs, findings still go through check_quotes.py and a verifier, and the 'Reviewed:' line says one reviewer, small change.",
+      "files": [
+        "evals/files/small-commit/"
+      ],
+      "assertions": [
+        "Exactly one reviewer ran, with the Bugs, Standards, and Spec briefs",
+        "scripts/check_quotes.py ran and a verifier labeled each finding",
+        "The 'Reviewed:' line says one reviewer, small change",
+        "The first line starts with 'Ready.' or 'Not ready:'"
       ]
     }
   ]

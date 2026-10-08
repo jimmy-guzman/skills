@@ -10,6 +10,8 @@ Use the mode's report from SKILL.md §5, titled `Supplemental review (<N> existi
 Existing threads cover prior rounds; the findings above are novel only.
 ```
 
+Open threads block too. Add them to the verdict line, as in `Not ready: 1 Major (2), 2 open threads.`
+
 ## Skip
 
 The report is only the PR's state, from `scripts/pr.py state`:
