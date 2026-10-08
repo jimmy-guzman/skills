@@ -118,6 +118,11 @@ class CheckQuotes(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertEqual([r["status"] for r in out], ["ok", "moved"])
 
+    def test_extra_fields_are_ignored(self):
+        code, out = self.run_check([{"id": "B1", "path": "src/tabs.ts", "line": "3", "quote": "next[index]",
+                                     "severity": "Major", "fix": "x", "removed": False}], self.sha)
+        self.assertEqual((code, out), (0, [{"id": "B1", "status": "ok"}]))
+
     def test_bad_input_exits_2(self):
         p = subprocess.run([sys.executable, "-I", SCRIPT, "-"], cwd=self.repo,
                            input="not json", capture_output=True, text=True)

@@ -81,80 +81,27 @@ Then pick the mode. The user's words win ("just suggest", "don't apply", "for th
 
 ### 3. Run three reviewers
 
-Each reviewer starts with fresh context: a subagent where the agent has them, all three in parallel where it can. Give each the diff command, the revision, the mode, its source files, any thread anchors, and the "All reviewers" block and its own brief, pasted in full. Don't give it the conversation: a reviewer who didn't write the change catches what the author explains away.
+- **Bugs**: what the code does.
+- **Standards**: the written rules, plus cuts and comments.
+- **Spec**: what was asked for, and docs against code.
 
-Without subagents, make the three passes yourself, one at a time, judging the code as written, not as you meant it.
+Their briefs are in [references/reviewers.md](references/reviewers.md). Each reviewer starts with fresh context: a subagent where the agent has them, all three in parallel where it can. Give each the absolute path of that file and which section is its own, the diff command, the revision, the mode, its source files, and any thread anchors. Don't paste the briefs, unless the subagent can't read the path. Don't give it the conversation: a reviewer who didn't write the change catches what the author explains away.
+
+Without subagents, read the briefs and make the three passes yourself, one at a time, judging the code as written, not as you meant it.
 
 A change of at most 50 lines in at most 3 files (`git diff --numstat`, after §1's exclusions) gets one fresh reviewer with all three briefs, unless the user asks for a full or thorough review. §4 still runs. Say "one reviewer, small change" in the `Reviewed:` line.
 
-**All reviewers**
-
-```text
-Read around the diff: the callers of every changed function and the tests that cover them. Take line numbers from the file at the reviewed revision, not from diff output.
-Before returning a finding, reread the lines and follow the caller. Drop what doesn't survive that.
-Skip anything a linter, formatter, or type checker already enforces.
-Never suggest a fix that needs a lint rule disabled, a shorter form that reads worse, or deleting a test because it is small.
-A choice the spec made on purpose, which causes no wrong behavior and breaks no rule, is a judgment call, not a finding. A comment calling something deliberate, or older code doing the same, excuses neither wrong behavior nor a broken rule.
-Return every finding, worst first, with: file:line; the one line of code it rests on, quoted exactly (for removed code, the line at the revision where it used to sit, and say it was removed); the trigger, as concrete inputs or state; what the code does; what the user ends up seeing; the fix, as a diff when it is a few lines; and anything you ran, with the command.
-List judgment calls and problems the diff didn't cause separately, one line each.
-When existing thread anchors are passed in (file:line and first line), drop any finding that matches one on file:line and subject, unless you materially extend it.
-```
-
-**Bugs: what the code does**
-
-```text
-Find wrong behavior: missed edge cases (empty, last item, concurrent, failure path), errors swallowed where they should fail loud, data loss, unchecked input at a trust boundary, missing or flaky tests for new logic, and claims ("faster", "fixes the flake") with no measurement or failing test behind them.
-Find fixes that patch a symptom: the same guard in several places, a special case for the one path the report named, a pinned version or disabled check standing in for a fix. Point at the shared cause.
-For each async call the diff adds: what happens if the thing it belongs to changed, or the user acted, before it settled?
-For each new handler, key binding, or route: can input reach it, or does an earlier branch take it first?
-When the change adds or leans on a dependency, check what it actually does: run it, or read the source of the pinned version for the defaults the change relies on.
-```
-
-**Standards: the written rules**
-
-```text
-Walk the rules in the source files one at a time against each changed file. Report every break and name the file and the rule. A break is a finding even when older code does the same, and so is a new lint suppression. End with one line: how many rules you walked, from which files, against how many changed files.
-Then apply this baseline, which any repo rule overrides:
-- Cuts. Code the change adds that doesn't need to exist: dead code, options nobody sets, an abstraction with one implementation, a layer with one caller, hand-rolled code the standard library or platform ships, a dependency added for what a few lines do, compatibility shims with nothing to be compatible with, and code working around a framework the repo already uses where it has the feature built in. Return each cut as one line: file:line, the line it rests on quoted exactly, a tag (delete, stdlib, native, yagni, or shrink), and what replaces it.
-- Comments. A comment that restates the code goes. If the code doesn't tell the story, the fix is the code (a name, a smaller function), not a comment. A comment stays when it carries what the code can't: why, a non-obvious fix, or a doc comment stating a contract. A comment should read correctly to someone with only the file.
-```
-
-**Spec: what was asked for**
-
-```text
-Compare the diff with the spec sources and name the line each finding rests on. Unrelated config edits and a refactor riding along with a fix are scope creep.
-Then check the words against the code: every factual claim the diff adds to docs or comments, and every doc that described behavior the diff changed (grep for it). Docs should be plain, factual, and short; flag filler, restated rationale, and em dashes.
-Answer each question with the findings that answer it, or "none" plus one sentence on what you checked. A bare "none" is not an answer.
-- Missing or partial: is anything the spec asked for not done?
-- Scope creep: did anything change that the spec didn't ask for?
-- Implemented but wrong: does anything built behave unlike the spec?
-- Docs vs code (only when the diff touches docs or documented behavior): do they disagree?
-```
-
 When the user asks for a thorough review, run the Bugs reviewer twice, each with fresh context, and merge both lists. Two runs catch bugs one run misses, and §4 removes what doesn't hold.
+
+Each reviewer returns one JSON object: findings, cuts, left-out notes, plus coverage from Standards and verdicts from Spec. Work from that, not prose.
 
 ### 4. Verify every finding
 
 The reviewer that found an issue is the worst judge of it.
 
-1. Merge duplicates into the group that found the cause. A bug and a cut on the same lines are one finding. Pipe the findings as JSON (`id`, `path`, `line`, `quote`) to `python3 scripts/check_quotes.py --rev <sha> -`. Leave out `--rev` whenever the review includes uncommitted changes. Fix the line of a `moved` finding. For `missing` or `no-quote`, re-quote once (from the `near` lines, if printed) and rerun. What still fails, and any `no-file`, goes to the left-out count as "quote not found". Exit 1 only means something needs fixing.
-2. Hand the survivors, cuts included, to a verifier with fresh context: a subagent where the agent has them, several findings per verifier when there are many. Give it the findings, the revision, the mode, and the brief below. Don't give it the reviewer's reasoning or the conversation. Without subagents, verify each finding yourself, one at a time, starting from the quoted line rather than the reviewer's explanation.
+1. Merge duplicates into the group that found the cause. A bug and a cut on the same lines are one finding. Pipe the findings and cuts that have a path, as one JSON list, to `python3 scripts/check_quotes.py --rev <sha> -`; it reads `id`, `path`, `line`, and `quote` and ignores the rest. Leave out `--rev` whenever the review includes uncommitted changes. Fix the line of a `moved` finding. For `missing` or `no-quote`, re-quote once (from the `near` lines, if printed) and rerun. What still fails, and any `no-file`, goes to the left-out count as "quote not found". Exit 1 only means something needs fixing.
+2. Hand the survivors, cuts included, to a verifier with fresh context: a subagent where the agent has them, several findings per verifier when there are many. Give it the findings as JSON, the revision, the mode, whether the user allowed running their code, and the path of the "Verifier" section. Don't give it the reviewer's reasoning or the conversation. Without subagents, verify each finding yourself with that section, one at a time, starting from the quoted line rather than the reviewer's explanation.
 3. Keep Reproduced and Traced findings. The rest go to the left-out count in §5 with their reasons.
-
-**Verifier**
-
-```text
-You get findings from another reviewer. For each one, try to prove it wrong before you accept it, and judge each on its own.
-Check that the trigger can happen: follow the callers and the guards before the line.
-For a broken rule, check that the rule says what the finding claims and that the line breaks it. For a cut, check the callers, settings, or platform feature it relies on.
-When running code is cheap and the brief allows it, reproduce it: an existing test, a new test, or a short script. In Suggest mode, run nothing unless the brief says the user allowed it. Run existing tests in place. Put anything new in a temporary worktree, never the user's tree: `git worktree add --detach <tmp> <rev>`, then `git worktree remove --force <tmp>` after. For uncommitted changes the revision is the output of `git stash create` (HEAD if it prints nothing), plus the untracked files from the diff copied in. If it can't run, trace instead.
-Return one label per finding, with evidence:
-- Reproduced: something you ran fails at the revision. Give the command and the failing line of output.
-- Traced: you followed it from trigger to wrong result, or from the rule to the line that breaks it, without running anything. Give the file:line steps.
-- Unverified: you can't settle it either way. Say what would.
-- Refuted: cite the proof. Either the file:line of the guard or caller that makes the trigger unreachable, or a run that passes on the exact trigger. A passing test counts only if you read it and it asserts the outcome for that trigger. Reasoning alone is not a refutation: label it Unverified.
-Change a finding's severity, up or down, only with evidence, and say why in one line.
-```
 
 ### 5. Report and stop
 

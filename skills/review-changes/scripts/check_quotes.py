@@ -17,6 +17,7 @@ Usage:
 
 FINDINGS.json is a list of objects:
   {"id": 1, "path": "src/tabs.ts", "line": "88", "quote": "const active = next[index] ?? null;"}
+Other fields are ignored, so reviewer findings pipe in unchanged.
 "line" is N or N-M. "quote" is one line of code, or part of one. Before
 comparing, runs of whitespace collapse to one space and curly quotes become
 straight ones, in both the quote and the file. Case still matters.
