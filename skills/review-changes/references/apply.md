@@ -6,7 +6,7 @@ Read this when the user says "apply" or names numbers after a report in Apply mo
 
 - Keep each change minimal. A bug fix gets a test that fails without it, when the repo has tests. If §4 reproduced the bug with a new test, bring that test over.
 - Run the repo's own checks afterward. Find them in agent docs first, then in the scripts of `package.json`, `Makefile`, `justfile`, or the equivalent.
-- Re-review only what you just changed, with the same briefs from [reviewers.md](reviewers.md) and the §4 verification, and report by number. New findings take the §5 shape and continue the numbering.
+- Re-review only what you just changed, with the same briefs from [reviewer-common.md](reviewer-common.md) and its role files, and the §4 verification, and report by number. New findings take the §5 shape and continue the numbering.
 
 ```text
 Applied 1-3. Not applied: 4.

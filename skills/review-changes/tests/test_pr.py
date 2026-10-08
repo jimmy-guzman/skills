@@ -42,7 +42,8 @@ if ep == "graphql":
              "originalLine": 83, "comments": {"nodes": [
                  {"body": "<!-- review-changes: 1a2b3c4 -->\nsame body"}]}}]}}}}}))
 elif ep.endswith("/files"):
-    print(json.dumps([[{"filename": "src/tabs.ts", "patch": os.environ["FAKE_PATCH"]}]]))
+    print(json.dumps([[{"filename": "src/tabs.ts", "patch": os.environ["FAKE_PATCH"],
+                        "additions": 2, "deletions": 1}]]))
 elif ep.endswith("/comments") and not post and "/pulls/" in ep:
     print(json.dumps([[{"path": "src/tabs.ts", "line": 83, "body": "same body"}]]))
 elif ep.endswith("/comments") and not post:
@@ -130,6 +131,7 @@ class EndToEndGitHub(unittest.TestCase):
         self.assertEqual((out["state"], out["head_sha"], out["body"]), ("open", "1a2b3c4d5e6f", "Closes #41"))
         self.assertEqual(out["threads"]["open"], 1)
         self.assertTrue(out["reviewed_at_head"])
+        self.assertEqual(out["files"], [{"path": "src/tabs.ts", "additions": 2, "deletions": 1}])
 
     def test_inline_with_marker(self):
         code, out, _ = self.run_pr("post", "285", "--head", "1a2b3c4", "--path", "src/tabs.ts",

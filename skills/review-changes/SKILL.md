@@ -37,7 +37,7 @@ If the user pasted findings from a bot or a person, read [references/pasted-find
 
 ## Gotchas
 
-- Shell wrappers can truncate long output. Get the raw diff.
+- Shell wrappers can truncate long output. Whoever reads a diff (a reviewer, the verifier) should read the raw one, not a truncated echo of it.
 - `gh pr diff` and `glab mr diff` don't fetch the head commit, so `git show <sha>:<path>` fails on a PR that isn't checked out. Fetch it first: `git fetch <remote> pull/<n>/head` on GitHub, `git fetch <remote> merge-requests/<n>/head` on GitLab.
 
 ## Process
@@ -50,9 +50,11 @@ First hit wins. The user's words override the order: "this branch" means the bra
 2. Uncommitted changes: `git diff HEAD`, plus untracked files from `git status --porcelain`, read whole.
 3. A clean tree: `git diff <remote>/<base>...HEAD` after `git fetch <remote> <base>`, never the local base. The base is the open PR's base if there is one, else the default branch, on the branch's upstream remote. With no remote or a failed fetch, use the local default branch and say so.
 
+That's the diff *command* to hand to reviewers in §3, not something to run into your own context. For your own use, get only the file list and added/removed counts: `python3 scripts/pr.py state <pr>` for a PR (its `files` field), or `git diff --numstat <range> -- <pathspecs>` plus untracked files from `git status --porcelain` for a local diff (numstat alone misses untracked files). That's enough to apply §1's exclusions and size the change in §3.
+
 Leave out lockfiles, generated code, snapshots, and vendored files, unless they're the whole change. Stop if the diff is empty.
 
-For a PR, also run `python3 scripts/pr.py state <pr>`. `<pr>` is a number, ref, or URL. It prints JSON with the PR's state, head SHA, description, thread anchors, and `reviewed_at_head`. If the script fails, say why, read state and description with `gh pr view` or `glab mr view`, and treat thread state as unknown.
+For a PR, also run `python3 scripts/pr.py state <pr>`. `<pr>` is a number, ref, or URL. It prints JSON with the PR's state, head SHA, description, thread anchors, file list, and `reviewed_at_head`. If the script fails, say why, read state and description with `gh pr view` or `glab mr view`, and treat thread state as unknown.
 
 Preflight, PR only. It triggers when any of these hold:
 
@@ -77,30 +79,38 @@ Then pick the mode. The user's words win ("just suggest", "don't apply", "for th
 ### 2. Find the sources
 
 - **Standards**: `AGENTS.md`, the agent-specific instruction files the repo has (`CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, `.cursor/rules/`), `CONTRIBUTING.md`, the docs they point to, and any file or URL the user named, as in "review against taste.md".
-- **Spec**: issues referenced in the commits or the PR (fetch them), the PR description, a plan file, a path the user passed, and the repo's own spec, design, and decision docs. If there is no issue or plan, say so in the report; the Spec reviewer then checks only the repo's docs against the code.
+- **Spec**: issues referenced in the commits or the PR (fetch them), the PR description, a plan file, a path the user passed, and the repo's own spec, design, and decision docs. When none of an issue, a plan file, or a PR description exists, say so in the report; §3 then runs Spec's docs-vs-code check inside Standards instead of as its own reviewer.
 
-### 3. Run three reviewers
+### 3. Pick and run the reviewers
 
 - **Bugs**: what the code does.
 - **Standards**: the written rules, plus cuts and comments.
 - **Spec**: what was asked for, and docs against code.
 
-Their briefs are in [references/reviewers.md](references/reviewers.md). Each reviewer starts with fresh context: a subagent where the agent has them, all three in parallel where it can. Give each the absolute path of that file and which section is its own, the diff command, the revision, the mode, its source files, and any thread anchors. Don't paste the briefs, unless the subagent can't read the path. Don't give it the conversation: a reviewer who didn't write the change catches what the author explains away.
+Their briefs are one file each: [references/reviewer-bugs.md](references/reviewer-bugs.md), [references/reviewer-standards.md](references/reviewer-standards.md), [references/reviewer-spec.md](references/reviewer-spec.md), plus the shared [references/reviewer-common.md](references/reviewer-common.md) every reviewer also reads. Each reviewer starts with fresh context: a subagent where the agent has them, every reviewer you run in parallel where it can. Give each the common path, its own role path, which briefs it's covering, the diff command from §1 (not the diff itself), the revision, the mode, its source files, and any thread anchors. Don't paste the briefs, unless the subagent can't read the path. Don't give it the conversation: a reviewer who didn't write the change catches what the author explains away.
 
-Without subagents, read the briefs and make the three passes yourself, one at a time, judging the code as written, not as you meant it.
+Without subagents, read the briefs and make the passes yourself, one at a time, judging the code as written, not as you meant it.
 
-A change of at most 50 lines in at most 3 files (`git diff --numstat`, after §1's exclusions) gets one fresh reviewer with all three briefs, unless the user asks for a full or thorough review. §4 still runs. Say "one reviewer, small change" in the `Reviewed:` line.
+Pick how many reviewers run, first rule that matches:
 
-When the user asks for a thorough review, run the Bugs reviewer twice, each with fresh context, and merge both lists. Two runs catch bugs one run misses, and §4 removes what doesn't hold.
+1. **Docs-only diff**: every file left after §1's exclusions is Markdown, plain text, or an image. One fresh reviewer, the Standards and Spec briefs only; nothing for Bugs to check. Say "docs only" in the `Reviewed:` line.
+2. **No spec source**: the diff touches code, and §2 found none of an issue, a plan file, or a PR description. Two reviewers: Bugs and Standards. Spec doesn't run as its own reviewer; give Standards the Spec brief's docs-vs-code check too, and it answers Spec's Consistency question in its own `verdicts`. The Spec group is left out of the report entirely, not printed as empty; its one surviving check and verdict ride in Standards'. Say "no spec source" in the `Reviewed:` line.
+3. **Small change**: at most 50 lines in at most 3 files (from §1's file list, after exclusions). One fresh reviewer with all three briefs. Say "one reviewer, small change" in the `Reviewed:` line.
+4. **The user asks for a full or thorough review**: all three reviewers, regardless of the above.
+5. **Otherwise**: all three reviewers.
 
-Each reviewer returns one JSON object: findings, cuts, left-out notes, plus coverage from Standards and verdicts from Spec. Work from that, not prose.
+Rule 4 overrides 1-3; name the sources read in the `Reviewed:` line as before when rule 4 or 5 applies.
+
+When the user asks for a thorough review, also run the Bugs reviewer twice, each with fresh context, and merge both lists. Two runs catch bugs one run misses, and §4 removes what doesn't hold.
+
+Each reviewer returns one JSON object: findings, cuts, left-out notes, plus coverage from Standards and verdicts from Spec (or from Standards, under rule 2). Work from that, not prose.
 
 ### 4. Verify every finding
 
 The reviewer that found an issue is the worst judge of it.
 
 1. Merge duplicates into the group that found the cause. A bug and a cut on the same lines are one finding. Pipe the findings and cuts that have a path, as one JSON list, to `python3 scripts/check_quotes.py --rev <sha> -`; it reads `id`, `path`, `line`, and `quote` and ignores the rest. Leave out `--rev` whenever the review includes uncommitted changes. Fix the line of a `moved` finding. For `missing` or `no-quote`, re-quote once (from the `near` lines, if printed) and rerun. What still fails, and any `no-file`, goes to the left-out count as "quote not found". Exit 1 only means something needs fixing.
-2. Hand the survivors, cuts included, to a verifier with fresh context: a subagent where the agent has them, several findings per verifier when there are many. Give it the findings as JSON, the revision, the mode, whether the user allowed running their code, and the path of the "Verifier" section. Don't give it the reviewer's reasoning or the conversation. Without subagents, verify each finding yourself with that section, one at a time, starting from the quoted line rather than the reviewer's explanation.
+2. Hand the survivors, cuts included, to a verifier with fresh context: a subagent where the agent has them, grouped by file so each file is read once, capped at 3 verifiers, with findings that have no file joining the smallest group. Give each the findings as JSON, the revision, the mode, whether the user allowed running their code, and the path of [references/reviewer-verifier.md](references/reviewer-verifier.md). Don't give it the reviewer's reasoning or the conversation. Without subagents, verify each finding yourself with that file, one at a time, starting from the quoted line rather than the reviewer's explanation.
 3. Keep Reproduced and Traced findings. The rest go to the left-out count in §5 with their reasons.
 
 ### 5. Report and stop
@@ -164,7 +174,7 @@ Say "apply", or name the numbers.
 
 The first line is the verdict, from the labels alone. `Not ready:` when any finding is Critical or Major or answers Completeness, with counts and finding numbers. Else `Ready.` and the count of Minor findings.
 
-The Standards and Spec groups print whenever they have a source, headed by it. Standards with no findings is one line: `Standards (AGENTS.md): none. Walked 12 rules against 6 changed files.` Spec gives a line per verdict, then its findings. Write the verdicts after §4, from what survived: finding numbers, or "none" with what was checked. No side notes in a verdict; anything worth noting is a finding or goes to `Left out:`.
+The Standards and Spec groups print whenever they have a source, headed by it. Standards with no findings is one line: `Standards (AGENTS.md): none. Walked 12 rules against 6 changed files.` Spec gives a line per verdict, then its findings. Write the verdicts after §4, from what survived: finding numbers, or "none" with what was checked. No side notes in a verdict; anything worth noting is a finding or goes to `Left out:`. Under §3's rule 2, Spec didn't run; leave its group out entirely rather than printing it empty, and give Standards a Consistency line the same way Spec would have.
 
 Leave out any other group or line that is empty. With nothing to report, write `Ready. Nothing to fix.`, the `Reviewed:` line, the Standards and Spec verdicts, and the `Left out:` line if it has anything.
 

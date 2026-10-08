@@ -26,7 +26,7 @@ Without --path, post writes one general comment.
 state prints one JSON object:
   provider, ref, state (open|closed|merged), draft, head_sha, title,
   author, body (the PR description), threads {open, resolved, anchors[]}, reviewed_shas[],
-  reviewed_at_head, truncated
+  reviewed_at_head, files [{path, additions, deletions}], truncated
 
 post prints one JSON object:
   posted (inline|general|skipped), reason, id
@@ -144,6 +144,19 @@ def norm(body):
     return MARKER_RE.sub("", body or "").strip()
 
 
+def patch_counts(patch):
+    """Count added/removed lines in a unified diff hunk body."""
+    added = removed = 0
+    for text in (patch or "").splitlines():
+        if text.startswith(("+++", "---")):
+            continue
+        if text.startswith("+"):
+            added += 1
+        elif text.startswith("-"):
+            removed += 1
+    return added, removed
+
+
 # GitHub -----------------------------------------------------------------
 
 GH_STATE_QUERY = """
@@ -213,18 +226,26 @@ class GitHub:
             "author": (pr["author"] or {}).get("login"),
             "anchors": anchors,
             "bodies": bodies,
+            "files": self.file_counts(),
             "truncated": pr["reviewThreads"]["pageInfo"]["hasNextPage"]
             or pr["comments"]["pageInfo"]["hasPreviousPage"]
             or pr["reviews"]["pageInfo"]["hasPreviousPage"],
             "ref": f"#{self.number}",
         }
 
+    def pr_files(self):
+        return self.pages(f"repos/{{owner}}/{{repo}}/pulls/{self.number}/files")
+
     def files(self):
         out = {}
-        for f in self.pages(f"repos/{{owner}}/{{repo}}/pulls/{self.number}/files"):
+        for f in self.pr_files():
             out[f["filename"]] = {"lines": commentable_lines(f.get("patch")),
                                   "old_path": f.get("previous_filename", f["filename"])}
         return out
+
+    def file_counts(self):
+        return [{"path": f["filename"], "additions": f.get("additions", 0),
+                 "deletions": f.get("deletions", 0)} for f in self.pr_files()]
 
     def existing(self):
         seen = set()
@@ -299,19 +320,29 @@ class GitLab:
             "author": (mr.get("author") or {}).get("username"),
             "anchors": anchors,
             "bodies": bodies,
+            "files": self.file_counts(),
             "truncated": False,
             "ref": f"!{self.number}",
             "diff_refs": mr.get("diff_refs"),
         }
 
-    def files(self):
+    def mr_diffs(self):
         try:
-            diffs = self.pages(f"{self.mr}/diffs")
+            return self.pages(f"{self.mr}/diffs")
         except Fail:
-            diffs = (self.api(f"{self.mr}/changes") or {}).get("changes", [])
+            return (self.api(f"{self.mr}/changes") or {}).get("changes", [])
+
+    def files(self):
         return {d["new_path"]: {"lines": commentable_lines(d.get("diff")),
                                 "old_path": d.get("old_path", d["new_path"])}
-                for d in diffs}
+                for d in self.mr_diffs()}
+
+    def file_counts(self):
+        out = []
+        for d in self.mr_diffs():
+            added, removed = patch_counts(d.get("diff"))
+            out.append({"path": d["new_path"], "additions": added, "deletions": removed})
+        return out
 
     def existing(self):
         seen = set()
@@ -379,6 +410,7 @@ def cmd_state(args):
         },
         "reviewed_shas": reviewed,
         "reviewed_at_head": any(head.startswith(r) or r.startswith(head) for r in reviewed),
+        "files": s["files"],
         "truncated": s["truncated"],
     }, indent=1))
 
