@@ -10,6 +10,7 @@ Read by every reviewer in SKILL.md §3, alongside its own role file.
 - Never suggest a fix that needs a lint rule disabled, a shorter form that reads worse, or deleting a test because it is small.
 - A choice the spec made on purpose, which causes no wrong behavior and breaks no rule, is a judgment call, not a finding. A comment calling something deliberate, or older code doing the same, excuses neither wrong behavior nor a broken rule.
 - When existing thread anchors are passed in (file:line and first line), drop any finding that matches one on file:line and subject, unless you materially extend it.
+- If tracing or reproducing a finding hasn't settled it after three tries, stop. Return it with what would settle it (an input, for Bugs; a file or line, for Standards or Spec), in `probe` if there's something to run or trace, `left_out` otherwise.
 - Return every finding, worst first, as in "Reviewer output".
 
 ## Reviewer output
@@ -32,7 +33,8 @@ Return one JSON object and nothing else: no preamble, no summary, no code fence.
       "does": "Reads `next[index]`, which is past the end after the removal.",
       "sees": "Tabs open and none active.",
       "fix": "-  const active = next[index] ?? null;\n+  const active = next[Math.min(index, next.length - 1)] ?? null;",
-      "ran": "`pnpm test tabs -t \"closes last tab\"` fails: expected \"t2\", received null."
+      "ran": "`pnpm test tabs -t \"closes last tab\"` fails: expected \"t2\", received null.",
+      "probe": null
     }
   ],
   "cuts": [
@@ -50,6 +52,7 @@ Return one JSON object and nothing else: no preamble, no summary, no code fence.
 - `source`: Standards and Spec only, the rule or spec line in a few words.
 - `trigger`, `does`, `sees`: concrete inputs or state, what the code does, what the user ends up seeing. One sentence each.
 - `fix`: a diff when it is a few lines, otherwise the approach in a sentence. `ran`: the command and result, or null.
+- `probe`: `{"inputs": [...], "expected": "...", "why": "..."}` when you want the verifier to run or trace something you didn't settle yourself, null otherwise. `why` is the concrete reason to suspect this input, not every boundary gets one.
 - `tag`: delete, stdlib, native, yagni, or shrink.
 - `left_out`: judgment calls and problems the diff didn't cause, one string each: file:line, kind, why.
 - Standards adds `"coverage": "Walked 12 rules from AGENTS.md against 6 changed files."`, and, when covering for a Spec reviewer that isn't running, `"verdicts": {"Consistency": [...]}`.
