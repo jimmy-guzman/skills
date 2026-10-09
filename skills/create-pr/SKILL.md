@@ -266,7 +266,7 @@ When the change is about structure or flow (files moving, a call order changing)
 
 Length scales with the change, then stops. A one-column migration gets four lines. A ten-file change gets one bullet per group of files that change together, not one per file or symbol. One line per bullet. `## What` holds at most 6 top-level bullets and 10 in all, sub-bullets included. `## Why` stays at two short paragraphs and 80 words or fewer, not counting the ticket line. Past that, group harder or cut. The diff holds the rest.
 
-Give a sub-list only when each item has its own change. A toolchain upgrade, where each package moves to its own version, gets a short labeled parent and one child per item. Items that share one change get a group name on one bullet ("Docs: spec, design, README"). Two items stay inline.
+Give a sub-list only when each item has its own change. A toolchain upgrade, where each package moves to its own version, gets a short labeled parent and one child per item. A single file with several of its own distinct changes gets the same shape: the file as the parent bullet, one child per change. Items that share one change get a group name on one bullet ("Docs: spec, design, README"). Two items stay inline.
 
 ```markdown
 - Toolchain upgrade:
@@ -275,6 +275,12 @@ Give a sub-list only when each item has its own change. A toolchain upgrade, whe
   - `eslint-plugin-vue`: 9.33 -> 10.11
   - `@eslint/js` added at 10
   - `vue`: 3.5.17 -> 3.5.43
+```
+
+```markdown
+- `image-resize.ts`:
+  - drag a handle on the right edge to resize; only `width` is saved
+  - pointer capture stops `DragSelectionView` from also selecting the node
 ```
 
 No filler: no em dashes, no sign-offs, no emoji in the body, no summary of the summary. Before the confirmation print, the §5 lint catches em dashes, en dashes, middle dots, curly quotes, bullets over 25 words or with more than one semicolon, 3+ version arrows on a bullet, and `## What` or `## Why` over the limits above.

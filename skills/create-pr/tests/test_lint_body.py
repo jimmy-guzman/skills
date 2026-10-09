@@ -69,6 +69,14 @@ class LintBody(unittest.TestCase):
     def test_two_items_stay_inline(self):
         self.assertEqual(run("- `a.ts`, `b.ts`: share the guard\n"), (0, []))
 
+    def test_file_with_several_changes_nests(self):
+        body = (
+            "- `image-resize.ts`:\n"
+            "  - drag a handle on the right edge to resize; only `width` is saved\n"
+            "  - pointer capture stops `DragSelectionView` from also selecting the node\n"
+        )
+        self.assertEqual(run(body), (0, []))
+
     def test_good_fixture_is_clean(self):
         self.assertEqual(run(fixture("good.md")), (0, []))
 
