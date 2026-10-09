@@ -6,10 +6,12 @@ description: >
   ticket links, labels, issue closing) and writes the description in a terse,
   reviewer-first voice. Use whenever the user wants to create, open, draft,
   update, or describe a PR or MR: "create a PR", "open a merge request",
-  "push and MR", "draft a PR", "update the PR description", "write a
-  description for !482" or for a PR URL, a request for create-pr by name,
-  or a pushed feature branch and "what next". Use it even if they never name
-  the host or the CLI.
+  "push and MR", "draft a PR", "update the PR description", "add a
+  description to this PR", "this PR has no description, add one", "give
+  this PR a description", "write a description for !482" or for a PR URL,
+  a request for create-pr by name, or a pushed feature branch and "what
+  next". Use it even if they never name the host or the CLI, or never name
+  the PR by number: the current branch's own open PR counts.
   Handles new PRs, the PR on the current branch, and an already-open PR given
   by number or URL. Not for commit messages or reviewing a PR.
 compatibility: Requires git and python3, plus gh (GitHub) or glab and jq (GitLab), authenticated
