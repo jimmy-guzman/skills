@@ -89,28 +89,45 @@ Then pick the mode. The user's words win ("just suggest", "don't apply", "for th
 
 Their briefs are one file each: [references/reviewer-bugs.md](references/reviewer-bugs.md), [references/reviewer-standards.md](references/reviewer-standards.md), [references/reviewer-spec.md](references/reviewer-spec.md), plus the shared [references/reviewer-common.md](references/reviewer-common.md) every reviewer also reads. Each reviewer starts with fresh context: a subagent where the agent has them, every reviewer you run in parallel where it can. Give each the common path, its own role path, which briefs it's covering, the diff command from §1 (not the diff itself), the revision, the mode, its source files, and any thread anchors. Don't paste the briefs, unless the subagent can't read the path. Don't give it the conversation: a reviewer who didn't write the change catches what the author explains away.
 
+```text
+Read <abs path>/references/reviewer-common.md and <abs path>/references/reviewer-<role>.md.
+Briefs you cover: <roles>.
+Diff: <command from §1>. Revision: <sha>. Mode: <Apply or Suggest>. Running code allowed: <yes or no>.
+Sources: <paths>. Thread anchors: <list or none>.
+```
+
+Send this and nothing else. No suspicions, areas to check, or extra tasks: a reviewer told what to look for finds that and stops looking.
+
 Without subagents, read the briefs and make the passes yourself, one at a time, judging the code as written, not as you meant it.
 
 Pick how many reviewers run, first rule that matches:
 
-1. **Docs-only diff**: every file left after §1's exclusions is Markdown, plain text, or an image. One fresh reviewer, the Standards and Spec briefs only; nothing for Bugs to check. Say "docs only" in the `Reviewed:` line.
-2. **No spec source**: the diff touches code, and §2 found none of an issue, a plan file, or a PR description. Two reviewers: Bugs and Standards. Spec doesn't run as its own reviewer; give Standards the Spec brief's docs-vs-code check too, and it answers Spec's Consistency question in its own `verdicts`. The Spec group is left out of the report entirely, not printed as empty; its one surviving check and verdict ride in Standards'. Say "no spec source" in the `Reviewed:` line.
+1. **The user asks for a full or thorough review**: all three reviewers, regardless of the rules below. Name the sources read in the `Reviewed:` line.
+2. **Docs-only diff**: every file left after §1's exclusions is Markdown, plain text, or an image. One fresh reviewer, the Standards and Spec briefs only; nothing for Bugs to check. Say "docs only" in the `Reviewed:` line.
 3. **Small change**: at most 50 lines in at most 3 files (from §1's file list, after exclusions). One fresh reviewer with all three briefs. Say "one reviewer, small change" in the `Reviewed:` line.
-4. **The user asks for a full or thorough review**: all three reviewers, regardless of the above.
-5. **Otherwise**: all three reviewers.
-
-Rule 4 overrides 1-3; name the sources read in the `Reviewed:` line as before when rule 4 or 5 applies.
+4. **No spec source**: the diff touches code, and §2 found none of an issue, a plan file, or a PR description. Two reviewers: Bugs and Standards. Spec doesn't run as its own reviewer; give Standards the Spec brief's docs-vs-code check too, and it answers Spec's Consistency question in its own `verdicts`. The Spec group is left out of the report entirely, not printed as empty; its one surviving check and verdict ride in Standards'. Say "no spec source" in the `Reviewed:` line.
+5. **Otherwise**: all three reviewers. Name the sources read in the `Reviewed:` line.
 
 When the user asks for a thorough review, also run the Bugs reviewer twice, each with fresh context, and merge both lists. Two runs catch bugs one run misses, and §4 removes what doesn't hold.
 
-Each reviewer returns one JSON object: findings, cuts, left-out notes, plus coverage from Standards and verdicts from Spec (or from Standards, under rule 2). Work from that, not prose.
+Each reviewer returns one JSON object: findings, cuts, left-out notes, plus coverage from Standards and verdicts from Spec (or from Standards, under rule 4). Work from that, not prose.
 
 ### 4. Verify every finding
 
 The reviewer that found an issue is the worst judge of it.
 
 1. Merge duplicates into the group that found the cause. A bug and a cut on the same lines are one finding. Pipe the findings and cuts that have a path, as one JSON list, to `python3 scripts/check_quotes.py --rev <sha> -`; it reads `id`, `path`, `line`, and `quote` and ignores the rest. Leave out `--rev` whenever the review includes uncommitted changes. Fix the line of a `moved` finding. For `missing` or `no-quote`, re-quote once (from the `near` lines, if printed) and rerun. What still fails, and any `no-file`, goes to the left-out count as "quote not found". Exit 1 only means something needs fixing.
-2. Hand the survivors, cuts included, to a verifier with fresh context: a subagent where the agent has them, grouped by file so each file is read once, capped at 3 verifiers, with findings that have no file joining the smallest group. Give each the findings as JSON, the revision, the mode, whether the user allowed running their code, and the path of [references/reviewer-verifier.md](references/reviewer-verifier.md). Don't give it the reviewer's reasoning or the conversation. Without subagents, verify each finding yourself with that file, one at a time, starting from the quoted line rather than the reviewer's explanation.
+2. Hand the survivors, cuts included, to a verifier with fresh context: a subagent where the agent has them, grouped by file so each file is read once, capped at 3 verifiers, with findings that have no file joining the smallest group. Give each the findings as JSON, the revision, the mode, whether the user allowed running their code, and the path of [references/reviewer-verifier.md](references/reviewer-verifier.md). Don't give it the reviewer's reasoning or the conversation.
+
+   ```text
+   Findings: <JSON list>.
+   Revision: <sha>. Mode: <Apply or Suggest>. Running code allowed: <yes or no>.
+   Read <abs path>/references/reviewer-verifier.md.
+   ```
+
+   Send this and nothing else. No reasoning, no conversation: the verifier judges each finding on its own evidence.
+
+   Without subagents, verify each finding yourself with that file, one at a time, starting from the quoted line rather than the reviewer's explanation.
 3. Keep Reproduced and Traced findings. The rest go to the left-out count in §5 with their reasons.
 
 ### 5. Report and stop
@@ -174,7 +191,7 @@ Say "apply", or name the numbers.
 
 The first line is the verdict, from the labels alone. `Not ready:` when any finding is Critical or Major or answers Completeness, with counts and finding numbers. Else `Ready.` and the count of Minor findings.
 
-The Standards and Spec groups print whenever they have a source, headed by it. Standards with no findings is one line: `Standards (AGENTS.md): none. Walked 12 rules against 6 changed files.` Spec gives a line per verdict, then its findings. Write the verdicts after §4, from what survived: finding numbers, or "none" with what was checked. No side notes in a verdict; anything worth noting is a finding or goes to `Left out:`. Under §3's rule 2, Spec didn't run; leave its group out entirely rather than printing it empty, and give Standards a Consistency line the same way Spec would have.
+The Standards and Spec groups print whenever they have a source, headed by it. Standards with no findings is one line: `Standards (AGENTS.md): none. Walked 12 rules against 6 changed files.` Spec gives a line per verdict, then its findings. Write the verdicts after §4, from what survived: finding numbers, or "none" with what was checked. No side notes in a verdict; anything worth noting is a finding or goes to `Left out:`. Under §3's rule 4, Spec didn't run; leave its group out entirely rather than printing it empty, and give Standards a Consistency line the same way Spec would have.
 
 Leave out any other group or line that is empty. With nothing to report, write `Ready. Nothing to fix.`, the `Reviewed:` line, the Standards and Spec verdicts, and the `Left out:` line if it has anything.
 

@@ -194,6 +194,22 @@
         "All three reviewers ran: Bugs, Standards, and Spec",
         "The 'Reviewed:' line names all three sources, not 'docs only'"
       ]
+    },
+    {
+      "id": 14,
+      "prompt": "review !12, it's mine",
+      "expected_output": "Each reviewer gets only the locked template, with no orchestrator suspicions. The Bugs reviewer runs no existing test suite, only scratch boundary calls when allowed. Two disagreeing spec sources (a PR number and a docstring citing a different one) produce one finding or left-out line, not a reconciled verdict.",
+      "files": [
+        "evals/files/slow-run/"
+      ],
+      "assertions": [
+        "Each reviewer's spawn prompt contains only the template fields: briefs/paths, diff command, revision, mode, running-code-allowed, sources, thread anchors",
+        "No reviewer prompt contains orchestrator-authored suspicions, areas to check, or extra tasks",
+        "The Bugs reviewer did not run the existing test suite",
+        "Any boundary call the Bugs reviewer made was a scratch call in a temporary worktree, not the test suite",
+        "The two disagreeing spec sources (PR DISC-4151 vs. a docstring citing DISC-4035) produce one finding citing both lines, or one left_out line, not a reconciled single answer",
+        "The verifier handoff contains only findings JSON, revision, mode, running-code-allowed, and the verifier path"
+      ]
     }
   ]
 }
