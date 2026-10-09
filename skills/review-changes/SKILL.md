@@ -93,7 +93,7 @@ Their briefs are one file each: [references/reviewer-bugs.md](references/reviewe
 Read <abs path>/references/reviewer-common.md and <abs path>/references/reviewer-<role>.md.
 Briefs you cover: <roles>.
 Diff: <command from §1>. Revision: <sha>. Mode: <Apply or Suggest>. Running code allowed: <yes or no>.
-Sources: <paths>. Thread anchors: <list or none>.
+Sources: <paths or URLs>. Thread anchors: <list or none>.
 ```
 
 Send this and nothing else. No suspicions, areas to check, or extra tasks: a reviewer told what to look for finds that and stops looking.

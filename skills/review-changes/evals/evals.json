@@ -210,6 +210,22 @@
         "The two disagreeing spec sources (PR DISC-4151 vs. a docstring citing DISC-4035) produce one finding citing both lines, or one left_out line, not a reconciled single answer",
         "The verifier handoff contains only findings JSON, revision, mode, running-code-allowed, and the verifier path"
       ]
+    },
+    {
+      "id": 15,
+      "prompt": "review !1300, it's mine",
+      "expected_output": "Each reviewer gets only the locked template, with no orchestrator suspicions or extra tasks. The Bugs reviewer runs no existing test suite. Two disagreeing ticket references produce one finding or one left_out line, not a reconciled verdict. A linked ticket that doesn't describe the change produces one finding, graded against the PR description instead, with no per-item Completeness findings against the unrelated ticket. MR-description claims about production data appear only as \"can't verify from code\" left_out lines.",
+      "files": [
+        "evals/files/slow-spec/"
+      ],
+      "assertions": [
+        "Each reviewer's spawn prompt contains only the template fields: briefs/paths, diff command, revision, mode, running-code-allowed, sources, thread anchors",
+        "No reviewer prompt contains orchestrator-authored suspicions, areas to check, or extra tasks",
+        "The Bugs reviewer did not run the existing test suite",
+        "The two disagreeing ticket references (DISC-4151 vs DISC-4035) produce one finding citing both lines, or one left_out line, not a reconciled single answer",
+        "The linked ticket that doesn't describe the change produces exactly one finding, and Completeness is graded against the PR description, not per-item against the unrelated ticket",
+        "Every MR-description claim about production data or outcomes elsewhere appears only as a left_out line reading \"can't verify from code\", never as a numbered finding"
+      ]
     }
   ]
 }

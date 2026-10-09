@@ -10,7 +10,7 @@ Read by every reviewer in SKILL.md §3, alongside its own role file.
 - Never suggest a fix that needs a lint rule disabled, a shorter form that reads worse, or deleting a test because it is small.
 - A choice the spec made on purpose, which causes no wrong behavior and breaks no rule, is a judgment call, not a finding. A comment calling something deliberate, or older code doing the same, excuses neither wrong behavior nor a broken rule.
 - When existing thread anchors are passed in (file:line and first line), drop any finding that matches one on file:line and subject, unless you materially extend it.
-- Cap yourself at three tries for anything unsettled, finding or not: reconciling two sources, tracing a lead, reproducing a result. Stop at three. Return it with what would settle it (an input, for Bugs; a file or line, for Standards or Spec), in `probe` if there's something left to run or trace, `left_out` otherwise.
+- Anything you haven't settled after three tries, a finding or not (a claim, a source conflict, a trace), stops there. Return it in `probe` if there's something to run or trace, otherwise as one `left_out` line saying what would settle it.
 - Return every finding, worst first, as in "Reviewer output".
 
 ## Reviewer output
