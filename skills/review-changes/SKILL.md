@@ -90,7 +90,7 @@ Then pick the mode. The user's words win ("just suggest", "don't apply", "for th
 ### 2. Find the sources
 
 - **Standards**: `AGENTS.md`, the agent-specific instruction files the repo has (`CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, `.cursor/rules/`), `CONTRIBUTING.md`, the docs they point to, and any file or URL the user named, as in "review against taste.md".
-- **Spec**: issues referenced in the commits or the PR (fetch them), the PR description, a plan file, a path the user passed, and the repo's own spec, design, and decision docs. When none of an issue, a plan file, or a PR description exists, say so in the report; §3 then runs Spec's docs-vs-code check inside Standards instead of as its own reviewer.
+- **Spec**: issues referenced in the commits or the PR (fetch them), the PR description, a plan file, a path the user passed, and the repo's own spec, design, and decision docs. If an issue or doc was already fetched earlier in this conversation, reuse that content instead of re-fetching: write it to a temp file and pass that path in `Sources:` below. When none of an issue, a plan file, or a PR description exists, say so in the report; §3 then runs Spec's docs-vs-code check inside Standards instead of as its own reviewer.
 
 ### 3. Pick and run the reviewers
 
