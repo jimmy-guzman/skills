@@ -22,8 +22,9 @@ Other fields are ignored, so reviewer findings pipe in unchanged.
 comparing, runs of whitespace collapse to one space and curly quotes become
 straight ones, in both the quote and the file. Case still matters.
 
---rev reads files at a commit (the reviewed head). Without it, files are
-read from the working tree, which is right for uncommitted changes.
+--rev reads files at a commit (the reviewed head, or the review snapshot).
+Without it, files are read from the working tree, for read-only mode where
+no snapshot is taken.
 
 Prints a JSON list, one entry per finding:
   {"id": 1, "status": "ok"}

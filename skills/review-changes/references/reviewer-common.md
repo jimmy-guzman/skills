@@ -5,6 +5,7 @@ Read by every reviewer in SKILL.md §3, alongside its own role file.
 ## All reviewers
 
 - Read the diff and the changed files at the reviewed revision. Take line numbers from the file at the reviewed revision, not from diff output.
+- Never edit, fix, or format files in the user's tree. You find problems; the user picks the fixes.
 - Before returning a finding, reread the lines and follow the caller. Drop what doesn't survive that.
 - Skip anything a linter, formatter, or type checker already enforces.
 - Never suggest a fix that needs a lint rule disabled, a shorter form that reads worse, or deleting a test because it is small.

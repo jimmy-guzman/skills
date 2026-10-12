@@ -44,13 +44,24 @@ If the user pasted findings from a bot or a person, read [references/pasted-find
 
 ### 1. Pin the diff, read the PR, and pick the mode
 
-First hit wins. The user's words override the order: "this branch" means the branch diff plus anything uncommitted.
+First hit wins. The user's words override the order: "this branch" means the branch diff plus anything uncommitted: take the snapshot below and diff `<remote>/<base>...<sha>`.
 
 1. A PR, commit, or range the user named: `gh pr diff <n>`, `glab mr diff <n>`, or `git diff <range>`.
-2. Uncommitted changes: `git diff HEAD`, plus untracked files from `git status --porcelain`, read whole.
+2. Uncommitted changes: take the snapshot below, then `git diff HEAD <sha>`. It shows untracked files as added.
 3. A clean tree: `git diff <remote>/<base>...HEAD` after `git fetch <remote> <base>`, never the local base. The base is the open PR's base if there is one, else the default branch, on the branch's upstream remote. With no remote or a failed fetch, use the local default branch and say so.
 
-That's the diff *command* to hand to reviewers in §3, not something to run into your own context. For your own use, get only the file list and added/removed counts: `python3 scripts/pr.py state <pr>` for a PR (its `files` field), or `git diff --numstat <range> -- <pathspecs>` plus untracked files from `git status --porcelain` for a local diff (numstat alone misses untracked files). That's enough to apply §1's exclusions and size the change in §3.
+The snapshot saves the working tree, untracked files included, as a commit, and leaves the user's index and files alone:
+
+```sh
+idx=$(mktemp) && cp "$(git rev-parse --git-path index)" "$idx" \
+  && GIT_INDEX_FILE=$idx git add -A \
+  && git commit-tree "$(GIT_INDEX_FILE=$idx git write-tree)" -p HEAD -m review-snapshot
+rm -f "$idx"
+```
+
+The SHA it prints is the revision everywhere below. In a read-only or planning mode, skip it, use `git diff HEAD` (for "this branch", `git diff --merge-base <remote>/<base>`) plus the untracked files from `git status --porcelain`, trace, run `check_quotes.py` without `--rev`, and pass `working tree` as the revision to reviewers and the verifier.
+
+That's the diff *command* to hand to reviewers in §3, not something to run into your own context. For your own use, get only the file list and added/removed counts: `python3 scripts/pr.py state <pr>` for a PR (its `files` field), or `git diff --numstat <range> -- <pathspecs>` for a local diff (in read-only mode, also the untracked files from `git status --porcelain`, which numstat misses there). That's enough to apply §1's exclusions and size the change in §3.
 
 Leave out lockfiles, generated code, snapshots, and vendored files, unless they're the whole change. Stop if the diff is empty.
 
@@ -116,7 +127,9 @@ Each reviewer returns one JSON object: findings, cuts, left-out notes, plus cove
 
 The reviewer that found an issue is the worst judge of it.
 
-1. Merge duplicates into the group that found the cause. A bug and a cut on the same lines are one finding. Pipe the findings and cuts that have a path, as one JSON list, to `python3 scripts/check_quotes.py --rev <sha> -`; it reads `id`, `path`, `line`, and `quote` and ignores the rest. Leave out `--rev` whenever the review includes uncommitted changes. Fix the line of a `moved` finding. For `missing` or `no-quote`, re-quote once (from the `near` lines, if printed) and rerun. What still fails, and any `no-file`, goes to the left-out count as "quote not found". Exit 1 only means something needs fixing.
+If the revision is a snapshot (from §1, or the post-apply one in a re-review), check the tree now and again after step 2. `<before>` is that snapshot; take another snapshot as `<after>`. If `git diff --stat <before> <after>` prints anything, save `git diff-tree -p --binary <before> <after>` to a temp file, run `git diff-tree -p --binary <after> <before> | git apply`, and tell the user where the diff is. Their own edits during the run land in it too.
+
+1. Merge duplicates into the group that found the cause. A bug and a cut on the same lines are one finding. Pipe the findings and cuts that have a path, as one JSON list, to `python3 scripts/check_quotes.py --rev <sha> -`; it reads `id`, `path`, `line`, and `quote` and ignores the rest. Fix the line of a `moved` finding. For `missing` or `no-quote`, re-quote once (from the `near` lines, if printed) and rerun. What still fails, and any `no-file`, goes to the left-out count as "quote not found". Exit 1 only means something needs fixing.
 2. Hand the survivors, cuts included, to a verifier with fresh context: a subagent where the agent has them, grouped by file so each file is read once, capped at 3 verifiers, with findings that have no file joining the smallest group. Give each the findings as JSON, the revision, the mode, whether the user allowed running their code, and the path of [references/reviewer-verifier.md](references/reviewer-verifier.md). Don't give it the reviewer's reasoning or the conversation.
 
    ```text
