@@ -24,7 +24,7 @@ Usage:
 Without --path, post writes one general comment.
 
 state prints one JSON object:
-  provider, ref, state (open|closed|merged), draft, head_sha, title,
+  provider, ref, state (open|closed|merged), draft, head_sha, base_ref, title,
   author, body (the PR description), threads {open, resolved, anchors[]}, reviewed_shas[],
   reviewed_at_head, files [{path, additions, deletions}], truncated
 
@@ -163,7 +163,7 @@ GH_STATE_QUERY = """
 query($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) {
     pullRequest(number: $number) {
-      state isDraft headRefOid title body author { login }
+      state isDraft headRefOid baseRefName title body author { login }
       comments(last: 100) { nodes { body } pageInfo { hasPreviousPage } }
       reviews(last: 100) { nodes { body } pageInfo { hasPreviousPage } }
       reviewThreads(first: 100) {
@@ -221,6 +221,7 @@ class GitHub:
             "state": {"OPEN": "open", "CLOSED": "closed", "MERGED": "merged"}[pr["state"]],
             "draft": pr["isDraft"],
             "head_sha": pr["headRefOid"],
+            "base_ref": pr["baseRefName"],
             "title": pr["title"],
             "body": pr["body"] or "",
             "author": (pr["author"] or {}).get("login"),
@@ -315,6 +316,7 @@ class GitLab:
             "state": state,
             "draft": bool(mr.get("draft", mr.get("work_in_progress"))),
             "head_sha": mr["sha"],
+            "base_ref": mr["target_branch"],
             "title": mr["title"],
             "body": mr.get("description") or "",
             "author": (mr.get("author") or {}).get("username"),
@@ -400,6 +402,7 @@ def cmd_state(args):
         "state": s["state"],
         "draft": s["draft"],
         "head_sha": head,
+        "base_ref": s["base_ref"],
         "title": s["title"],
         "author": s["author"],
         "body": s["body"],

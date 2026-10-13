@@ -1,21 +1,15 @@
 ---
 name: review-changes
 description: >
-  Reviews a code change, the user's own or someone else's, with three
-  independent reviewers: bugs, the repo's written standards, and the spec the
-  change came from. Tries to disprove every finding and reports only what
-  holds, labeled by its evidence. For the user's own working change it then
-  applies what they name and re-reviews; for anyone else's it leaves each fix
-  as a suggestion a person or an agent can act on, and posts findings as PR
-  comments when asked. Use when
-  the user asks to review, check, or take a second look at a change: "review
-  this", "review my changes", "review our work on this branch", "review PR
-  285" or "!482", "review their PR and suggest fixes", "review against
-  DESIGN.md" or a guidelines URL, a request for review-changes by name, or
-  "is this ready?" after finishing a change. Also use when the user pastes
-  review findings from a bot or a person and wants them handled. Not for
-  whole-repo audits, writing a PR description, explaining what a diff does,
-  or when the user names another review tool.
+  Reviews a code change with three independent reviewers (bugs, the repo's
+  written standards, the spec it came from), tries to disprove each finding,
+  and reports only what holds. Applies chosen fixes to the user's own change;
+  for anyone else's, writes suggestions and can post them as PR comments. Use
+  when the user asks to review, check, or take a second look at a change:
+  "review my changes", "review PR 285" or "!482", "review against DESIGN.md",
+  "is this ready?", review-changes by name, or pasted review findings to
+  handle. Not for whole-repo audits, PR descriptions, explaining a diff, or
+  when the user names another review tool.
 compatibility: >
   Requires git and python3. A PR by number or URL also needs an authenticated
   gh (GitHub) or glab (GitLab). Runs reviewers as parallel subagents where the
@@ -38,7 +32,7 @@ If the user pasted findings from a bot or a person, read [references/pasted-find
 ## Gotchas
 
 - Shell wrappers can truncate long output. Whoever reads a diff (a reviewer, the verifier) should read the raw one, not a truncated echo of it.
-- `gh pr diff` and `glab mr diff` don't fetch the head commit, so `git show <sha>:<path>` fails on a PR that isn't checked out. Fetch it first: `git fetch <remote> pull/<n>/head` on GitHub, `git fetch <remote> merge-requests/<n>/head` on GitLab.
+- Diff a PR with git, not `gh pr diff` or `glab mr diff`. Those take no pathspecs, so §1's exclusions can't reach the reviewers, and they don't fetch the head, so `git show <sha>:<path>` fails.
 
 ## Process
 
@@ -46,7 +40,7 @@ If the user pasted findings from a bot or a person, read [references/pasted-find
 
 First hit wins. The user's words override the order: "this branch" means the branch diff plus anything uncommitted: take the snapshot below and diff `<remote>/<base>...<sha>`.
 
-1. A PR, commit, or range the user named: `gh pr diff <n>`, `glab mr diff <n>`, or `git diff <range>`.
+1. A PR the user named: run `python3 scripts/pr.py state <pr>` first (below) for `head_sha` and `base_ref`. Fetch both, `git fetch <remote> <base_ref> pull/<n>/head` on GitHub or `git fetch <remote> <base_ref> merge-requests/<n>/head` on GitLab, then `git diff <remote>/<base_ref>...<head_sha>`. A commit or range: `git diff <range>`.
 2. Uncommitted changes: take the snapshot below, then `git diff HEAD <sha>`. It shows untracked files as added.
 3. A clean tree: `git diff <remote>/<base>...HEAD` after `git fetch <remote> <base>`, never the local base. The base is the open PR's base if there is one, else the default branch, on the branch's upstream remote. With no remote or a failed fetch, use the local default branch and say so.
 
@@ -63,9 +57,9 @@ The SHA it prints is the revision everywhere below. In a read-only or planning m
 
 That's the diff *command* to hand to reviewers in §3, not something to run into your own context. For your own use, get only the file list and added/removed counts: `python3 scripts/pr.py state <pr>` for a PR (its `files` field), or `git diff --numstat <range> -- <pathspecs>` for a local diff (in read-only mode, also the untracked files from `git status --porcelain`, which numstat misses there). That's enough to apply §1's exclusions and size the change in §3.
 
-Leave out lockfiles, generated code, snapshots, and vendored files, unless they're the whole change. Stop if the diff is empty.
+Leave out lockfiles, generated code, snapshots, and vendored files, unless they're the whole change. Put them on the diff command as exclude pathspecs (`-- . ':!pnpm-lock.yaml' ':(exclude,glob)**/__snapshots__/**'`), so reviewers never read them. Stop if the diff is empty.
 
-For a PR, also run `python3 scripts/pr.py state <pr>`. `<pr>` is a number, ref, or URL. It prints JSON with the PR's state, head SHA, description, thread anchors, file list, and `reviewed_at_head`. If the script fails, say why, read state and description with `gh pr view` or `glab mr view`, and treat thread state as unknown.
+`pr.py state` takes a number, ref, or URL. It prints JSON with the PR's state, head SHA, base branch, description, thread anchors, file list, and `reviewed_at_head`. If the script fails, say why, read state, description, base branch, and head SHA with `gh pr view` or `glab mr view`, and treat thread state as unknown.
 
 Preflight, PR only. It triggers when any of these hold:
 
@@ -158,8 +152,7 @@ Each finding has:
 
 Labels:
 
-- Severity: Critical is data loss, a security hole, or a crash, on a path users commonly take. Major is wrong behavior a user will hit, or a failure with no way back. Minor is everything else, including faults that are rare or cosmetic. Most findings are Minor.
-- Effort: Quick win is a contained change of a few lines. Heavy lift needs a design decision.
+- Severity and effort: from the reviewer, as the verifier left them. [references/reviewer-common.md](references/reviewer-common.md) defines both; when merged duplicates disagree, keep the worse.
 - Evidence: Reproduced or Traced, from §4. Nothing else reaches the numbered list.
 
 ```text

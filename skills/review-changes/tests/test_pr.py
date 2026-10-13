@@ -33,7 +33,7 @@ post = "POST" in a
 if ep == "graphql":
     print(json.dumps({"data": {"repository": {"pullRequest": {
         "state": os.environ.get("FAKE_STATE", "OPEN"), "isDraft": False,
-        "headRefOid": "1a2b3c4d5e6f", "title": "Tabs", "body": "Closes #41",
+        "headRefOid": "1a2b3c4d5e6f", "baseRefName": "main", "title": "Tabs", "body": "Closes #41",
         "author": {"login": "sam"},
         "comments": {"nodes": [], "pageInfo": {"hasPreviousPage": False}},
         "reviews": {"nodes": [], "pageInfo": {"hasPreviousPage": False}},
@@ -128,7 +128,8 @@ class EndToEndGitHub(unittest.TestCase):
     def test_state(self):
         code, out, _ = self.run_pr("state", "285")
         self.assertEqual(code, 0)
-        self.assertEqual((out["state"], out["head_sha"], out["body"]), ("open", "1a2b3c4d5e6f", "Closes #41"))
+        self.assertEqual((out["state"], out["head_sha"], out["base_ref"], out["body"]),
+                         ("open", "1a2b3c4d5e6f", "main", "Closes #41"))
         self.assertEqual(out["threads"]["open"], 1)
         self.assertTrue(out["reviewed_at_head"])
         self.assertEqual(out["files"], [{"path": "src/tabs.ts", "additions": 2, "deletions": 1}])
