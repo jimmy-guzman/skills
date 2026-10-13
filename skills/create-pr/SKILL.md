@@ -262,6 +262,8 @@ The body is about the change, not the session. A risk gets one clause on the bul
 
 Don't attribute to a role you can't verify: no "reviewer flagged", "after feedback", "per discussion" unless a named reviewer actually said it in the thread. If the change came from reconsidering, say so directly, or just state the change.
 
+Same rule for a referenced PR, MR, ticket, or incident: don't invent its mechanism. If the Why needs to say what a prior PR did or broke, fetch that PR (or ticket) and confirm the claim first. Unverified, state only what's actually known ("spooked the team" is fine; "landed at error severity and broke builds" is not, unless that PR's diff or description actually says so).
+
 Put evidence on the bullet it supports, never in a trailing section. Evidence is a real before and after a reviewer can't get elsewhere: a number, a screenshot, a test that failed and now passes. "Tests pass" alone is not evidence. Most bullets need none of this, just the one line of what changed. When a bullet does need it, use `### Before` / `### After` headings, not a table; a table earns its place only for a real series of pairs (several screens, several states), where one row per item beats repeating headings.
 
 When the change is about structure or flow (files moving, a call order changing), a bullet can carry the smallest visual that makes it clear: a file tree, call tree, or Mermaid diagram, or a diff of one. Otherwise plain bullets.
