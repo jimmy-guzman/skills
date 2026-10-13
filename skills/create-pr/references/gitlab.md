@@ -20,6 +20,7 @@ Host commands for `create-pr`. Read Gotchas before running anything.
 - **Always `--description-file`.** Never `--description "$(cat ...)"`. Shell quoting breaks on backticks and diff snippets.
 - **Always `--yes`.** The skill already confirmed with the user. glab's own prompt hangs the call.
 - **Never `--draft` on update.** It flips a ready MR back to draft.
+- **Changing `--title` on a draft MR needs `--draft` too.** GitLab tracks draft status via a `Draft:`/`WIP:` prefix on the title; `glab mr update` only re-adds that prefix when `--draft` or `--wip` is also passed, so a bare `--title` replacement silently drops it and takes the MR out of draft. Use the `draft` value already fetched for the current MR: if it's true and the title is changing, pass `--draft` alongside `--title`. This is the one case where `--draft` on update is correct, the opposite of the gotcha above.
 - **Uploading screenshots.** Ask the user for image paths. Uploads are project-scoped, so they work before the MR exists. Upload through `glab api`, which handles the host and auth, and use the returned `markdown` field in the body:
 
   ```bash
@@ -148,7 +149,7 @@ glab mr view <iid> -F json | jq -r '.description // empty' \
 glab mr update <iid> --yes --description-file "$body"
 ```
 
-The fetch and awk carry every bot span from the live body; skip neither, even for a one-line touch-up. Add `--title` or `--label` only if the user approved changing them.
+The fetch and awk carry every bot span from the live body; skip neither, even for a one-line touch-up. Add `--title` or `--label` only if the user approved changing them. Changing the title on a draft MR: pass `--draft` alongside it (see Gotchas) so it stays draft.
 
 ## Verify
 
