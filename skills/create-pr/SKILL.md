@@ -249,6 +249,8 @@ Say what changed, for the file, symbol, package, or flag it changed in, not the 
 
 Write Why in plain prose a reviewer can read without clicking through the ticket. Short sentences, concrete nouns, no "This PR introduces", no "In order to".
 
+Why answers "what was wrong and why it mattered," never "what changed", that's `## What`'s job, and the diff already shows it. If a sentence could just as well sit on a `## What` bullet, it belongs there, not here. Asked for more detail in Why, say more about the problem, not more about the changes: where it leads, how it showed up, why it matters now, not a tour of the diff.
+
 The body is about the change, not the session. A risk gets one clause on the bullet it belongs to, and only when the reviewer has something specific to check, never a paragraph of failure modes. What you ran, didn't run, or skipped ("`pnpm dev` was not run on this branch"), and coordination talk ("Deploy order", "This merges first", "Follow-up MR"), is nothing a reviewer can act on; it goes in the chat summary.
 
 Don't attribute to a role you can't verify: no "reviewer flagged", "after feedback", "per discussion" unless a named reviewer actually said it in the thread. If the change came from reconsidering, say so directly, or just state the change.
