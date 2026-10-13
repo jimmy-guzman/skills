@@ -31,7 +31,7 @@ Detect every value. Sources, highest precedence first:
 
 When a source has a convention, follow it. When none does, use the fallback and say so in the confirmation step.
 
-**Attribution line.** If the agent is set up to add an attribution line to PR bodies (a "Generated with ..." footer), it ranks below all three sources. Leave it out when any of them says to: agent docs, the template, or a user instruction or preference about attribution, co-author trailers, or AI credit. Otherwise it goes last.
+**Attribution line.** If the agent is set up to add an attribution line to PR bodies (a "Generated with ..." footer), it ranks below all three sources above. Detected the same way as the rest of §1 — see **Attribution convention** below.
 
 ## Process
 
@@ -132,6 +132,13 @@ No match means no ticket. Only ask if agent docs require one or nearly every rec
 `#123` needs no base. The host links it.
 
 **Issue closing.** Agent docs, then how recent descriptions reference tickets: `Closes #123`, `Fixes #123`, `Relates to #123`, or a bare reference. Match the dominant form. Fallback: bare reference, no auto-close.
+
+**Attribution convention.** First hit wins:
+
+1. Agent docs, or a user instruction/preference about attribution, co-author trailers, or AI credit.
+2. The template, if it has a footer section or forbids one.
+3. Recent merged PR bodies (same sample already pulled for Title shape/Issue closing): footer present or absent, dominant pattern wins.
+4. Sample inconclusive (too few merged PRs, or genuinely mixed): fallback, append it.
 
 **Metadata.** Agent docs, then the user's own recent PRs:
 

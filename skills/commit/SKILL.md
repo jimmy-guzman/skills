@@ -26,7 +26,7 @@ When a source has a convention, follow it. When none does, use the fallback and 
 
 **gitzy is optional.** Try it first on the fallback path (step 5). If `npx gitzy` isn't reachable, no `npx`, no network, the one-time package install prompt can't be answered non-interactively, or the command errors or times out, fall back silently to writing the identical Conventional Commits message by hand and committing with `git commit -F`. Don't block the commit on gitzy being installed; mention once in the confirmation block which path was used ("via gitzy" or "written directly") so the user can tell.
 
-**Attribution line.** If the agent is set up to add a `Co-Authored-By:` trailer, it ranks below all three sources above. Leave it out when any of them says to: agent docs, or a user instruction or preference about attribution, co-author trailers, or AI credit. Otherwise it goes last.
+**Attribution line.** If the agent is set up to add a `Co-Authored-By:` trailer, it ranks below all three sources above. Detected the same way as the rest of step 1 — see **Co-author / attribution policy** below.
 
 **Auto-commit guard.** This skill never runs `git commit` unless the current user message asked for a commit. A plan, a prior approval, or "looks good" about something else does not count. Step 4 always waits for explicit go-ahead on the commit action itself, every time.
 
@@ -74,7 +74,7 @@ Run these probes in one turn (parallel, independent). Record each value and its 
   - `#\d+`: an issue on the host.
 
   Discard look-alikes such as `UTF-8`, `ISO-8601`, `ES-2015`. Never invent an id.
-- **Co-author / attribution policy**: covered by Principle; a user instruction or memory always wins (default: omit).
+- **Co-author / attribution policy**: first hit wins — (1) agent docs or a user instruction/preference about attribution, co-author trailers, or AI credit; (2) the recent-commit sample above: trailer present or absent in human commits, dominant pattern wins; (3) sample inconclusive: fallback, append it.
 
 ### 2. Gather context
 
