@@ -87,6 +87,18 @@ class CheckQuotes(unittest.TestCase):
         code, r = self.one("1", "next[index]")
         self.assertEqual((code, r["status"], r["found_at"]), (1, "moved", [3]))
 
+    def test_multiline_quote_ok_at_rev(self):
+        code, r = self.one("3-4", "const active = next[index] ?? null;  // keep last\nd")
+        self.assertEqual((code, r["status"]), (0, "ok"))
+
+    def test_multiline_quote_moved(self):
+        code, r = self.one("1", "const active = next[index] ?? null;  // keep last\nd")
+        self.assertEqual((code, r["status"], r["found_at"]), (1, "moved", [3]))
+
+    def test_multiline_quote_missing(self):
+        code, r = self.one("3-4", "const active = next[index] ?? null;  // keep last\nnope")
+        self.assertEqual((code, r["status"]), (1, "missing"))
+
     def test_working_tree_without_rev(self):
         code, r = self.one("3", "next[index]", rev=None)
         self.assertEqual((r["status"], r["found_at"]), ("moved", [4]))

@@ -18,9 +18,11 @@ Usage:
 FINDINGS.json is a list of objects:
   {"id": 1, "path": "src/tabs.ts", "line": "88", "quote": "const active = next[index] ?? null;"}
 Other fields are ignored, so reviewer findings pipe in unchanged.
-"line" is N or N-M. "quote" is one line of code, or part of one. Before
-comparing, runs of whitespace collapse to one space and curly quotes become
-straight ones, in both the quote and the file. Case still matters.
+"line" is N or N-M, the quote's first line. "quote" is one line of code, part
+of one, or several lines joined by "\n" for a quote spanning more than one
+line. Before comparing, runs of whitespace collapse to one space and curly
+quotes become straight ones, per line, in both the quote and the file. Case
+still matters.
 
 --rev reads files at a commit (the reviewed head, or the review snapshot).
 Without it, files are read from the working tree, for read-only mode where
@@ -28,7 +30,9 @@ no snapshot is taken.
 
 Prints a JSON list, one entry per finding:
   {"id": 1, "status": "ok"}
-  {"id": 2, "status": "moved", "found_at": [91]}    quote is elsewhere in the file
+  {"id": 2, "status": "moved", "found_at": [91]}    quote starts elsewhere in
+                                                    the file (first line of
+                                                    the match)
   {"id": 3, "status": "missing", "near": {...}}     quote is not in the file;
                                                     "near" holds the lines
                                                     around the claimed line,
@@ -72,10 +76,18 @@ def span(raw):
     return start, end
 
 
+def matches_at(qlines, flat, row):
+    """True if qlines (1-indexed via row) sit at flat[row - 1:], one qline per file line."""
+    if row - 1 + len(qlines) > len(flat):
+        return False
+    return all(ql in flat[row - 1 + j] for j, ql in enumerate(qlines))
+
+
 def check(finding, rev, cache):
     fid = finding.get("id")
-    path, quote = finding["path"], normalize(finding.get("quote") or "")
-    if not quote:
+    path = finding["path"]
+    qlines = [normalize(t) for t in (finding.get("quote") or "").splitlines()]
+    if not qlines or not any(qlines):
         return {"id": fid, "status": "no-quote"}
     if path not in cache:
         lines = read_file(path, rev)
@@ -84,9 +96,9 @@ def check(finding, rev, cache):
     if lines is None:
         return {"id": fid, "status": "no-file"}
     start, end = span(finding["line"])
-    if any(quote in flat[i - 1] for i in range(start, min(end, len(flat)) + 1)):
+    if any(matches_at(qlines, flat, i) for i in range(start, min(end, len(flat)) + 1)):
         return {"id": fid, "status": "ok"}
-    found = [n for n, text in enumerate(flat, 1) if quote in text]
+    found = [n for n in range(1, len(flat) + 1) if matches_at(qlines, flat, n)]
     if found:
         return {"id": fid, "status": "moved", "found_at": found[:5]}
     lo, hi = max(1, start - NEAR), min(len(lines), end + NEAR)
