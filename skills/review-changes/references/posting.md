@@ -58,4 +58,33 @@ The `id` from `post` addresses the comment.
 - GitHub: `gh api -X PATCH repos/{owner}/{repo}/pulls/comments/<id> -F body=@<tmp>` for inline, `.../issues/comments/<id>` for general. Use `-X DELETE` without the body to remove one.
 - GitLab: `glab api -X PUT projects/:fullpath/merge_requests/<n>/notes/<note_id> -f "body=$(cat <tmp>)"`, or `-X DELETE` without the body. The `id` from an inline post is a discussion id; the note id is in `notes[0].id` of `glab api projects/:fullpath/merge_requests/<n>/discussions/<id>`.
 
+## Downgrade or dismiss a posted finding
+
+When the user decides a posted finding no longer holds as scored (lower severity, not a real issue, already fixed elsewhere), do all three, in order:
+
+1. Reply on the finding's thread saying so, in a few words.
+2. Resolve the thread.
+3. Patch the summary comment (found by its `<!-- review-changes: <sha> -->` marker) so it still matches what the threads show: strike through that finding's line and add its new disposition in a few words, e.g. `~~2. Delete the comment that restates the code~~ (downgraded to nitpick, resolved)`. Don't delete the line or leave it stale.
+
+GitHub:
+
+```bash
+gh api -X POST repos/{owner}/{repo}/pulls/comments/<id>/replies -f body=@<tmp>
+```
+
+Resolving needs the thread's node id (`PRRT_...`), not the REST comment id `post` returned. Find it by matching `databaseId` to that id in the PR's `reviewThreads`, then:
+
+```bash
+gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "<PRRT_id>"}) { thread { isResolved } } }'
+```
+
+GitLab, with the discussion id from `post`:
+
+```bash
+glab api -X POST projects/:fullpath/merge_requests/<n>/discussions/<discussion_id>/notes -f "body=$(cat <tmp>)"
+glab api -X PUT projects/:fullpath/merge_requests/<n>/discussions/<discussion_id> -f resolved=true
+```
+
+Then patch the summary comment with the fix recipe above.
+
 Then stop. Never commit, push, open a PR, approve, or merge.
