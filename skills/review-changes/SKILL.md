@@ -196,6 +196,11 @@ Left out: 1 judgment call, 2 unverified, 1 refuted. Say "show left out" to see t
 Say "apply", or name the numbers.
 ```
 
+Before writing the last line, say the mode out loud: Apply or Suggest. Then close with:
+
+- **Apply**: `Say "apply", or name the numbers.`
+- **Suggest**: `Nothing applied. For an agent: verify each item against the current code, fix the ones that still hold, and skip the rest with a one-line reason.` The report must stand alone here, because it gets handed to the author or pasted to their agent: don't refer to the conversation, and reprint it in full after any cut.
+
 The first line is the verdict, from the labels alone. `Not ready:` when any finding is Critical or Major or answers Completeness, with counts and finding numbers. Else `Ready.` and the count of Minor findings.
 
 The Standards and Spec groups print whenever they have a source, headed by it. Standards with no findings is one line: `Standards (AGENTS.md): none. Walked 12 rules against 6 changed files.` Spec gives a line per verdict, then its findings. Write the verdicts after §4, from what survived: finding numbers, or "none" with what was checked. No side notes in a verdict; anything worth noting is a finding or goes to `Left out:`. Under §3's rule 4, Spec didn't run; leave its group out entirely rather than printing it empty, and give Standards a Consistency line the same way Spec would have.
@@ -208,12 +213,6 @@ Don't trim the report. When it runs past eight numbered items, add this above th
 
 ```text
 This is long. Anything to cut? For example "drop the Minor ones", "bugs only", or numbers.
-```
-
-In Suggest mode the report must stand alone, because it gets handed to the author or pasted to their agent. Don't refer to the conversation, reprint it after any cut, and replace the last line:
-
-```text
-Nothing applied. For an agent: verify each item against the current code, fix the ones that still hold, and skip the rest with a one-line reason.
 ```
 
 For a PR, rerun `scripts/pr.py state`, then add one line after the report, outside it, so the report still hands off clean: `Post these to <ref>? Say "post", or name the numbers.` Say if the PR merged or closed during the review, and if a read-only or planning mode must be turned off first. Then wait.
