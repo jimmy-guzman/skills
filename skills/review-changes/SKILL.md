@@ -155,6 +155,7 @@ Labels:
 
 - Severity and effort: from the reviewer, as the verifier left them. [references/reviewer-common.md](references/reviewer-common.md) defines both; when merged duplicates disagree, keep the worse.
 - Evidence: Reproduced or Traced, from §4. Nothing else reaches the numbered list.
+- `(nitpick?)`: append to the label line when severity is Minor, effort is Quick win, and `sees` (or `does`, if `sees` is empty) names no effect a user hits today — a cosmetic fix (naming, comment-only, typo) or a trigger only reachable in a hypothetical or future config.
 
 ```text
 Not ready: 1 Major (1), 1 missing from issue #41 (3).
