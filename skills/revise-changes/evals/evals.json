@@ -1,0 +1,64 @@
+{
+  "skill_name": "revise-changes",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "address the review comments on PR 285, don't resolve anything yet",
+      "expected_output": "Fetches open threads via pr.py threads, verifies each against current HEAD, fixes what verifies, replies on every addressed thread without --resolve, and ends by asking whether to commit.",
+      "files": ["evals/files/github-pr-285-threads/"],
+      "assertions": [
+        "scripts/pr.py threads ran before any reply",
+        "Every finding carries a label of Reproduced, Traced, Unverified, or Refuted before being replied to",
+        "No thread was resolved (no --resolve passed)",
+        "The report's first line is verdict-first, e.g. 'Replied to N threads: ...'",
+        "The final line asks whether to commit, and no commit was made without a yes"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "handle the open threads on !482, resolve the ones you fix",
+      "expected_output": "GitLab discussions fetched with full note history (not just the first note), fixed findings get --resolve on their reply, refuted or skipped ones stay open.",
+      "files": ["evals/files/gitlab-mr-482-threads/"],
+      "assertions": [
+        "scripts/pr.py threads returned all notes per discussion, not just the first",
+        "Only threads whose finding was fixed were replied to with --resolve",
+        "A refuted thread got a reply explaining why, with no --resolve",
+        "No commit was made without asking first"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "deal with the comments on PR 12, but ignore the one about duplicated code",
+      "expected_output": "The duplicated-code thread is excluded before verification and reported as 'Skipped (user excluded)', spending no verification effort on it; the rest go through the normal extract-verify-apply-reply flow.",
+      "files": ["evals/files/github-pr-12-exclusion/"],
+      "assertions": [
+        "The excluded thread was never sent to the verifier",
+        "The report lists it under a 'Skipped (user excluded)' line, not as verified-then-dropped",
+        "Other threads were verified and replied to normally"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "respond to the comments on this PR, one of them cites a rule from AGENTS.md that I don't think exists",
+      "expected_output": "The fabricated-rule thread comes back Refuted with evidence that the cited text was not found via grep and git log, and is reported, not silently dropped.",
+      "files": ["evals/files/fabricated-rule-thread/"],
+      "assertions": [
+        "The thread with the fabricated rule is labeled Refuted",
+        "The evidence cites a grep or git log search that found no such rule",
+        "A reply was posted on that thread explaining the refutation",
+        "The thread appears in the final report, not silently dropped"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "address the comments on PR 9, it's already merged",
+      "expected_output": "pr.py reply refuses with exit 4 until the user explicitly says to reply anyway with --allow-closed; nothing is replied to or resolved without that.",
+      "files": ["evals/files/merged-pr-9/"],
+      "assertions": [
+        "No reply was posted before the user was told the PR is merged and asked how to proceed",
+        "reply was only retried with --allow-closed after an explicit yes",
+        "No thread was resolved without the user separately asking to resolve"
+      ]
+    }
+  ]
+}

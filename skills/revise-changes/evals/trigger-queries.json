@@ -1,0 +1,15 @@
+[
+  { "query": "address the comments on PR 285", "should_trigger": true },
+  { "query": "respond to the review feedback on !482", "should_trigger": true },
+  { "query": "deal with what coderabbit left on my branch's PR", "should_trigger": true },
+  { "query": "reply to the reviewers on https://github.com/acme/app/pull/77, fix what holds", "should_trigger": true },
+  { "query": "handle the open threads on !1309, don't resolve them yet", "should_trigger": true },
+  { "query": "go through the review comments on PR 12 and fix what's real", "should_trigger": true },
+  { "query": "review PR 285", "should_trigger": false },
+  { "query": "can u take a second look at what I changed in src/store before I push", "should_trigger": false },
+  { "query": "summarize the review comments on PR 285 so I know what to do", "should_trigger": false },
+  { "query": "here's what the bot said, handle it: 'src/api/client.ts:120 timeout is never cleared'", "should_trigger": false },
+  { "query": "write the PR description for this branch", "should_trigger": false },
+  { "query": "approve and merge !482, CI is green", "should_trigger": false },
+  { "query": "fix the failing test in src/store/tabs.test.ts", "should_trigger": false }
+]
