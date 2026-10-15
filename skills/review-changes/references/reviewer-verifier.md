@@ -12,7 +12,7 @@ Read by the verifier in SKILL.md §4, instead of a reviewer role file.
   - Reproduced: something you ran fails at the revision. Evidence is the command and the failing line of output.
   - Traced: you followed it from trigger to wrong result, or from the rule to the line that breaks it, without running anything. Evidence is the file:line steps.
   - Unverified: you can't settle it either way. Evidence is what would.
-  - Refuted: evidence is the proof. Either the file:line of the guard or caller that makes the trigger unreachable, or a run that passes on the exact trigger. A passing test counts only if you read it and it asserts the outcome for that trigger. Reasoning alone is not a refutation: label it Unverified.
+  - Refuted: evidence is the proof. Either the file:line of the guard or caller that makes the trigger unreachable, or a run that passes on the exact trigger. A passing test counts only if you read it and it asserts the outcome for that trigger; for a scoping or filtering finding, it also needs keys whose correct values differ — a shared fixture that both the correct and broken behavior would satisfy doesn't refute it. Reasoning alone is not a refutation: label it Unverified.
 - If running or tracing hasn't settled a finding after three tries, stop: label it Unverified and say what would settle it.
 - Change a finding's severity, up or down, only with evidence.
 
