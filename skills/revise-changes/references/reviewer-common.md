@@ -1,6 +1,6 @@
 # Finding shape
 
-The shape [extraction.md](extraction.md) produces per thread, and [reviewer-verifier.md](reviewer-verifier.md) judges. Adapted from review-changes' reviewer-common.md: revise-changes has no reviewer subagents, so only the output shape carries over, not the reviewer behavior rules.
+The shape [extraction.md](extraction.md) produces per thread, and [reviewer-verifier.md](reviewer-verifier.md) judges. There are no reviewer subagents here; the thread author is the reviewer, so only the shape matters.
 
 ```json
 {

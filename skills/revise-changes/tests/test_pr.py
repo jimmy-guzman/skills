@@ -27,18 +27,22 @@ body = sys.stdin.read() if "--input" in a else None
 with open(os.environ["FAKE_LOG"], "a") as fh:
     fh.write(json.dumps({"argv": a, "body": body}) + "\n")
 state = os.environ.get("FAKE_STATE", "OPEN")
-if "graphql" in a and any(x.startswith("query=") and "reviewThreads(first: 50" in x for x in a):
+if a == ["api", "user"]:
+    print(json.dumps({"login": "me"}))
+elif "graphql" in a and any(x.startswith("query=") and "reviewThreads(first: 50" in x for x in a):
     print(json.dumps({"data": {"repository": {"pullRequest": {"reviewThreads": {
         "pageInfo": {"hasNextPage": False, "endCursor": None},
         "nodes": [
             {"id": "PRRT_1", "isResolved": False, "isOutdated": False, "isCollapsed": False,
              "path": "src/tabs.ts", "line": 83, "originalLine": 83,
-             "comments": {"nodes": [
+             "comments": {"pageInfo": {"hasNextPage": False, "endCursor": None}, "nodes": [
                  {"databaseId": 501, "body": "swallowed error here", "author": {"login": "coderabbit"},
-                  "createdAt": "2026-01-01T00:00:00Z"}]}},
+                  "createdAt": "2026-01-01T00:00:00Z"},
+                 {"databaseId": 503, "body": "Rethrown now, see the test.", "author": {"login": "me"},
+                  "createdAt": "2026-01-02T00:00:00Z"}]}},
             {"id": "PRRT_2", "isResolved": True, "isOutdated": False, "isCollapsed": False,
              "path": "src/other.ts", "line": 10, "originalLine": 10,
-             "comments": {"nodes": [
+             "comments": {"pageInfo": {"hasNextPage": False, "endCursor": None}, "nodes": [
                  {"databaseId": 502, "body": "already resolved", "author": {"login": "sam"},
                   "createdAt": "2026-01-01T00:00:00Z"}]}},
         ]}}}}}))
@@ -60,12 +64,19 @@ a = sys.argv[1:]
 body = sys.stdin.read() if "--input" in a else None
 with open(os.environ["FAKE_LOG"], "a") as fh:
     fh.write(json.dumps({"argv": a, "body": body}) + "\n")
+if a == ["api", "user"]:
+    print(json.dumps({"username": "me"}))
+    sys.exit(0)
 endpoint = next(x for x in a if x.startswith("projects/"))
 if endpoint.endswith("/discussions") and "--paginate" in a:
     print(json.dumps({"id": "disc1", "notes": [
         {"body": "swallowed error here", "author": {"username": "sam"},
          "created_at": "2026-01-01T00:00:00Z", "resolvable": True, "resolved": False,
-         "position": {"new_path": "src/tabs.ts", "new_line": 83}}]}))
+         "position": {"new_path": "src/tabs.ts", "new_line": 83, "head_sha": "1a2b3c4d5e6f"}}]}))
+    print(json.dumps({"id": "disc3", "notes": [
+        {"body": "left on an older head", "author": {"username": "sam"},
+         "created_at": "2026-01-01T00:00:00Z", "resolvable": True, "resolved": False,
+         "position": {"new_path": "src/old.ts", "new_line": 5, "head_sha": "0000000000"}}]}))
     print(json.dumps({"id": "disc2", "notes": [
         {"body": "general note, not a diff thread", "author": {"username": "sam"},
          "created_at": "2026-01-01T00:00:00Z", "resolvable": False, "resolved": False,
@@ -109,7 +120,7 @@ class EndToEndGitHub(unittest.TestCase):
         self.env = {**os.environ, "PATH": bindir + os.pathsep + os.environ["PATH"],
                     "FAKE_LOG": self.log}
         self.body = os.path.join(self.tmp.name, "body.md")
-        self.write_body("Rethrown now, see the test.")
+        self.write_body("Guarded the index now, see the test.")
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -170,18 +181,26 @@ class EndToEndGitHub(unittest.TestCase):
         self.assertEqual(self.posted(), [])
 
     def test_reply_skips_when_already_posted(self):
-        # PRRT_1's existing note body is "swallowed error here" (see FAKE_GH).
-        # A retry with that same body (e.g. after a failed --resolve) must
-        # not double-post.
-        self.write_body("swallowed error here")
+        # PRRT_1 already has a note by the current user ("me") with this body
+        # (see FAKE_GH). A retry (e.g. after a failed --resolve) must not
+        # double-post.
+        self.write_body("Rethrown now, see the test.")
         code, out, _ = self.run_pr("reply", "285", "--thread", "PRRT_1", "--body-file", self.body)
         self.assertEqual((code, out["replied"]), (0, "skipped"))
         self.assertEqual(self.posted(), [])
 
+    def test_reply_matching_someone_elses_note_still_posts(self):
+        # Dedupe is against the current user's own notes only. A body that
+        # happens to match the reviewer's comment is still a new reply.
+        self.write_body("swallowed error here")
+        code, out, _ = self.run_pr("reply", "285", "--thread", "PRRT_1", "--body-file", self.body)
+        self.assertEqual((code, out["replied"]), (0, True))
+        self.assertEqual(len(self.posted()), 1)
+
     def test_reply_resolve_retry_after_dedupe_still_resolves(self):
         # A retry that skips the duplicate reply should still attempt the
         # resolve the user asked for with --resolve.
-        self.write_body("swallowed error here")
+        self.write_body("Rethrown now, see the test.")
         code, out, _ = self.run_pr("reply", "285", "--thread", "PRRT_1", "--body-file", self.body,
                                    "--resolve")
         self.assertEqual((code, out["replied"], out["resolved"]), (0, "skipped", True))
@@ -233,7 +252,14 @@ class EndToEndGitLab(unittest.TestCase):
         code, out, _ = self.run_pr("threads", "!482", "--include-resolved")
         self.assertEqual(code, 0)
         self.assertEqual({t["id"]: t["resolvable"] for t in out["threads"]},
-                         {"disc1": True, "disc2": False})
+                         {"disc1": True, "disc3": True, "disc2": False})
+
+    def test_threads_marks_outdated_when_position_head_moved(self):
+        # disc1's position was taken at the MR's current sha; disc3's at an
+        # older one; disc2 has no diff position at all.
+        _, out, _ = self.run_pr("threads", "!482")
+        self.assertEqual({t["id"]: t["outdated"] for t in out["threads"]},
+                         {"disc1": False, "disc3": True, "disc2": False})
 
     def test_resolve_on_non_resolvable_thread_fails(self):
         code, _, err = self.run_pr("resolve", "!482", "--thread", "disc2")

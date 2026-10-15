@@ -35,15 +35,19 @@ threads prints one JSON object:
   threads [{id, node_id, resolvable, resolved, outdated, path, line,
             notes: [{author, body, created_at}]}]
   Resolved threads are left out unless --include-resolved is passed.
+  outdated is GitHub's own flag; on GitLab it's true when the thread's
+  diff position was taken at a head other than the MR's current one.
   node_id is the GitHub review-thread node id (PRRT_...), needed by resolve;
   null on GitLab, where id itself is the discussion id resolve needs.
 
 reply prints one JSON object:
   replied (true|false|dry-run), resolved (true|false), id
 
-reply always replies on the thread's first comment. Pass --resolve to also
-resolve the thread after a successful reply; without it, the thread stays
-open. --resolve never happens on its own.
+reply always replies on the thread's first comment. A body identical to a
+note the current user already left on the thread is not posted again
+(replied: "skipped"). Pass --resolve to also resolve the thread after a
+successful reply; without it, the thread stays open. --resolve never
+happens on its own.
 
 resolve prints one JSON object:
   resolved (true), id
@@ -144,10 +148,24 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {
         pageInfo { hasNextPage endCursor }
         nodes {
           id isResolved isOutdated isCollapsed path line originalLine
-          comments(first: 50) {
+          comments(first: 100) {
+            pageInfo { hasNextPage endCursor }
             nodes { databaseId body author { login } createdAt }
           }
         }
+      }
+    }
+  }
+}
+"""
+
+GH_THREAD_COMMENTS_QUERY = """
+query($id: ID!, $after: String) {
+  node(id: $id) {
+    ... on PullRequestReviewThread {
+      comments(first: 100, after: $after) {
+        pageInfo { hasNextPage endCursor }
+        nodes { databaseId body author { login } createdAt }
       }
     }
   }
@@ -170,12 +188,27 @@ class GitHub:
         out = run(cmd, stdin=json.dumps(body) if body is not None else None, env=self.env)
         return json.loads(out) if out.strip() else None
 
-    def graphql(self, query, **variables):
-        args = ["graphql", "-F", "owner={owner}", "-F", "name={repo}",
-                "-F", f"number={self.number}", "-f", f"query={query}"]
+    def graphql(self, query, pr_scoped=True, **variables):
+        args = ["graphql"]
+        if pr_scoped:
+            args += ["-F", "owner={owner}", "-F", "name={repo}", "-F", f"number={self.number}"]
+        args += ["-f", f"query={query}"]
         for k, v in variables.items():
             args += ["-f" if isinstance(v, str) else "-F", f"{k}={v}"]
         return self.api(*args)
+
+    def me(self):
+        return self.api("user")["login"]
+
+    def comments(self, thread):
+        page = thread["comments"]
+        notes = list(page["nodes"])
+        while page["pageInfo"]["hasNextPage"]:
+            data = self.graphql(GH_THREAD_COMMENTS_QUERY, pr_scoped=False,
+                                id=thread["id"], after=page["pageInfo"]["endCursor"])
+            page = data["data"]["node"]["comments"]
+            notes += page["nodes"]
+        return notes
 
     def state(self):
         data = self.graphql(GH_STATE_QUERY)
@@ -197,7 +230,7 @@ class GitHub:
             data = self.graphql(GH_THREADS_QUERY, after=after or "")
             page = data["data"]["repository"]["pullRequest"]["reviewThreads"]
             for t in page["nodes"]:
-                notes = t["comments"]["nodes"]
+                notes = self.comments(t)
                 out.append({
                     "id": t["id"],
                     "node_id": t["id"],
@@ -256,6 +289,9 @@ class GitLab:
         out = run(["glab", "api", *self.host, endpoint, "--paginate", "--output", "ndjson"])
         return [json.loads(line) for line in out.splitlines() if line.strip()]
 
+    def me(self):
+        return self.api("user")["username"]
+
     def state(self):
         mr = self.api(self.mr)
         state = {"opened": "open", "locked": "open"}.get(mr["state"], mr["state"])
@@ -272,6 +308,7 @@ class GitLab:
 
     def threads(self):
         out = []
+        head = self.state()["head_sha"]
         for d in self.pages(f"{self.mr}/discussions"):
             notes = d.get("notes") or []
             first = notes[0] if notes else {}
@@ -282,7 +319,7 @@ class GitLab:
                 "first_comment_id": None,
                 "resolvable": bool(first.get("resolvable")),
                 "resolved": bool(first.get("resolved")),
-                "outdated": False,
+                "outdated": bool(pos.get("head_sha")) and pos["head_sha"] != head,
                 "path": pos.get("new_path") or pos.get("old_path"),
                 "line": pos.get("new_line") or pos.get("old_line"),
                 "notes": [
@@ -370,7 +407,9 @@ def cmd_reply(args):
                          indent=1))
         return
 
-    already_replied = any(n["body"].strip() == body for n in thread["notes"])
+    me = c.me()
+    already_replied = any(n["author"] == me and n["body"].strip() == body
+                          for n in thread["notes"])
     nid = None
     if already_replied:
         replied = "skipped"
