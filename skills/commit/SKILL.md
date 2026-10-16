@@ -114,7 +114,9 @@ Must be a member of the detected `type-enum` if one exists.
 
 **Scope.** The single top-level directory under `skills/`, `src/`, or `packages/*` touched. Omit if ambiguous or if repo history shows no scopes.
 
-**Subject.** Imperative mood, matches the repo's casing, under the detected (or gitzy default 50-char) header max. States the effect of the change for a caller or reader, what changed for whom, not the mechanics ("changed function signature") and not a summary of the whole diff when the diff has one coherent concern (the multi-concern check in step 2 runs first).
+**Subject.** Imperative mood, matches the repo's casing, under the detected (or gitzy default 50-char) header max. States the effect of the change for a caller or reader, what changed for whom, not the mechanics ("changed function signature") and not a summary of the whole diff when the diff has one coherent concern (the multi-concern check in step 2 runs first). Build it from the diff's single core fact (what was broken, what changed) to fit the header max from the start; don't draft long and trim words afterward, that's how a subject degrades into something vague that still fits.
+
+**When it won't fit.** If the core fact doesn't fit the header max, say so and offer a version that keeps it anyway (even if slightly over, when repo convention allows), or name what's being dropped. Never silently hand over a shorter but vaguer message. If asked to shorten further after this, re-derive from the diff again rather than trimming words off the existing sentence.
 
 **Confidence check.** If the diff supports more than one reasonable framing of the same concern (for example "guard against empty input" vs "return early on empty input", same change, different emphasis), or the scope or wording choice is genuinely close, draft 2-3 candidate subjects instead of one, each a complete valid header, and let the user pick or edit. A diff with one obvious effect and one obvious scope gets exactly one subject; don't manufacture alternatives to seem thorough.
 
