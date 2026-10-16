@@ -119,6 +119,8 @@ glab api "projects/<project>/repository/files/.gitlab%2Fmerge_request_templates%
 glab mr diff <iid>
 glab api "projects/:id/merge_requests/<iid>/commits" \
   | jq -r '.[] | "\(.short_id) \(.title)\n\(.message)"'
+glab api "projects/:id/merge_requests/<iid>/diffs?per_page=100" \
+  | jq -r '.[].new_path' > <temp>/PR_FILES.txt
 ```
 
 ## Create

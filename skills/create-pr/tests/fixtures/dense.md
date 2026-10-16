@@ -1,12 +1,8 @@
-## Why
-
 Closes #321.
 
-A 1440x900 screenshot drew at 512x320, so the text in it was unreadable, and nothing opened an image bigger. Markdown has no size syntax, and the one form GitHub, Obsidian, VS Code and pandoc all draw at a given width is `<img width>`, so a resize writes that and nothing else.
+**Why.** This PR introduces a comprehensive image viewer and resize flow. A 1440x900 screenshot drew at 512x320, so the text in it was unreadable, and nothing opened an image bigger. Markdown has no size syntax, and the one form GitHub, Obsidian, VS Code and pandoc all draw at a given width is `<img width>`, so a resize writes that and nothing else. If the tag rule is wrong, a note shows an `<img>` as an image in notras that another renderer shows differently, or a search hit lands on text the note never shows; the fixture holds the rule on both sides, and the signal is a tag that renders as code here or a search result with no visible match.
 
-If the tag rule is wrong, a note shows an `<img>` as an image in notras that another renderer shows differently, or a search hit lands on text the note never shows; the fixture holds the rule on both sides, and the signal is a tag that renders as code here or a search result with no visible match. If the handle's press leaks, the image moves instead of resizing; the editor-root listener test covers the press, and the signal is the D71 ghost appearing on a handle drag.
-
-## What
+**Approach.** Added robust tests for the whole flow. All tests pass and the change is fully backward compatible.
 
 - `styles.css`: the `max-height: 320px` cap on `.ProseMirror img` is gone; an image draws at its own size up to the column, with `height: auto`. A 1440x900 screenshot drew at 512x320 before and at 624x390 now.
 - The viewer:
@@ -27,3 +23,8 @@ If the tag rule is wrong, a note shows an `<img>` as an image in notras that ano
   - `ARCHITECTURE.md`: the shared tag rule and the second syntax `NoteImage` owns.
   - `DECISIONS.md`: `D97`.
   - `README.md`: ⌘⇧O opens the selected image.
+  - `CHANGELOG.md`: the 0.4 entry.
+
+**Testing.** Ran everything locally.
+
+**Review.**

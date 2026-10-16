@@ -13,15 +13,24 @@ HERE = os.path.dirname(__file__)
 SCRIPT = os.path.join(HERE, "..", "scripts", "lint_body.py")
 
 
-def run(text):
-    with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8") as fh:
+def write(text, suffix):
+    with tempfile.NamedTemporaryFile("w", suffix=suffix, delete=False, encoding="utf-8") as fh:
         fh.write(text)
-        path = fh.name
+        return fh.name
+
+
+def run(text, files=None):
+    paths = [write(text, ".md")]
+    args = [sys.executable, "-I", SCRIPT, paths[0]]
+    if files is not None:
+        paths.append(write("\n".join(files) + "\n", ".txt"))
+        args += ["--files", paths[1]]
     try:
-        p = subprocess.run([sys.executable, "-I", SCRIPT, path], capture_output=True, text=True, check=False)
+        p = subprocess.run(args, capture_output=True, text=True, check=False)
         return p.returncode, p.stdout.splitlines()
     finally:
-        os.unlink(path)
+        for path in paths:
+            os.unlink(path)
 
 
 def fixture(name):
@@ -33,16 +42,24 @@ def words(n):
     return " ".join(["word"] * n)
 
 
-def what(n):
-    return "## What\n\n" + "- item\n" * n
+def shaped(why="Nothing closed the last tab.", approach=None, review=None, ticket=None):
+    parts = []
+    if ticket:
+        parts.append(ticket)
+    parts.append(f"**Why.** {why}")
+    if approach is not None:
+        parts.append(f"**Approach.** {approach}")
+    if review is not None:
+        parts.append(f"**Review.** {review}")
+    return "\n\n".join(parts) + "\n"
 
 
-class LintBody(unittest.TestCase):
-    def test_clean_body(self):
-        body = "## What\n\n- `tabs.ts`: keep the last tab active\n\n## Why\n\nClosing the last tab left none active.\n"
-        self.assertEqual(run(body), (0, []))
+def bullets(n, indent=""):
+    return "".join(f"{indent}- item\n" for _ in range(n))
 
-    def test_characters_flagged_with_line_numbers(self):
+
+class Characters(unittest.TestCase):
+    def test_flagged_with_line_numbers(self):
         code, out = run("ok\nuse — here\nand “quotes”\nit’s\nmid · dot\n2–3\n")
         self.assertEqual(code, 1)
         joined = "\n".join(out)
@@ -52,6 +69,8 @@ class LintBody(unittest.TestCase):
         self.assertIn(":5: middle dot", joined)
         self.assertIn(":6: en dash", joined)
 
+
+class Bullets(unittest.TestCase):
     def test_three_version_arrows(self):
         code, out = run("- `eslint`: 8 -> 9 -> 10 -> 10.12\n")
         self.assertEqual(code, 1)
@@ -66,9 +85,6 @@ class LintBody(unittest.TestCase):
     def test_shared_change_names_a_group(self):
         self.assertEqual(run("- Docs: `a.md`, `b.md`, `c.md`\n"), (0, []))
 
-    def test_two_items_stay_inline(self):
-        self.assertEqual(run("- `a.ts`, `b.ts`: share the guard\n"), (0, []))
-
     def test_file_with_several_changes_nests(self):
         body = (
             "- `image-resize.ts`:\n"
@@ -76,20 +92,6 @@ class LintBody(unittest.TestCase):
             "  - pointer capture stops `DragSelectionView` from also selecting the node\n"
         )
         self.assertEqual(run(body), (0, []))
-
-    def test_good_fixture_is_clean(self):
-        self.assertEqual(run(fixture("good.md")), (0, []))
-
-    def test_dense_fixture_is_flagged(self):
-        body = fixture("dense.md")
-        self.assertNotIn("auto-generated comment", body)
-        code, out = run(body)
-        self.assertEqual(code, 1)
-        joined = "\n".join(out)
-        self.assertIn("bullet over 25 words", joined)
-        self.assertIn("more than one semicolon", joined)
-        self.assertIn("19 bullets under ## What", joined)
-        self.assertIn("## Why runs", joined)
 
     def test_word_limit_at_any_indent(self):
         for prefix in ("- ", "- Group:\n  - "):
@@ -113,44 +115,188 @@ class LintBody(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("more than one semicolon", out[0])
 
-    def test_top_level_bullets_under_what(self):
-        self.assertEqual(run(what(6)), (0, []))
-        self.assertEqual(run(what(6) + "  - sub\n  - sub\n"), (0, []))
-        code, out = run(what(7))
-        self.assertEqual(code, 1)
-        self.assertEqual(out, [out[0]])
-        self.assertIn(":1: 7 top-level bullets under ## What", out[0])
-
-    def test_total_bullets_under_what(self):
-        self.assertEqual(run(what(2) + "  - sub\n" * 8), (0, []))
-        code, out = run(what(2) + "  - sub\n" * 9)
-        self.assertEqual(code, 1)
-        self.assertIn(":1: 11 bullets under ## What", out[0])
-
-    def test_why_paragraphs(self):
-        self.assertEqual(run("## Why\n\nCloses #1.\n\nOne.\n\nTwo.\n"), (0, []))
-        code, out = run("## Why\n\nOne.\n\nTwo.\n\nThree.\n")
-        self.assertEqual(code, 1)
-        self.assertIn(":1: 3 paragraphs under ## Why", out[0])
-
-    def test_ticket_reference_forms(self):
-        for ticket in ("#12", "fixes PROJ-9", "Relates to [PROJ-9](https://x.atlassian.net/browse/PROJ-9)."):
-            self.assertEqual(run(f"## Why\n\n{ticket}\n\nOne.\n\nTwo.\n"), (0, []))
-
-    def test_why_words(self):
-        self.assertEqual(run("## Why\n\nCloses #1.\n\n" + words(80) + "\n"), (0, []))
-        code, out = run("## Why\n\n" + words(81) + "\n")
-        self.assertEqual(code, 1)
-        self.assertIn(":1: ## Why runs 81 words", out[0])
-
     def test_fenced_blocks_skipped(self):
         body = "- Shape:\n\n  ```diff\n  - " + words(30) + "; a; b\n  ```\n"
         self.assertEqual(run(body), (0, []))
 
+    def test_counts_only_capped_in_default_shape(self):
+        self.assertEqual(run("## Changes\n\n" + bullets(12)), (0, []))
+        code, out = run(shaped(approach="Grouped.") + bullets(7))
+        self.assertEqual(code, 1)
+        self.assertIn("7 top-level bullets", out[0])
+        self.assertEqual(run(shaped(approach="Grouped.") + bullets(2) + bullets(8, "  ")), (0, []))
+        code, out = run(shaped(approach="Grouped.") + bullets(2) + bullets(9, "  "))
+        self.assertEqual(code, 1)
+        self.assertIn("11 bullets", out[0])
+
+
+class Phrases(unittest.TestCase):
+    def test_assertions_without_evidence(self):
+        for phrase in ("All tests pass.", "Tested locally.", "It is fully backward compatible.", "Works as expected."):
+            code, out = run(f"- `a.ts`: {phrase}\n")
+            self.assertEqual(code, 1, phrase)
+            self.assertIn("assertion without evidence", out[0])
+
+    def test_self_grading_words(self):
+        code, out = run("- `a.ts`: a robust, comprehensive guard that properly handles input\n")
+        self.assertEqual(code, 1)
+        joined = "\n".join(out)
+        for word in ("robust", "comprehensive", "properly"):
+            self.assertIn(f'self-grading word "{word}"', joined)
+
+    def test_plain_claims_pass(self):
+        self.assertEqual(run("- `a.ts`: the guard rejects empty input; `guard.test.ts` fails on main\n"), (0, []))
+
+
+class DefaultShape(unittest.TestCase):
+    def test_good_fixture_is_clean(self):
+        self.assertEqual(run(fixture("good.md"), fixture("good.files").splitlines()), (0, []))
+
+    def test_dense_fixture_is_flagged(self):
+        body = fixture("dense.md")
+        self.assertNotIn("auto-generated comment", body)
+        code, out = run(body, fixture("good.files").splitlines())
+        self.assertEqual(code, 1)
+        joined = "\n".join(out)
+        for message in (
+            "Why opens with the change",
+            "Why runs 119 words",
+            "body runs",
+            "20 bullets",
+            "bullet over 25 words",
+            "more than one semicolon",
+            'assertion without evidence "All tests pass"',
+            'self-grading word "robust"',
+            "`CHANGELOG.md` is not in the diff",
+            "unknown label **Testing.**",
+            "**Review.** stands alone",
+        ):
+            self.assertIn(message, joined)
+
+    def test_minimal_body_is_why_alone(self):
+        self.assertEqual(run(shaped()), (0, []))
+        self.assertEqual(run(shaped(ticket="Closes #1.")), (0, []))
+
+    def test_ticket_forms_may_precede_why(self):
+        for ticket in ("#12", "fixes PROJ-9", "Relates to [PROJ-9](https://x.atlassian.net/browse/PROJ-9)."):
+            self.assertEqual(run(shaped(ticket=ticket)), (0, []))
+
+    def test_why_must_come_first(self):
+        code, out = run("Some preamble.\n\n" + shaped())
+        self.assertEqual(code, 1)
+        self.assertIn("**Why.** must come first", out[0])
+        code, out = run("**Approach.** First.\n\n**Why.** Second.\n")
+        self.assertEqual(code, 1)
+        self.assertIn("**Why.** must come first", "\n".join(out))
+
+    def test_why_required_when_shaped(self):
+        code, out = run("**Approach.** Alone.\n")
+        self.assertEqual(code, 1)
+        self.assertIn("no **Why.** paragraph", out[0])
+
+    def test_why_openers(self):
+        for opener in ("This PR adds", "This change moves", "Adds a", "Introduces the", "Updates the"):
+            code, out = run(shaped(why=f"{opener} thing."))
+            self.assertEqual(code, 1, opener)
+            self.assertIn("Why opens with the change", out[0])
+        self.assertEqual(run(shaped(why="The thing was missing, so adds failed.")), (0, []))
+
+    def test_label_limits(self):
+        self.assertEqual(run(shaped(why=words(80), approach=words(100))), (0, []))
+        self.assertEqual(run(shaped(why=words(80), review=words(60))), (0, []))
+        code, out = run(shaped(why=words(81)))
+        self.assertEqual(code, 1)
+        self.assertIn(":1: Why runs 81 words", out[0])
+        code, out = run(shaped(approach=words(101)))
+        self.assertEqual(code, 1)
+        self.assertIn(":3: Approach runs 101 prose words", out[0])
+        code, out = run(shaped(review=words(61)))
+        self.assertEqual(code, 1)
+        self.assertIn(":3: Review runs 61 words", out[0])
+
+    def test_approach_bullets_count_toward_body_not_prose(self):
+        body = shaped(approach=words(100)) + bullets(2)
+        self.assertEqual(run(body), (0, []))
+        body = shaped(why=words(80), approach=words(100)) + "- " + words(5) + "\n"
+        code, out = run(body)
+        self.assertEqual(code, 1)
+        self.assertIn("body runs 185 words", out[0])
+
+    def test_ticket_line_not_counted(self):
+        self.assertEqual(run(shaped(why=words(80), approach=words(100), ticket="Closes #1.")), (0, []))
+
+    def test_unknown_and_empty_labels(self):
+        code, out = run(shaped() + "**Testing.** Ran it.\n")
+        self.assertEqual(code, 1)
+        self.assertIn("unknown label **Testing.**", out[0])
+        code, out = run(shaped() + "**Review.**\n")
+        self.assertEqual(code, 1)
+        self.assertIn("**Review.** stands alone", out[0])
+
+    def test_duplicate_label(self):
+        code, out = run(shaped() + "**Why.** Again.\n")
+        self.assertEqual(code, 1)
+        self.assertIn("**Why.** appears twice", out[0])
+
+    def test_review_closes_the_body(self):
+        body = shaped(review="Start in `a.ts`.") + "\n### Before\n\nold\n"
+        code, out = run(body)
+        self.assertEqual(code, 1)
+        self.assertIn("text after **Review.**", out[0])
+        body = shaped(review="Start in `a.ts`.\nThen `b.ts`.")
+        self.assertEqual(run(body), (0, []))
+
+    def test_evidence_between_approach_and_review_passes(self):
+        body = shaped(approach="The cap is gone.") + "\n### Before\n\nold\n\n### After\n\nnew\n\n**Review.** Look at `a.ts`.\n"
+        self.assertEqual(run(body), (0, []))
+
+    def test_template_bodies_skip_shape_checks(self):
+        body = "## Summary\n\nThis PR adds a thing.\n\n## Testing\n\n- ran it\n"
+        self.assertEqual(run(body), (0, []))
+
+
+class DiffConsistency(unittest.TestCase):
+    def test_named_path_must_be_in_diff(self):
+        files = ["src/editor/image-resize.ts", "README.md"]
+        self.assertEqual(run("- `image-resize.ts`: resize\n- `README.md`: note\n", files), (0, []))
+        self.assertEqual(run("- `src/editor/image-resize.ts`: resize\n", files), (0, []))
+        code, out = run("- `image-dialog.tsx`: opens it\n", files)
+        self.assertEqual(code, 1)
+        self.assertIn("`image-dialog.tsx` is not in the diff", out[0])
+
+    def test_non_paths_ignored(self):
+        files = ["a.ts"]
+        body = "- `req.body`, `@vue/eslint-config-typescript`, `3.5.17`, `<img src>`, `pnpm test`, `D97`, `width`\n"
+        self.assertEqual(run(body, files), (0, []))
+
+    def test_without_files_paths_unchecked(self):
+        self.assertEqual(run("- `nowhere.ts`: fine\n"), (0, []))
+
+    def test_test_claim_needs_test_file(self):
+        body = shaped(approach="Added a test for the empty case.")
+        self.assertEqual(run(body, ["src/a.ts", "src/a.test.ts"]), (0, []))
+        self.assertEqual(run(body, ["src/a.ts", "tests/test_a.py"]), (0, []))
+        self.assertEqual(run(body, ["src/a.ts", "src/__tests__/a.ts"]), (0, []))
+        code, out = run(body, ["src/a.ts"])
+        self.assertEqual(code, 1)
+        self.assertIn("claims a test change, but no test file", out[0])
+
+    def test_existing_test_mention_passes(self):
+        body = shaped(approach="The listener test covers the press.")
+        self.assertEqual(run(body, ["src/a.ts"]), (0, []))
+
+
+class Usage(unittest.TestCase):
     def test_bad_usage(self):
-        p = subprocess.run([sys.executable, "-I", SCRIPT], capture_output=True, text=True, check=False)
-        self.assertEqual(p.returncode, 2)
-        p = subprocess.run([sys.executable, "-I", SCRIPT, "/no/such/file.md"], capture_output=True, text=True, check=False)
+        for args in ([], ["/no/such/file.md"], [write("x\n", ".md"), "--files"], [write("x\n", ".md"), "--nope", "y"]):
+            p = subprocess.run([sys.executable, "-I", SCRIPT, *args], capture_output=True, text=True, check=False)
+            self.assertEqual(p.returncode, 2, args)
+
+    def test_missing_files_list(self):
+        p = subprocess.run(
+            [sys.executable, "-I", SCRIPT, write("x\n", ".md"), "--files", "/no/such/list.txt"],
+            capture_output=True, text=True, check=False,
+        )
         self.assertEqual(p.returncode, 2)
 
 

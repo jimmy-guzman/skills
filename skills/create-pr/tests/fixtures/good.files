@@ -1,0 +1,16 @@
+src/editor/styles.css
+src/editor/image-dialog.tsx
+src/editor/editor.tsx
+src/editor/image-resize.ts
+src/editor/drag-selection.ts
+src/editor/image-tag.ts
+src/editor/extensions.ts
+src/editor/html-literal.ts
+src-tauri/src/markdown.rs
+fixtures/image-tags.json
+src/editor/image-tag.test.ts
+SPEC.md
+DESIGN.md
+ARCHITECTURE.md
+DECISIONS.md
+README.md

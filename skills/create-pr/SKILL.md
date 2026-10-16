@@ -31,7 +31,7 @@ Detect every value. Sources, highest precedence first:
 
 When a source has a convention, follow it. When none does, use the fallback and say so in the confirmation step.
 
-**Attribution line.** If the agent is set up to add an attribution line to PR bodies (a "Generated with ..." footer), it ranks below all three sources above. Detected the same way as the rest of §1 — see **Attribution convention** below.
+**Attribution line.** If the agent is set up to add an attribution line to PR bodies (a "Generated with ..." footer), it ranks below all three sources above. Detected the same way as the rest of §1 (see **Attribution convention** below).
 
 ## Process
 
@@ -156,21 +156,27 @@ No match means no ticket. Only ask if agent docs require one or nearly every rec
 git diff --stat <remote>/<base>...HEAD
 git log <remote>/<base>..HEAD --format='%h %s%n%b'
 git diff <remote>/<base>...HEAD -- . ':(exclude,glob)**/*.lock' ':(exclude,glob)**/*-lock.*' ':(exclude,glob)**/go.sum'
+git diff --name-only <remote>/<base>...HEAD > "$(git rev-parse --git-dir)/PR_FILES.txt"   # for the §5 lint
 ```
 
-Commit bodies carry intent. Skip generated code, snapshots, and vendored files when reading. When the stat runs past about 1,500 lines, drop the last line and read the diff per file group instead.
+Skip generated code, snapshots, and vendored files when reading. When the stat runs past about 1,500 lines, drop the last line and read the diff per file group instead.
 
 Diff against the fetched remote base, never the local one. A stale local base shows changes that aren't yours.
 
-**Describe.** Use _Existing PR diff_ in the reference file for the diff and commits. It reads from the host, so it works for branches that aren't checked out and for forks.
+**Describe.** Use _Existing PR diff_ in the reference file for the diff and commits. It reads from the host, so it works for branches that aren't checked out and for forks. The last line saves the file list for the §5 lint.
 
-**All modes.** Ticket details only when the commits and diff don't already say why: a tracker tool for Jira or Linear ids, the host's issue view for `#n`. Tracker calls are often the slowest step.
+**Where the why comes from.** The diff never says why, and a why inferred from it cannot be checked. Sources, first hit wins:
+
+1. The conversation or plan this change was made in, when this agent did the work. It holds what was tried and dropped.
+2. Commit bodies. Subjects say what; bodies carry intent.
+3. The ticket: a tracker tool for Jira or Linear ids, the host's issue view for `#n`. Often the slowest step; skip it when 1 or 2 answers.
+4. The user, asked in §5. Never the diff.
 
 ### 3. Decide the evidence
 
 Evidence is a before and an after.
 
-- UI change (the diff touches `.vue`, `.tsx`, `.jsx`, `.svelte`, `.css`, `.scss`, chart or plot code, or the ticket is visual): screenshots. Draft `### Before` and `### After` headings with a `<!-- before -->` / `<!-- after -->` placeholder under each; how real images get in is host-specific (see Gotchas in the reference file). Only fall back to one table, one row per pair, when there's a real series of screens or states to show. Never fabricate a screenshot.
+- UI change (the diff touches `.vue`, `.tsx`, `.jsx`, `.svelte`, `.css`, `.scss`, chart or plot code, or the ticket is visual): screenshots. Draft `### Before` and `### After` headings with a `<!-- before -->` / `<!-- after -->` placeholder under each; how real images get in is host-specific (see Gotchas in the reference file). A table, one row per pair, only for a real series of screens or states. Never fabricate a screenshot.
 - Anything else: the test that failed before and passes now, or the output that changed.
 
 Never state a before you didn't observe. A test that is new in this diff and was never run against the base is "new test", not "failed before".
@@ -179,16 +185,16 @@ Never state a before you didn't observe. A test that is new in this diff and was
 
 **Title.** Fill the shape from §1. Don't type a `Draft:` prefix; the draft flag handles it. Describe and update keep the current title unless asked.
 
-**Body with a template.** Keep its headings, order, and checklists. Fill each section using Voice. Handle unused sections and template comments the way recent merged PRs do. Don't tick a checkbox you can't verify from the diff or the conversation.
+**Body with a template.** Keep its headings, order, and checklists; _With a template_ under Voice says how to fill them. Don't tick a checkbox you can't verify from the diff or the conversation.
 
 **Body without a template.** Use the default shape under Voice.
 
-**Ticket reference.** Put it where the template puts it. Otherwise it opens `## Why`.
+**Ticket reference.** Put it where the template puts it. Otherwise it is the first line of the body, alone.
 
 - Jira or Linear: `[TICKET-ID](<link base>TICKET-ID)`, prefixed with the close keyword from §1 if any.
 - Host issue: `#123`, prefixed with the close keyword if any.
 
-**Describe and update.** Redraft from the full diff, then merge with the current description. Keep everything you did not write: uploaded images, ticked checkboxes, sections you didn't write, notes for reviewers. Drop bot spans (the auto-generated markers from §1) from the merge; §6 re-adds them from the live body at write time, so a bot that wrote after §0 still survives. An empty current description needs no merge.
+**Describe and update.** Redraft from the full diff, then merge with the current description. Keep everything you did not write: uploaded images, ticked checkboxes, other sections, notes for reviewers. Drop bot spans (the auto-generated markers from §1) from the merge; §6 re-adds them from the live body at write time, so a bot that wrote after §0 survives. An empty current description needs no merge.
 
 ### 5. Confirm inline
 
@@ -196,15 +202,18 @@ Write the drafted body to a file, then lint it. Fix every flagged line and rerun
 
 ```bash
 body="$(git rev-parse --git-dir)/PR_BODY.md"
-# Write the drafted body to $body here.
-python3 <skill-dir>/scripts/lint_body.py "$body"
+files="$(git rev-parse --git-dir)/PR_FILES.txt"
+# Write the drafted body to $body here. $files was written in §2.
+python3 <skill-dir>/scripts/lint_body.py "$body" --files "$files"
 ```
 
-Each shell command may start a fresh shell, so a variable or a `trap` from one command is gone in the next. Recompute `body` with the same line in every command that uses it. The file sits inside `.git`, so it is never committed. Outside a git repo (describe mode from anywhere), use a file in the agent's temp directory and reuse its literal path.
+Each shell command may start a fresh shell, so a variable or `trap` from one command is gone in the next: recompute `body` and `files` with the same lines in every command that uses them. Inside `.git` they are never committed. Outside a git repo (describe mode from anywhere), use the agent's temp directory and reuse the literal paths.
 
 Before printing, apply the attribution rule from Principle.
 
-Print a one-block conventions summary, then the title and body. Example:
+If §2 found no why, or nothing was said for Review, ask with the draft, in the same message: "What prompted this?" and "Anything the reviewer should focus on, challenge, or know wasn't exercised?" The user corrects a body, not a form. A "just open it" skips the Review question, never the Why one: a body with no why doesn't ship, so lint again once the answer is in.
+
+Print a one-block conventions summary, then the title and body:
 
 ```
 host: GitLab | mode: create | base: develop (AGENTS.md)
@@ -215,7 +224,7 @@ labels: frontend (8/10 of yours) | assignee: @me | draft: yes
 
 For describe and update, also show what changed against the current description.
 
-Wait for approval or edits. No pushes, uploads, or host writes until then. If the request already said to go ahead ("just open it", "ship it"), that is the approval: print the summary and continue to §6.
+Wait for approval or edits. No pushes, uploads, or host writes until then. A request that already said to go ahead ("just open it", "ship it") is the approval: print the summary and continue to §6.
 
 If the user corrects a detected convention, apply it to this PR. If it sounds durable ("we always target develop"), offer once to add it to agent docs: the repo's `AGENTS.md` for team conventions, the user's personal agent instructions for personal defaults.
 
@@ -223,70 +232,35 @@ If the user corrects a detected convention, apply it to this PR. If it sounds du
 
 The body is already on disk from §5. Run _Create_ (create mode) or _Update_ (describe and update) from the reference file. Change the title, labels, or draft state of an existing PR only if the user approved it.
 
-**Every body write is a full replacement.** Bots append to the body after §0 reads it (CodeRabbit lands within minutes of the open). Right before the write, re-fetch the live body and append every bot span to the draft; the _Update_ snippet in the reference file does both. This holds for any later edit of the body too, inside this skill or a one-line touch-up after it.
+**Every body write is a full replacement.** Bots append to the body after §0 reads it (CodeRabbit lands within minutes). Right before the write, re-fetch the live body and append every bot span to the draft; the _Update_ snippet in the reference file does both. This holds for any later edit of the body, inside this skill or a one-line touch-up after it.
 
 ### 7. Verify
 
-Run _Verify_ from the reference file. Confirm draft state and base match what §5 showed. Delete the body file. Report the PR URL.
+Run _Verify_ from the reference file. Confirm draft state and base match what §5 showed. Delete the body and file-list files. Report the PR URL.
 
 ## Voice
 
-Applies to the body, with or without a template. The title follows the shape from §1 exactly, emoji and all.
+Applies to the body. The title follows the shape from §1 exactly, emoji and all.
 
-**Default shape** (when the repo has no template):
-
-```markdown
-## Why
-
-<ticket reference>
-
-<One or two short paragraphs. Lead with the problem, not the solution.>
-
-## What
-
-- `<file group or symbol>`: <specific change, one line>
-- `<file group or symbol>`: <what changed and what to look at>
-```
-
-Those two sections only. Nothing else gets a heading. Why comes first: it's the part a reviewer actually needs to read, and the part most worth getting right.
-
-**Rules:**
-
-Say what changed, for the file, symbol, package, or flag it changed in, not the category it falls in ("the 320px cap is gone", not "updated the component"). Only earn a bullet if a reviewer couldn't already tell it from the diff or the file list: a behavior change, a default that flipped, something that used to work one way and now works another. A migration that just adds a column, a test file that just got stubbed, a doc that just got a new line, these don't need their own bullet unless something in them is surprising. How the change works is in the diff; say what changed, not how. One or two short clauses per bullet, at most one semicolon, sub-bullets too.
-
-Write Why in plain prose a reviewer can read without clicking through the ticket. Short sentences, concrete nouns, no "This PR introduces", no "In order to".
-
-Why answers "what was wrong and why it mattered," never "what changed", that's `## What`'s job, and the diff already shows it. If a sentence could just as well sit on a `## What` bullet, it belongs there, not here. Asked for more detail in Why, say more about the problem, not more about the changes: where it leads, how it showed up, why it matters now, not a tour of the diff.
-
-The body is about the change, not the session. A risk gets one clause on the bullet it belongs to, and only when the reviewer has something specific to check, never a paragraph of failure modes. What you ran, didn't run, or skipped ("`pnpm dev` was not run on this branch"), and coordination talk ("Deploy order", "This merges first", "Follow-up MR"), is nothing a reviewer can act on; it goes in the chat summary.
-
-Don't attribute to a role you can't verify: no "reviewer flagged", "after feedback", "per discussion" unless a named reviewer actually said it in the thread. If the change came from reconsidering, say so directly, or just state the change.
-
-Same rule for a referenced PR, MR, ticket, or incident: don't invent its mechanism. If the Why needs to say what a prior PR did or broke, fetch that PR (or ticket) and confirm the claim first. Unverified, state only what's actually known ("spooked the team" is fine; "landed at error severity and broke builds" is not, unless that PR's diff or description actually says so).
-
-Put evidence on the bullet it supports, never in a trailing section. Evidence is a real before and after a reviewer can't get elsewhere: a number, a screenshot, a test that failed and now passes. "Tests pass" alone is not evidence. Most bullets need none of this, just the one line of what changed. When a bullet does need it, use `### Before` / `### After` headings, not a table; a table earns its place only for a real series of pairs (several screens, several states), where one row per item beats repeating headings.
-
-When the change is about structure or flow (files moving, a call order changing), a bullet can carry the smallest visual that makes it clear: a file tree, call tree, or Mermaid diagram, or a diff of one. Otherwise plain bullets.
-
-```diff
- submitForm
-   createSession
-+    expandSkillMention
-     launchAgent
-```
-
-Length scales with the change, then stops. A one-column migration gets four lines. A ten-file change gets one bullet per group of files that change together, not one per file or symbol. One line per bullet. `## What` holds at most 6 top-level bullets and 10 in all, sub-bullets included. `## Why` stays at two short paragraphs and 80 words or fewer, not counting the ticket line. Past that, group harder or cut. The diff holds the rest.
-
-Give a sub-list only when each item has its own change. A toolchain upgrade, where each package moves to its own version, gets a short labeled parent and one child per item. A single file with several of its own distinct changes gets the same shape: the file as the parent bullet, one child per change. Items that share one change get a group name on one bullet ("Docs: spec, design, README"). Two items stay inline.
+**Default shape** (no template). Prose paragraphs opened by bold run-in labels, no headings: a heading is a slot that gets filled whether or not there is anything to say, a label exists only when its sentence does. It scans like a form and reads as prose in `git log`.
 
 ```markdown
-- Toolchain upgrade:
-  - `eslint`: 8.57 -> 10.12 (via 9.39.5)
-  - `@vue/eslint-config-typescript`: 13 -> 14.9
-  - `eslint-plugin-vue`: 9.33 -> 10.11
-  - `@eslint/js` added at 10
-  - `vue`: 3.5.17 -> 3.5.43
+<ticket reference, alone, if there is one>
+
+**Why.** <The problem: what was wrong, how it showed up, why now.>
+
+**Approach.** <The decisions the diff does not show.>
+
+<Evidence, where a real before and after exists.>
+
+**Review.** <What the reviewer should do with this.>
 ```
+
+Why is required and first. Approach and Review exist only when they have content; a dependency bump is often a Why alone. Nothing else gets a label, nothing follows Review. Three sentences or fewer per paragraph, the first carrying the point.
+
+**Why** answers "what was wrong and why it mattered," never "what changed": that is Approach's job. Readable without opening the ticket; short sentences, concrete nouns, no "This PR introduces". Asked for more detail, say more about the problem (where it leads, how it showed up, why now), not about the changes.
+
+**Approach** holds only what a reviewer cannot tell from the diff or the file list: the alternative rejected and why, a departure from the codebase's usual pattern, what is deliberately out of scope, the one behavior change inside a refactor, a default that flipped. Name the file, symbol, package, or flag ("the 320px cap is gone", not "updated the component"). How it works is in the diff; a migration that just adds a column gets no mention unless something in it is surprising. Prose by default. A list is for same-shaped items only, one or two short clauses per bullet, at most one semicolon; a sub-list only when each item has its own change (one child per package in a toolchain upgrade, one per change in a file with several). Items sharing one change get a group name on one bullet ("Docs: spec, design, README"); two items stay inline. The file inventory, one bullet per touched file, is the failure this shape exists to prevent.
 
 ```markdown
 - `image-resize.ts`:
@@ -294,4 +268,16 @@ Give a sub-list only when each item has its own change. A toolchain upgrade, whe
   - pointer capture stops `DragSelectionView` from also selecting the node
 ```
 
-No filler: no em dashes, no sign-offs, no emoji in the body, no summary of the summary. Before the confirmation print, the §5 lint catches em dashes, en dashes, middle dots, curly quotes, bullets over 25 words or with more than one semicolon, 3+ version arrows on a bullet, and `## What` or `## Why` over the limits above.
+**Evidence** is a real before and after a reviewer can't get elsewhere: a number, a screenshot, a test that failed and now passes. "Tests pass" is not evidence; the PR shows CI. Most changes need none. When one does, it sits right after the sentence it supports, under `### Before` / `### After` headings; a table only for a real series of pairs. For structure or flow, the smallest visual that makes it clear: a file tree, call tree, or Mermaid diagram.
+
+**Review** is the one paragraph written to the reviewer, and only from what the user or the session actually said; an invented doubt sends them to the wrong place. Its content: the feedback wanted ("design check on the cache key, the rest is mechanical"), where to start in a large diff, what the author is unsure of, and a behavior left unverified that a reviewer would assume was covered. Say the behavior, not the step skipped: "the retry path never ran against the real API" is actionable; "`pnpm dev` was not run" is not, and a reviewer once said so. Mechanical files (renames, formatter output) go as self-comments on the diff. Coordination talk ("Deploy order", "This merges first", "Follow-up MR") stays in the chat summary: the body is about the change, not the session.
+
+A risk gets one clause in the Approach sentence it belongs to, only when the reviewer has something specific to check. Don't attribute to a role you can't verify ("reviewer flagged", "per discussion") unless a named reviewer said it in the thread. Same for a referenced PR, ticket, or incident: fetch it and confirm before saying what it did or broke; unverified, state only what's known ("spooked the team", not "broke builds").
+
+Every file the body names must be in the diff, and a claimed test must have a test file behind it; describing work the diff does not contain is what most reliably gets a PR rejected.
+
+Length scales with the change, then stops: Why 80 words (ticket line aside), Approach prose 100 with at most 6 top-level bullets and 10 in all, Review 60, the whole body 180 with evidence aside. Past that, group harder or cut. The diff holds the rest.
+
+No filler: no em dashes, sign-offs, emoji, or summary of the summary; no self-grading ("robust", "comprehensive", "properly"); no assertions in place of evidence ("tests pass", "tested locally", "fully backward compatible"). The §5 lint enforces this section.
+
+**With a template**, its headings and order win. Fill each section in this voice: Why's rules where it asks for motivation, Approach's where it asks for the changes. Handle unused sections the way recent merged PRs do; when they don't settle it, delete a section with nothing to say rather than writing "N/A". Never leave the template's HTML comments in. An AI disclosure field gets the tool and the extent, truthfully.

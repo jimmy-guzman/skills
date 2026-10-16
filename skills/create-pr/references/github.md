@@ -124,6 +124,7 @@ On squash-merge repos the PR title becomes the commit subject, so the title shap
 gh pr diff <number-or-url>
 gh pr view <number-or-url> --json commits \
   --jq '.commits[] | "\(.oid[:7]) \(.messageHeadline)\n\(.messageBody)"'
+gh pr view <number-or-url> --json files --jq '.files[].path' > <temp>/PR_FILES.txt
 ```
 
 ## Create

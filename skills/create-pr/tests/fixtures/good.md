@@ -1,22 +1,15 @@
-## Why
-
 Closes #321.
 
-Screenshots drew too small to read, and nothing opened them bigger. Markdown has no size syntax, and `<img width>` is the one form GitHub, Obsidian, VS Code and pandoc all honor, so resizing writes that.
+**Why.** Screenshots drew too small to read, and nothing opened them bigger. Markdown has no size syntax, so a resized image is saved as `<img src alt width>`, the one form GitHub, Obsidian, VS Code and pandoc all honor.
 
-## What
+**Approach.** The 320px cap is gone; images draw at their own size up to the column width. An image opens full size from a hover button, double-click, or ⌘⇧O, and a drag handle resizes it; only `width` is saved. TS and Rust share the tag rule through `fixtures/image-tags.json` so search and render agree.
 
-- Images draw at their own size up to the column width; the 320px cap is gone.
+### Before
 
-  ### Before
+<!-- before --> 1440x900 screenshot at 512x320.
 
-  <!-- before --> 1440x900 screenshot at 512x320.
+### After
 
-  ### After
+<!-- after --> 1440x900 screenshot at 624x390.
 
-  <!-- after --> 1440x900 screenshot at 624x390.
-
-- `image-dialog.tsx`, `editor.tsx`: open an image full size from a hover button, double-click, or ⌘⇧O.
-- `image-resize.ts`: drag a handle on the selected image to resize it; only `width` is saved.
-- Sized images save as `<img src alt width>` (D97). TS and Rust share one rule, held by `fixtures/image-tags.json`.
-- Docs: spec, design, architecture, decisions, README.
+**Review.** The tag rule lives twice, in `image-tag.ts` and `markdown.rs`. That is the part worth a close read.
