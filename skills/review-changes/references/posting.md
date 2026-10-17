@@ -29,20 +29,20 @@ python3 <skill-dir>/scripts/pr.py post <pr> --head <sha> \
 - A retry is safe: an identical comment at the same spot comes back as `"posted": "skipped"`.
 - `--dry-run` prints what would be posted without posting it. Use it when the user wants to see the comments first.
 
-After the findings, post one summary comment: the same command without `--path` and `--line`, plus `--marker`. The marker adds `<!-- review-changes: <head_sha> -->`, which the next preflight reads to spot "already reviewed at this SHA". The body is the verdict line, recounted over the posted findings, the `Reviewed:` line, the Standards and Spec verdicts if the report has them, and one line per posted finding: number, title, `file:line`. Leave out the `Left out:` line and the agent handoff line.
+After the findings, post one summary comment: the same command without `--path` and `--line`, plus `--marker`. The marker adds `<!-- review-changes: <head_sha> -->`, which the next preflight reads to spot "already reviewed at this SHA". The body is the `Change:` line, the verdict, recounted over the posted findings, the `Reviewed:` line, the Standards and Spec footer lines if the report has them, and one line per posted finding: number, title, `file:line`. Leave out the `Left out:` line and the agent handoff line.
 
 ```text
-Not ready: 1 Major (1), 1 missing from issue #41 (3).
+Change: Closing a tab now picks a neighbour instead of leaving none active, and each tab remembers its caret so switching back restores it.
+
+Not ready: 1 Major (1), 1 missing from issue #41 (2).
 Reviewed at 1a2b3c4 against AGENTS.md and issue #41.
 
-Spec (issue #41)
-Completeness: 3.
-Scope: none. Only `tabs.ts` and `types.ts` change; settings and routing are untouched.
-Correctness: none. `activate` restores the caret on every path the issue names.
+Standards (AGENTS.md): 3. Walked 12 rules against 6 changed files.
+Spec (issue #41): Completeness 2.
 
 1. Fall back to the previous tab when the last one closes, `src/store/tabs.ts:88`
-2. Delete the comment that restates the code, `src/store/tabs.ts:70-74`
-3. Keep the tab's scroll position, which the issue asks for, `src/store/tabs.ts:40`
+2. Keep the tab's scroll position, which the issue asks for, `src/store/tabs.ts:40`
+3. Delete the comment that restates the code, `src/store/tabs.ts:70-74`
 ```
 
 Then report what landed in one block:
@@ -64,7 +64,7 @@ When the user decides a posted finding no longer holds as scored (lower severity
 
 1. Reply on the finding's thread saying so, in a few words.
 2. Resolve the thread.
-3. Patch the summary comment (found by its `<!-- review-changes: <sha> -->` marker) so it still matches what the threads show: strike through that finding's line and add its new disposition in a few words, e.g. `~~2. Delete the comment that restates the code~~ (downgraded to nitpick, resolved)`. Don't delete the line or leave it stale.
+3. Patch the summary comment (found by its `<!-- review-changes: <sha> -->` marker) so it still matches what the threads show: strike through that finding's line and add its new disposition in a few words, e.g. `~~2. Delete the comment that restates the code~~ (downgraded to nice to have, resolved)`. Don't delete the line or leave it stale.
 
 GitHub:
 

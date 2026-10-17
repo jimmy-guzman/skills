@@ -4,18 +4,18 @@
     {
       "id": 1,
       "prompt": "ok I think the tab close fix is done, is this ready? didn't commit yet",
-      "expected_output": "Apply mode on uncommitted changes. Findings pass a verify step, and the numbered report grouped Bugs, Standards, Spec, Cuts holds only Reproduced or Traced findings, ending with 'Say \"apply\", or name the numbers.' Nothing edited yet.",
+      "expected_output": "Apply mode on uncommitted changes. Findings pass a verify step, and the numbered report grouped Must fix, Should fix, Nice to have holds only Reproduced or Traced findings, ending with 'Say \"apply\", or name the numbers.' Nothing edited yet.",
       "files": [
         "evals/files/uncommitted-tab-fix/"
       ],
       "assertions": [
-        "The report's first line starts with 'Not ready:' and names the off-by-one by its finding number",
+        "The report opens with a 'Change:' line of two or three sentences, and the next line starts with 'Not ready:' and names the off-by-one by its finding number",
         "The second line is a 'Reviewed:' line naming uncommitted changes and the sources read",
-        "The Standards group is headed with AGENTS.md; if it has no findings it is one line saying how many rules were walked against how many files",
+        "The Standards footer line names AGENTS.md and says how many rules were walked against how many files",
         "Every numbered finding has a title, a severity | effort | evidence line, and a file:line",
-        "The Spec group names issue #41 and has Completeness, Scope, and Correctness lines, each giving finding numbers or 'none' with what was checked",
+        "The Spec footer line names issue #41 and lists only the verdicts that name a finding",
         "Every evidence label in the numbered list is Reproduced or Traced",
-        "The off-by-one in the last-tab close path is reported as a Bugs finding labeled Reproduced, with the failing command",
+        "The off-by-one in the last-tab close path is a Must fix finding labeled Reproduced, with the failing command",
         "scripts/check_quotes.py ran before the report",
         "The report has no Judgment calls section; any are counted in a 'Left out:' line",
         "No file in the working tree changed during the run, and no worktree is left behind (git worktree list shows only the main one)",
@@ -36,7 +36,7 @@
         "The report's last line starts with 'Nothing applied. For an agent:'",
         "After the report, one line offers to post the findings to #285",
         "In a planning mode, the offer says that mode has to be turned off first",
-        "If the PR names an issue, the report has the Spec verdict lines even when Spec has no findings"
+        "If the PR names an issue, the report has a Spec footer line even when Spec has no findings"
       ]
     },
     {
@@ -119,7 +119,7 @@
         "evals/files/removed-guard/"
       ],
       "assertions": [
-        "A numbered Bugs finding says the null guard in src/lib/load.ts was removed",
+        "A numbered finding says the null guard in src/lib/load.ts was removed",
         "Its quote is a line that exists at the head, not the removed guard",
         "check_quotes.py reported ok for it",
         "No finding was dropped without appearing in the 'Left out:' count"
@@ -150,8 +150,8 @@
         "Exactly one reviewer ran, with the Bugs, Standards, and Spec briefs",
         "scripts/check_quotes.py ran and a verifier labeled each finding",
         "The 'Reviewed:' line says one reviewer, small change (not 'no spec source')",
-        "The Spec group names issue #52",
-        "The first line starts with 'Ready.' or 'Not ready:'"
+        "The Spec footer line names issue #52",
+        "The line after 'Change:' starts with 'Ready.' or 'Not ready:'"
       ]
     },
     {
@@ -165,22 +165,22 @@
         "Exactly one reviewer ran, with the Standards and Spec briefs, not Bugs",
         "No finding has a Bugs id (B-prefixed)",
         "The 'Reviewed:' line says docs only",
-        "The first line starts with 'Ready.' or 'Not ready:'"
+        "The line after 'Change:' starts with 'Ready.' or 'Not ready:'"
       ]
     },
     {
       "id": 12,
       "prompt": "review my branch, it's a small refactor of src/lib/cache.ts, no ticket for this one",
-      "expected_output": "The diff touches code and there is no issue, plan file, or PR description, so rule 2 fires: two reviewers, Bugs and Standards. Spec does not run as its own reviewer; Standards absorbs its docs-vs-code check and answers the Consistency question itself. The Spec group is left out of the report entirely. The 'Reviewed:' line says 'no spec source'.",
+      "expected_output": "The diff touches code and there is no issue, plan file, or PR description, so rule 2 fires: two reviewers, Bugs and Standards. Spec does not run as its own reviewer; Standards absorbs its docs-vs-code check and answers the Consistency question itself. The Spec footer line is left out of the report. The 'Reviewed:' line says 'no spec source'.",
       "files": [
         "evals/files/no-spec-source/"
       ],
       "assertions": [
         "Exactly two reviewers ran: Bugs and Standards",
-        "No finding has a Spec id (P-prefixed), and no separate Spec group is printed",
-        "The Standards group's JSON (or report) carries a Consistency verdict",
+        "No finding has a Spec id (P-prefixed), and no Spec footer line is printed",
+        "The Standards reviewer's JSON (or the Standards footer line) carries a Consistency verdict",
         "The 'Reviewed:' line says no spec source",
-        "The first line starts with 'Ready.' or 'Not ready:'"
+        "The line after 'Change:' starts with 'Ready.' or 'Not ready:'"
       ]
     },
     {
@@ -225,6 +225,20 @@
         "The two disagreeing ticket references (DISC-4151 vs DISC-4035) produce one finding citing both lines, or one left_out line, not a reconciled single answer",
         "The linked ticket that doesn't describe the change produces exactly one finding, and Completeness is graded against the PR description, not per-item against the unrelated ticket",
         "Every MR-description claim about production data or outcomes elsewhere appears only as a left_out line reading \"can't verify from code\", never as a numbered finding"
+      ]
+    },
+    {
+      "id": 16,
+      "prompt": "review my changes, I reworked the stock sync loop in src/sync.py",
+      "expected_output": "The query per SKU inside the loop is a numbered finding, Traced or Reproduced, judged against the README's 20k-80k SKU load. The `shortcut:` comment naming a 500k ceiling is not a finding, because the expected load stays under it. The `Reviewed:` line names the load assumed.",
+      "files": [
+        "evals/files/scale-finding/"
+      ],
+      "assertions": [
+        "A numbered finding names src/sync.py's per-SKU query inside the loop, with an evidence label of Reproduced or Traced",
+        "That finding's prose or Evidence line cites the catalog size from the README",
+        "No numbered finding is about the `shortcut:` comment or the in-memory rows list",
+        "The 'Reviewed:' line contains 'Load assumed:'"
       ]
     }
   ]

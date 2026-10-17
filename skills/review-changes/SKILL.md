@@ -111,12 +111,12 @@ Pick how many reviewers run, first rule that matches:
 1. **The user asks for a full or thorough review**: all three reviewers, regardless of the rules below. Name the sources read in the `Reviewed:` line.
 2. **Docs-only diff**: every file left after §1's exclusions is Markdown, plain text, or an image. One fresh reviewer, the Standards and Spec briefs only; nothing for Bugs to check. Say "docs only" in the `Reviewed:` line.
 3. **Small change**: at most 50 lines in at most 3 files (from §1's file list, after exclusions). One fresh reviewer with all three briefs. Say "one reviewer, small change" in the `Reviewed:` line.
-4. **No spec source**: the diff touches code, and §2 found none of an issue, a plan file, or a PR description. Two reviewers: Bugs and Standards. Spec doesn't run as its own reviewer; give Standards the Spec brief's docs-vs-code check too, and it answers Spec's Consistency question in its own `verdicts`. The Spec group is left out of the report entirely, not printed as empty; its one surviving check and verdict ride in Standards'. Say "no spec source" in the `Reviewed:` line.
+4. **No spec source**: the diff touches code, and §2 found none of an issue, a plan file, or a PR description. Two reviewers: Bugs and Standards. Spec doesn't run as its own reviewer; give Standards the Spec brief's docs-vs-code check too, and it answers Spec's Consistency question in its own `verdicts`. The Spec footer line is left out of the report; a Consistency finding, if any, rides on the Standards line. Say "no spec source" in the `Reviewed:` line.
 5. **Otherwise**: all three reviewers. Name the sources read in the `Reviewed:` line.
 
 When the user asks for a thorough review, also run the Bugs reviewer twice, each with fresh context, and merge both lists. Two runs catch bugs one run misses, and §4 removes what doesn't hold.
 
-Each reviewer returns one JSON object: findings, cuts, left-out notes, plus coverage from Standards and verdicts from Spec (or from Standards, under rule 4). Work from that, not prose.
+Each reviewer returns one JSON object: a summary of the change, findings, cuts, left-out notes, plus coverage from Standards and verdicts from Spec (or from Standards, under rule 4). Work from that, not prose.
 
 ### 4. Verify every finding
 
@@ -124,7 +124,7 @@ The reviewer that found an issue is the worst judge of it.
 
 Reviewers and verifiers are told not to edit, and one sometimes does anyway. Guard the tree now and again after step 2, whatever the revision. `<before>` is the §1 snapshot, or the post-apply one in a re-review; take another snapshot as `<after>`. If `git diff --stat <before> <after>` prints anything, save `git diff-tree -p --binary <before> <after>` to a temp file, run `git diff-tree -p --binary <after> <before> | git apply`, and tell the user where the diff is. Their own edits during the run land in it too. When it trips after step 2, drop the labels for findings in the files it touched and verify them again with one fresh verifier. If that one edits too, label them Unverified.
 
-1. Merge duplicates into the group that found the cause. A bug and a cut on the same lines are one finding. Pipe the findings and cuts that have a path, as one JSON list, to `python3 scripts/check_quotes.py --rev <sha> -`; it reads `id`, `path`, `line`, and `quote` and ignores the rest. Fix the line of a `moved` finding. For `missing` or `no-quote`, re-quote once (from the `near` lines, if printed) and rerun. What still fails, and any `no-file`, goes to the left-out count as "quote not found". Exit 1 only means something needs fixing.
+1. Merge duplicates into the finding that found the cause. A bug and a cut on the same lines are one finding. Pipe the findings and cuts that have a path, as one JSON list, to `python3 scripts/check_quotes.py --rev <sha> -`; it reads `id`, `path`, `line`, and `quote` and ignores the rest. Fix the line of a `moved` finding. For `missing` or `no-quote`, re-quote once (from the `near` lines, if printed) and rerun. What still fails, and any `no-file`, goes to the left-out count as "quote not found". Exit 1 only means something needs fixing.
 2. Hand the survivors, cuts included, to a verifier with fresh context: a subagent where the agent has them, grouped by file so each file is read once, capped at 3 verifiers, with findings that have no file joining the smallest group. Give each the findings as JSON with `fix` and `replace` removed (a verifier holding the fix tends to apply it to prove it), the revision, the mode, whether the user allowed running their code, and the path of [references/reviewer-verifier.md](references/reviewer-verifier.md). Don't give it the reviewer's reasoning or the conversation.
 
    ```text
@@ -140,28 +140,45 @@ Reviewers and verifiers are told not to edit, and one sometimes does anyway. Gua
 
 ### 5. Report and stop
 
-Group the findings by reviewer in this order: Bugs, Standards, Spec, Cuts. Number straight through so "apply 1-4" spans groups, and don't rerank across groups.
+The report is read top to bottom once, so each line earns its place. Order: `Change:`, the verdict, `Reviewed:`, the groups, the footer, `Worth an issue`, `Left out:`, the closing line.
+
+- `Change:` two or three sentences on what the change does, from the Bugs reviewer's `summary` (the lone reviewer's when Bugs didn't run). Never write it yourself: you haven't read the diff.
+- The verdict. `Not ready:` when Must fix has anything, with counts and finding numbers. Else `Ready.` and the count of findings, or `Ready. Nothing to fix.`
+- `Reviewed:` what was reviewed, against which sources, the load Bugs judged scale against (when it reported one), then what ran: `Ran the tab tests.` or `Nothing was run.` Say nothing about what wasn't run.
+
+Group the findings by what to do, and number straight through so "apply 1-4" spans groups:
+
+- **Must fix**: Critical, Major, and any finding that answers Completeness.
+- **Nice to have**: Minor findings whose `sees` (or `does`, if `sees` is empty) names no effect a user hits today: a cosmetic fix (naming, comment-only, typo) or a trigger only reachable in a hypothetical or future config.
+- **Should fix**: every other finding, and all cuts.
+
+Inside a group, worst first, cuts last. Leave out an empty group.
 
 Each finding has:
 
 - A title that is the fix, as a command.
-- A label line: severity | effort | evidence.
+- A label line: severity | effort | evidence, plus a fourth field for a Standards or Spec finding: its source in a few words (`AGENTS.md`, `issue #41`).
 - `file:line`.
-- Up to three plain sentences: what triggers it, what the code does, what the user ends up seeing. Then the fix. A Standards or Spec finding names its source in a few words, with no quote.
+- Up to three plain sentences: what triggers it, what the code does, what the user ends up seeing. Then the fix.
 - An `Evidence:` line: the command and the failing output for Reproduced, or the file:line steps for Traced. Leave it out when the prose already shows the whole path. When §4 changed the severity, say why here.
 - A diff of the fix when it is a few lines. A heavy lift gets the approach in a sentence. In Suggest mode, name the file, the symbol, and the change precisely enough that someone without this conversation can make it.
+
+A cut is one line: `file:line`, tag, what it is, what replaces it.
 
 Labels:
 
 - Severity and effort: from the reviewer, as the verifier left them. [references/reviewer-common.md](references/reviewer-common.md) defines both; when merged duplicates disagree, keep the worse.
 - Evidence: Reproduced or Traced, from §4. Nothing else reaches the numbered list.
-- `(nitpick?)`: append to the label line when severity is Minor, effort is Quick win, and `sees` (or `does`, if `sees` is empty) names no effect a user hits today — a cosmetic fix (naming, comment-only, typo) or a trigger only reachable in a hypothetical or future config.
+
+The footer is one line per source, written after §4 from what survived. `Standards (<source>): <finding numbers, or none>. Walked N rules against M changed files.` Then `Spec (<source>):` with only the verdicts that name a finding, as `Completeness 2. Scope 5.`; when none does, `Spec (<source>): none.` The reviewer's sentence on what it checked for a none verdict stays out of the report; "show left out" prints it. Under §3's rule 4, Spec didn't run: leave its line out, and a Consistency finding rides on the Standards line.
 
 ```text
-Not ready: 1 Major (1), 1 missing from issue #41 (3).
-Reviewed: uncommitted changes (6 files, lockfile left out) against AGENTS.md and issue #41. Ran the tab tests; nothing else was run.
+Change: Closing a tab now picks a neighbour instead of leaving none active, and each tab remembers its caret so switching back restores it. A retry wrapper is added around the note read.
 
-Bugs
+Not ready: 1 Major (1), 1 missing from issue #41 (2).
+Reviewed: uncommitted changes (6 files, lockfile left out) against AGENTS.md and issue #41. Load assumed: one user, desktop app. Ran the tab tests.
+
+Must fix
 1. Fall back to the previous tab when the last one closes
    Major | Quick win | Reproduced
    `src/store/tabs.ts:88`
@@ -171,24 +188,23 @@ Bugs
    -  const active = next[index] ?? null;
    +  const active = next[Math.min(index, next.length - 1)] ?? null;
 
-Standards (AGENTS.md)
-2. Delete the comment that restates the code
-   Minor | Quick win | Traced
-   `src/store/tabs.ts:70-74`
-   AGENTS.md allows doc comments only, and this one repeats the next four lines.
-
-Spec (issue #41)
-Completeness: 3.
-Scope: none. Only `tabs.ts` and `types.ts` change; settings and routing are untouched.
-Correctness: none. `activate` restores the caret on every path the issue names.
-3. Keep the tab's scroll position, which the issue asks for
-   Minor | Heavy lift | Traced
+2. Keep the tab's scroll position, which the issue asks for
+   Minor | Heavy lift | Traced | issue #41
    `src/store/tabs.ts:40`
    Issue #41 asks for scroll and caret to survive a tab switch. The change saves the caret only, so switching back lands at the top. Store `scrollTop` beside the caret in `TabState` and restore both in `activate`.
    Evidence: `activate` (`tabs.ts:52`) restores the caret only, and `TabState` (`types.ts:12`) has no scroll field.
 
-Cuts
-4. `src/lib/retry.ts:1-40` yagni: retry wrapper around a local, idempotent call with one caller. Call `readNote` directly.
+Should fix
+3. `src/lib/retry.ts:1-40` yagni: retry wrapper around a local, idempotent call with one caller. Call `readNote` directly.
+
+Nice to have
+4. Delete the comment that restates the code
+   Minor | Quick win | Traced | AGENTS.md
+   `src/store/tabs.ts:70-74`
+   AGENTS.md allows doc comments only, and this one repeats the next four lines.
+
+Standards (AGENTS.md): 4. Walked 12 rules against 6 changed files.
+Spec (issue #41): Completeness 2.
 
 Worth an issue
 - `src/editor/find.ts:52`: hidden matches show "0 / 0" in source mode. Not from this change.
@@ -197,23 +213,29 @@ Left out: 1 judgment call, 2 unverified, 1 refuted. Say "show left out" to see t
 Say "apply", or name the numbers.
 ```
 
+With nothing to report:
+
+```text
+Change: Date parsing now accepts a two-digit year and reads it as 2000 to 2099.
+
+Ready. Nothing to fix.
+Reviewed: uncommitted changes (2 files) against AGENTS.md and issue #52. Load assumed: one user, CLI. Nothing was run.
+
+Standards (AGENTS.md): none. Walked 12 rules against 2 changed files.
+Spec (issue #52): none.
+```
+
 Before writing the last line, say the mode out loud: Apply or Suggest. Then close with:
 
 - **Apply**: `Say "apply", or name the numbers.`
 - **Suggest**: `Nothing applied. For an agent: verify each item against the current code, fix the ones that still hold, and skip the rest with a one-line reason.` The report must stand alone here, because it gets handed to the author or pasted to their agent: don't refer to the conversation, and reprint it in full after any cut.
 
-The first line is the verdict, from the labels alone. `Not ready:` when any finding is Critical or Major or answers Completeness, with counts and finding numbers. Else `Ready.` and the count of Minor findings.
-
-The Standards and Spec groups print whenever they have a source, headed by it. Standards with no findings is one line: `Standards (AGENTS.md): none. Walked 12 rules against 6 changed files.` Spec gives a line per verdict, then its findings. Write the verdicts after §4, from what survived: finding numbers, or "none" with what was checked. No side notes in a verdict; anything worth noting is a finding or goes to `Left out:`. Under §3's rule 4, Spec didn't run; leave its group out entirely rather than printing it empty, and give Standards a Consistency line the same way Spec would have.
-
-Leave out any other group or line that is empty. With nothing to report, write `Ready. Nothing to fix.`, the `Reviewed:` line, the Standards and Spec verdicts, and the `Left out:` line if it has anything.
-
-The report holds only what to act on. Judgment calls, unverified, refuted, and quote-not-found findings only get counted in the `Left out:` line, by kind. "Worth an issue" lists at most three; the rest count there as "N more worth an issue". On "show left out", print one line each, numbered `L1`, `L2`: `file:line`, kind, and why, with what would settle an unverified one and the proof for a refuted one.
+The report holds only what to act on. Judgment calls, unverified, refuted, and quote-not-found findings only get counted in the `Left out:` line, by kind. "Worth an issue" lists at most three; the rest count there as "N more worth an issue". Leave out the `Left out:` line when it has nothing. On "show left out", print one line each, numbered `L1`, `L2`: `file:line`, kind, and why, with what would settle an unverified one and the proof for a refuted one, then one line per none Spec verdict with what the reviewer checked.
 
 Don't trim the report. When it runs past eight numbered items, add this above the last line, and treat what the user keeps as the list:
 
 ```text
-This is long. Anything to cut? For example "drop the Minor ones", "bugs only", or numbers.
+This is long. Anything to cut? For example "drop nice to have", "must fix only", or numbers.
 ```
 
 For a PR, rerun `scripts/pr.py state`, then add one line after the report, outside it, so the report still hands off clean: `Post these to <ref>? Say "post", or name the numbers.` Say if the PR merged or closed during the review, and if a read-only or planning mode must be turned off first. Then wait.
