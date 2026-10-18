@@ -103,6 +103,36 @@ class LintCommit(unittest.TestCase):
         )
         self.assertEqual(p.returncode, 2)
 
+    def test_stdin_writes_into_git_dir(self):
+        with tempfile.TemporaryDirectory() as root:
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            p = subprocess.run(
+                [sys.executable, "-I", SCRIPT, "-"],
+                cwd=root,
+                input="fix(commit): added a check\n",
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            lines = p.stdout.splitlines()
+            self.assertEqual(p.returncode, 1)
+            self.assertTrue(lines[0].endswith(os.path.join(".git", "COMMIT_BODY.md")))
+            with open(lines[0], encoding="utf-8") as fh:
+                self.assertEqual(fh.read(), "fix(commit): added a check\n")
+            self.assertTrue(any("not imperative" in line for line in lines[1:]))
+
+    def test_stdin_outside_repo_errors(self):
+        with tempfile.TemporaryDirectory() as root:
+            p = subprocess.run(
+                [sys.executable, "-I", SCRIPT, "-"],
+                cwd=root,
+                input="fix: x\n",
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(p.returncode, 2)
+
     def test_bad_args_print_usage(self):
         p = subprocess.run([sys.executable, "-I", SCRIPT], capture_output=True, text=True, check=False)
         self.assertEqual(p.returncode, 2)

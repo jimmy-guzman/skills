@@ -2,14 +2,13 @@
 name: commit-changes
 description: >
   Stages pending changes and writes one `git commit` whose message matches
-  the repo's own commit convention, falling back to Conventional Commits
-  (preferably via `npx gitzy`, otherwise hand-written) when the repo has no
-  detectable style. Use when the user says "commit", "commit this", "stage
-  and commit", "write a commit message", "ship this", a request for commit-changes
-  by name, or shares a diff and asks what the commit should say. Not for
-  amending (opt-in via "amend"), rewriting history, splitting a change into
-  multiple commits, or pushing.
-compatibility: Requires git and python3 (body linter); npx and gitzy are optional and used when reachable, with a hand-written fallback otherwise.
+  the repo's own commit convention, falling back to Conventional Commits when
+  the repo has no detectable style. Use when the user says "commit", "commit
+  this", "stage and commit", "write a commit message", "ship this", a request
+  for commit-changes by name, or shares a diff and asks what the commit should
+  say. Not for amending (opt-in via "amend"), rewriting history, splitting a
+  change into multiple commits, or pushing.
+compatibility: Requires git and python3.
 ---
 
 # commit-changes
@@ -18,180 +17,109 @@ compatibility: Requires git and python3 (body linter); npx and gitzy are optiona
 
 Detect every value. Sources, highest precedence first:
 
-1. Instructions: the repo's agent docs (`AGENTS.md`, plus agent-specific files such as `CLAUDE.md`, `GEMINI.md`, and `.github/copilot-instructions.md`), then the user's own instructions and saved preferences, in whatever form the agent has them. Repo docs win on conflict; they describe the team.
-2. The repo itself: `.gitzyrc*`/`gitzy` config, commitlint config, `.gitmessage`/`commit.template`, commit-msg hooks, and the dominant shape of recent human commits.
-3. Fallback: Conventional Commits, built by `npx gitzy commit` when it runs successfully, otherwise hand-written and applied with `git commit -F`. gitzy is a preference for how the fallback message gets produced, never a requirement for the skill to work.
+1. Instructions: the repo's agent docs (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`), then the user's own instructions and saved preferences. Repo docs win on conflict.
+2. The repo: what `detect.py` reports (hooks, gitzy and commitlint config, commit template, recent human commits). Config is read, never run.
+3. Fallback: Conventional Commits, written by hand. Say so in the confirmation block.
 
-When a source has a convention, follow it. When none does, use the fallback and say so in the confirmation step.
+This covers the `Co-Authored-By:` trailer too: instructions first, then whether human commits carry one (`co-author N/20`), then append it if the sample is empty.
 
-**gitzy is optional.** Try it first on the fallback path (step 5). If `npx gitzy` isn't reachable, no `npx`, no network, the one-time package install prompt can't be answered non-interactively, or the command errors or times out, fall back silently to writing the identical Conventional Commits message by hand and committing with `git commit -F`. Don't block the commit on gitzy being installed; mention once in the confirmation block which path was used ("via gitzy" or "written directly") so the user can tell.
-
-**Attribution line.** If the agent is set up to add a `Co-Authored-By:` trailer, it ranks below all three sources above. Detected the same way as the rest of step 1 — see **Co-author / attribution policy** below.
-
-**Auto-commit guard.** This skill never runs `git commit` unless the current user message asked for a commit. A plan, a prior approval, or "looks good" about something else does not count. Step 4 always waits for explicit go-ahead on the commit action itself, every time.
+**Go-ahead.** Run `git commit` only when the current user message asked for a commit. A plan or an earlier approval of something else does not count. Never pass `--no-verify` unless asked.
 
 ## Process
 
-### 0. Preflight
+### 1. Detect
 
-**Mode.**
-
-- **amend**: the user said "amend", "amend the last commit", or "fix up the last commit".
-- **message**: the user asked only "what should the commit say" or "draft a message". Produce text; don't run `git commit` on this path or any other without a go-ahead.
-- **create**: otherwise.
+**Mode.** `amend` when the user said "amend" or "fix up the last commit". `message` when they asked only what the commit should say: produce text, never commit. Otherwise `create`.
 
 ```bash
-git status --porcelain=v1
-git branch --show-current
-ls -1 .husky/commit-msg .husky/pre-commit lefthook.yml 2>/dev/null
+python3 <skill-dir>/scripts/detect.py
 ```
 
-- Nothing staged and nothing unstaged: stop, "nothing to commit".
-- Current branch is `main`, `master`, `trunk`, `develop`, or matches `release/*`: stop and ask once before proceeding.
-- Note any hook files found. Never pass `--no-verify` unless the user asks.
+Stop and ask once when it shows: `changes: nothing to commit`, `(protected)` branch, `commit-msg: custom (...)` (show the command, don't guess its rules), any `untracked` files, or a `secret?` / `>1MB` flag. Otherwise carry on with no stop.
 
-Read exactly one reference file before running any gitzy or git-write command: [references/gitzy.md](references/gitzy.md). It holds every gitzy flag, the JSON schema, and config-detection gotchas.
+### 2. Read the diff
 
-### 1. Detect conventions
-
-Run these probes in one turn (parallel, independent). Record each value and its source for step 4.
-
-- **gitzy config**: `.gitzyrc`, `.gitzyrc.{json,js,cjs,mjs}`, `gitzy.config.{js,cjs,mjs,ts,mts}` (optionally under `.config/`), or a `gitzy` key in `package.json`. Hit: gitzy mode, repo config drives type/scope enums and header/body limits.
-- **commitlint config**: `commitlint.config.{js,cjs,mjs,ts}`, `.commitlintrc.{json,js,cjs,mjs,yml}`, or a `commitlint` key in `package.json`. Hit: still gitzy mode, gitzy auto-detects and merges over it (see [references/gitzy.md](references/gitzy.md)). Note the enforced `type-enum`, `scope-enum`, or `header-max-length` if trivially readable.
-- **`.gitmessage` / `commit.template`**: `git config --get commit.template` or a `.gitmessage` file. Hit: use it as a body skeleton.
-- **commit-msg hook**: if `.husky/commit-msg` or lefthook's commit-msg step runs something other than commitlint or gitzy, surface it and stop before guessing at its rules.
-- **Recent commit shape**, bots and merges excluded:
-
-  ```bash
-  git log --no-merges --format='%an|%s' -n 50 \
-    | awk -F'|' '$1 !~ /\[bot\]/ && $1 !~ /dependabot/ && $1 !~ /renovate/ {print $2}' \
-    | head -20
-  ```
-
-  Extract the dominant shape: `type(scope):` vs `type:` vs plain English; emoji presence and position (gitzy's own format puts it right after the colon, e.g. `fix(submit-changes): 🐛 keep bot blocks`); ticket-id form if any; breaking marker style (`!`, footer, or both); subject casing; imperative check (flag `added`/`fixed`/`updated`/etc.); whether non-trivial commits in the sample carry a body at all, this feeds the body decision in step 3.
-- **Ticket id**. Extract from the branch name, then recent commit subjects. Patterns:
-  - `[A-Z][A-Z0-9]+-\d+`: Jira or Linear style.
-  - `#\d+`: an issue on the host.
-
-  Discard look-alikes such as `UTF-8`, `ISO-8601`, `ES-2015`. Never invent an id.
-- **Co-author / attribution policy**: first hit wins — (1) agent docs or a user instruction/preference about attribution, co-author trailers, or AI credit; (2) the recent-commit sample above: trailer present or absent in human commits, dominant pattern wins; (3) sample inconclusive: fallback, append it.
-
-### 2. Gather context
-
-```bash
-git diff --cached --stat
-git diff --stat
-```
-
-If nothing is staged yet, decide what to stage:
-
-- Tracked-only changes: confirm, then `git add -u`.
-- Untracked files present: list them. Flag anything matching `*.env*`, `*secret*`, `*.key`, `*.pem`, `credentials*`, `*.p12`, or anything over 1MB. Wait for the user to approve `git add -A` or name specific paths.
+What gets committed: the staged files, or all tracked changes (`git add -u`) if nothing is staged.
 
 ```bash
 git diff --cached -- . ':(exclude,glob)**/*.lock' ':(exclude,glob)pnpm-lock.yaml'
 ```
 
-Use this for subject, scope, and type inference.
+Use `git diff HEAD` with the same excludes when nothing is staged.
 
-**Multi-concern check.** Group the staged diff by top-level directory or package and by whether each group's change is additive, fixing, or mechanical (formatting, deps, config). More than one concern, not just more than one file, means stop before drafting anything. Name each concern found, for example "A: fixes the recent-commit filter in `commit-changes`" and "B: adds the new linter script", and ask the user to pick one, pick several to combine deliberately, or describe their own framing. Never guess a dominant concern and draft against it silently. One coherent concern spread across many files is not a multi-concern diff; don't flag on file count alone.
+**Multi-concern check.** Group the diff by top-level directory and by kind (adds, fixes, mechanical). More than one concern means stop: name each ("A: fixes the recent-commit filter", "B: adds the linter script") and let the user pick one, combine on purpose, or reframe. Many files with one concern is fine.
 
 ### 3. Decide the parts
 
-**Type.** Requires an explicit behavior signal, never line or file count alone, this is the single most common way an AI gets `type` wrong.
+**Type.** Classify by the effect on whoever consumes the change (a caller, a CLI user, a doc reader, an agent following a skill), never by file type or line count. A markdown-only diff can be `feat`; a `src/` diff can be `chore`.
 
-Classify by the effect on whoever consumes the artifact, never by which file or file type changed. A caller of a function, a user of a CLI flag, a reader of a doc, and a downstream agent following a skill's instructions are all consumers; the rule is the same for all of them. A markdown-only, config-only, or dependency-only diff is not automatically `docs` or `chore` just because of its extension, and a diff inside `src/` is not automatically `feat`/`fix` just because it's code. Check what actually changed for the consumer before reaching for the bullet that matches the file type:
+- `feat`: a consumer gains something new (export, flag, API, a skill rule or mode). The diff must show the new surface.
+- `fix`: something a consumer relied on gave a wrong or hard-to-use result, and this corrects it.
+- `docs`: explains or reorganizes; nothing a consumer does or sees changes.
+- `test`: test files only.
+- `chore` / `refactor`: everything else. The default when `feat`/`fix` has no real signal.
 
-- `test`: diff is test files only, adding or changing coverage without touching what's covered.
-- `docs`: the diff explains, documents, or reorganizes something that already works the same way; nothing a consumer does or sees changes. A typo, a link fix, a comment, a README reshuffle, a reference restructured with the same content, regardless of which directory the file lives in.
-- `feat`: a consumer gains a capability they didn't have, a new exported function, class, CLI flag, API surface, a dependency bump that unlocks new behavior, or a skill's instructions gaining a rule or mode they didn't have. The diff must show the new surface, not just "a lot changed".
-- `fix`: something a consumer relied on was producing a wrong result, and the diff corrects it, a bug keyword in the branch name or an in-progress message, an issue reference, a guard on a code path that produced an incorrect result, a dependency bump that patches broken behavior, or instructions that previously produced a wrong, broken, or hard-to-use result, now corrected ("the old prose made the skill draft output that was hard to read" is a real fix signal, not generic rewording). Not "touched something that has bugs in general".
-- `chore` / `refactor`: everything else, internal restructuring, deps, tooling, or config with no consumer-visible effect. This is the default when neither `feat` nor `fix` has a real signal; never stretch to `feat` or `fix` to seem more substantial.
+Must be in the commitlint `type-enum` if one exists.
 
-Must be a member of the detected `type-enum` if one exists.
+**Verb cross-check.** "add", "support", "introduce" mean `feat`; "correct", "guard", "stop", "trim" mean `fix`. If verb and type disagree, re-derive the type from the diff; don't reword the verb.
 
-**Verb/type cross-check.** After drafting the subject, check its leading verb against the chosen type. "add", "support", "introduce" implies `feat`; "correct", "guard", "stop", "trim", "reorder", "lead with" implies `fix`. This cross-check applies the same way regardless of file type; no extension is an exemption. If the verb and type disagree, that's a signal the type was guessed wrong, not that the verb needs rewording. Re-derive the type from the behavior signal above before showing step 4.
+**Scope.** The one top-level directory under `skills/`, `src/`, or `packages/*`. Omit when ambiguous or history shows no scopes.
 
-**Scope.** The single top-level directory under `skills/`, `src/`, or `packages/*` touched. Omit if ambiguous or if repo history shows no scopes.
+**Emoji.** If `shape:` shows `emoji after colon`, put that type's emoji right after the colon (`fix(x): 🐛 subject`). If this type has none in history, read the `emoji` setting in the gitzy config `detect.py` found. Otherwise leave it out.
 
-**Subject.** Imperative mood, matches the repo's casing, under the detected (or gitzy default 50-char) header max. States the effect of the change for a caller or reader, what changed for whom, not the mechanics ("changed function signature") and not a summary of the whole diff when the diff has one coherent concern (the multi-concern check in step 2 runs first). Build it from the diff's single core fact (what was broken, what changed) to fit the header max from the start; don't draft long and trim words afterward, that's how a subject degrades into something vague that still fits.
+**Subject.** Imperative, repo casing, within the header max (commitlint `header-max-length` or gitzy `header.max`, else 50, or the repo's `longest` if history runs longer). Say what changed for the consumer, from the diff's one core fact. Build it to fit; never draft long and trim. If the core fact won't fit, say so and offer it slightly over, or name what gets dropped.
 
-**When it won't fit.** If the core fact doesn't fit the header max, say so and offer a version that keeps it anyway (even if slightly over, when repo convention allows), or name what's being dropped. Never silently hand over a shorter but vaguer message. If asked to shorten further after this, re-derive from the diff again rather than trimming words off the existing sentence.
+**Candidates.** If the diff supports two framings of the same concern, offer 2 or 3 full headers. One obvious effect gets one subject.
 
-**Confidence check.** If the diff supports more than one reasonable framing of the same concern (for example "guard against empty input" vs "return early on empty input", same change, different emphasis), or the scope or wording choice is genuinely close, draft 2-3 candidate subjects instead of one, each a complete valid header, and let the user pick or edit. A diff with one obvious effect and one obvious scope gets exactly one subject; don't manufacture alternatives to seem thorough.
+**Body.** Follow history: `bodies` mostly present means write one, mostly absent means none. Mixed and the subject isn't self-evident: ask once in the confirmation block. Why over what, one or two short lines.
 
-**Body.** Optional, and convention decides first. Check step 1's recent-commit sample: if most non-trivial commits (ones whose diff isn't a one-liner) carry a body, draft one to match that habit. If the repo's commits are consistently subject-only, default to no body without asking. Only when neither signal is clear (mixed history, or this is the first commit) and the diff isn't self-evident from the subject alone, ask the user once in step 4: "add a body explaining why?" Never pad a body just to have one. When a body is written: why over what, one or two short lines, specific nouns, no filler.
+**Breaking.** Only when a public export, signature, or relied-on behavior changed. Use the history's marker (`!`, footer, or both).
 
-**Breaking.** Only when a public export, signature, or behavior a caller relies on changed. Use whatever marker style step 1 detected (`!`, footer, or both).
+**Issues.** Only the id `detect.py` found on the branch. Never invent one.
 
-**Issues.** Only if step 1 found a ticket id.
+### 4. Write, lint, confirm
 
-### 4. Confirm inline
-
-Write the drafted message to a file, then lint it. Fix every flagged line and rerun until it exits 0, before showing the user.
+One call writes the message to `<git-dir>/COMMIT_BODY.md` (never committed) and lints it:
 
 ```bash
-body="$(git rev-parse --git-dir)/COMMIT_BODY.md"
-# Write the drafted subject and body to $body here.
-python3 <skill-dir>/scripts/lint_commit.py "$body"
+python3 <skill-dir>/scripts/lint_commit.py - <header-max> <<'EOF'
+fix(commit-changes): skip reverts in the sample
+
+Reverts skewed the dominant shape.
+EOF
 ```
 
-Each shell command may start a fresh shell, so a variable from one command is gone in the next. Recompute `body` with the same line in every command that uses it. The file sits inside `.git`, so it is never committed.
-
-Print one block, then wait:
+Fix every flagged line and rerun until it exits 0. Then print one block:
 
 ```
-mode: create | branch: <name> | convention: gitzy (repo config) | conventional (fallback) | <repo custom>
-type: fix (behavior signal: corrects recent-commit filter) | scope: commit-changes (touched dir)
-message: fix(commit-changes): skip reverts when sampling recent titles
-via: gitzy | written directly (gitzy unavailable)
-stage: 3 files via `git add -u` | hooks: commit-msg (will run)
+mode: create | branch: feat/x | convention: repo history | repo config | conventional (fallback)
+type: fix (corrects recent-commit filter) | scope: commit-changes
+message: fix(commit-changes): 🐛 skip reverts in the sample
+stage: 3 files via git add -u | hooks: commit-msg (commitlint)
 ```
 
-When step 3 produced 2-3 candidates instead of one, list them numbered in place of the single `message:` line and ask which to use, or let the user supply their own. When step 2's multi-concern check stopped earlier, that question is already answered before this block is printed; this block always reflects one chosen concern.
+With candidates, list them numbered instead of `message:`. If the user's message already said to commit, continue to step 5; otherwise wait.
 
-**Never run `git commit` from this step without an explicit go-ahead in the current turn.** If the user's own message already said "commit this" or "ship it", that message is the go-ahead, print the block and continue to step 5. A plan or an unrelated earlier approval is not enough.
+If the user corrects a convention and it sounds durable ("we never use scopes"), offer once to add it to `AGENTS.md` (team) or their personal instructions. Don't write either without a yes.
 
-If the user corrects a detected convention, apply it to this commit. If it sounds durable ("we always skip scopes"), offer once to add it to agent docs: the repo's `AGENTS.md` for team conventions, the user's personal agent instructions for personal defaults. Don't write either without a yes.
+### 5. Commit and verify
 
-### 5. Commit
-
-Three paths. Try them in order; each one's failure falls through to the next without stalling on gitzy being present.
-
-- **Custom hook or template gitzy can't satisfy** (flagged in step 0 or 1): skip gitzy entirely. Write to `$body` from step 4 and run `git commit -F "$body"`.
-- **gitzy path** (everything else, matched gitzy config or the plain fallback): preview first with `--dry-run --json` during step 4 so the confirmation block already shows the exact header. At commit time:
-
-  ```bash
-  npx -y gitzy commit \
-    --type "<type>" \
-    [--scope "<scope>"] \
-    --subject "<subject>" \
-    [--body "<body>"] \
-    [--breaking "<message>"] \
-    [--issue "<id>" ...]
-  ```
-
-  If this exits non-zero, times out, or `npx` can't run at all (no npx, no network, install prompt unanswerable), don't retry and don't ask the user to install anything. Fall through to the hand-written path below with the same parts, and note in the final report that gitzy wasn't used.
-- **Hand-written fallback** (gitzy unreachable): compose the identical Conventional Commits string (`type(scope): subject`, blank line, body, blank line, footers) into `$body` and run `git commit -F "$body"`. The message format stays the same; only the tool that produced it differs.
-
-`--amend` mode: add `--amend` to the gitzy invocation (it pre-fills from HEAD), or `git commit --amend -F "$body"` on the other two paths.
-
-Never pass `--no-verify` unless asked. Never pass `--co-author` or add a trailer per the Principle's attribution rule.
-
-### 6. Verify
+One chained call. Drop `git add -u` when the user already staged; use `git add <paths>` for untracked files they approved:
 
 ```bash
-git log -1 --format='%H%n%s%n%b'
+f="$(git rev-parse --git-dir)/COMMIT_BODY.md"
+git add -u && git commit -F "$f" && git log -1 --format='%H%n%s%n%b' && rm "$f"
 ```
 
-Show the subject and first body line. If a hook rejected or rewrote the message, report its output verbatim and stop, don't retry blindly. Delete the `COMMIT_BODY.md` scratch file.
+Amend: `git commit --amend -F "$f"`.
+
+If a hook rejects or rewrites the message, show its output verbatim and stop.
 
 ## Voice
 
-- **Specificity over category.** Name the file, symbol, package, or flag. Never "updated things".
-- **Effect, not mechanics, and not a diff summary.** The subject says what changed for a caller or reader ("accept optional timeout"), not the implementation step ("changed function signature") and not an umbrella restatement of every file touched.
-- **Why is for the reader, not the ticket.** Plain prose, short sentences, concrete nouns, no "This commit introduces".
-- **Imperative, lowercase first word**, unless repo history says otherwise.
-- **No filler.** No em dashes, en dashes, middle dots, curly quotes, sign-offs, or emoji in the body text (gitzy supplies the type emoji itself when it's the one writing the header).
-- **Don't attribute to a role you can't verify.** No "reviewer flagged", "per discussion" unless a named person actually said it.
-- **Length scales with the change, then stops.** One or two short body lines; most commits need no body at all.
+- Name the file, symbol, package, or flag. Never "updated things".
+- Subject says the effect ("accept optional timeout"), not the mechanics ("changed function signature") or a list of files.
+- Imperative, lowercase first word, unless history says otherwise.
+- No em dashes, en dashes, middle dots, curly quotes, sign-offs, or emoji in the body.
+- Don't credit a role you can't verify ("reviewer flagged", "per discussion").
+- Most commits need no body.
