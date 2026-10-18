@@ -1,5 +1,5 @@
 ---
-name: create-pr
+name: submit-changes
 description: >
   Drafts, opens, or updates a pull request (GitHub) or merge request (GitLab)
   that follows the repo's own conventions (base branch, title shape, template,
@@ -9,7 +9,7 @@ description: >
   "push and MR", "draft a PR", "update the PR description", "add a
   description to this PR", "this PR has no description, add one", "give
   this PR a description", "write a description for !482" or for a PR URL,
-  a request for create-pr by name, or a pushed feature branch and "what
+  a request for submit-changes by name, or a pushed feature branch and "what
   next". Use it even if they never name the host or the CLI, or never name
   the PR by number: the current branch's own open PR counts.
   Handles new PRs, the PR on the current branch, and an already-open PR given
@@ -17,7 +17,7 @@ description: >
 compatibility: Requires git and python3, plus gh (GitHub) or glab and jq (GitLab), authenticated
 ---
 
-# create-pr
+# submit-changes
 
 "PR" below means MR on GitLab, and "base" means target branch. Use the host's own terms when talking to the user and in the text you write.
 

@@ -1,6 +1,6 @@
 # GitLab (`glab`)
 
-Host commands for `create-pr`. Read Gotchas before running anything.
+Host commands for `submit-changes`. Read Gotchas before running anything.
 
 ## Contents
 

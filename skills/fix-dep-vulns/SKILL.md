@@ -119,7 +119,7 @@ If a production parent was upgraded, list what the user should smoke test by han
 
 Summarize using the template in [references/report.md](references/report.md): what was fixed and how, what's left and why, any dismissal notes, and any overrides added or removed.
 
-If the user wants a merge request or pull request, hand off to the `create-pr` skill (shipped alongside this one) or whichever MR/PR skill they prefer. Otherwise draft a description with a short "What" and "Why."
+If the user wants a merge request or pull request, hand off to the `submit-changes` skill (shipped alongside this one) or whichever MR/PR skill they prefer. Otherwise draft a description with a short "What" and "Why."
 
 ## Things to watch
 

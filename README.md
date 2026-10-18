@@ -14,11 +14,18 @@ pnpx skills add jimmy-guzman/skills -g
 
 ## Skills
 
-- [`commit`](skills/commit/SKILL.md): stage changes and write a commit message that follows the repo's own convention, falling back to Conventional Commits otherwise.
-- [`create-pr`](skills/create-pr/SKILL.md): draft, open, or describe GitHub pull requests and GitLab merge requests that follow the repo's own conventions.
-- [`fix-dep-vulns`](skills/fix-dep-vulns/SKILL.md): triage and fix dependency vulnerabilities in pnpm, uv, and pip projects, preferring lockfile refreshes and parent upgrades over overrides.
+### Changes
+
+They cover both sides of a change. As the author: commit it, submit it for review, then answer the feedback. As the reviewer: review it, whether it's your own work in progress or someone else's PR. Each skill works on its own and follows the repo's own conventions (agent docs, templates, history) before falling back to defaults.
+
+- [`commit-changes`](skills/commit-changes/SKILL.md): stage changes and write a commit message that follows the repo's own convention, falling back to Conventional Commits otherwise.
+- [`submit-changes`](skills/submit-changes/SKILL.md): draft, open, or describe GitHub pull requests and GitLab merge requests that follow the repo's own conventions.
 - [`review-changes`](skills/review-changes/SKILL.md): review a change with three parallel reviewers (bugs, the repo's standards, the spec), as one verified list that applies on request or leaves suggestions for the author.
 - [`revise-changes`](skills/revise-changes/SKILL.md): verify the review comments already on a PR or MR against current code, fix what holds, and reply on every thread without resolving unless told to.
+
+### Other
+
+- [`fix-dep-vulns`](skills/fix-dep-vulns/SKILL.md): triage and fix dependency vulnerabilities in pnpm, uv, and pip projects, preferring lockfile refreshes and parent upgrades over overrides.
 - [`talk-plainly`](skills/talk-plainly/SKILL.md): reply like a direct, busy peer, answer first, with no filler or generated-sounding patterns.
 
 ## Adding a skill

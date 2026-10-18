@@ -1,18 +1,18 @@
 ---
-name: commit
+name: commit-changes
 description: >
   Stages pending changes and writes one `git commit` whose message matches
   the repo's own commit convention, falling back to Conventional Commits
   (preferably via `npx gitzy`, otherwise hand-written) when the repo has no
   detectable style. Use when the user says "commit", "commit this", "stage
-  and commit", "write a commit message", "ship this", a request for commit
+  and commit", "write a commit message", "ship this", a request for commit-changes
   by name, or shares a diff and asks what the commit should say. Not for
   amending (opt-in via "amend"), rewriting history, splitting a change into
   multiple commits, or pushing.
 compatibility: Requires git and python3 (body linter); npx and gitzy are optional and used when reachable, with a hand-written fallback otherwise.
 ---
 
-# commit
+# commit-changes
 
 ## Principle
 
@@ -68,7 +68,7 @@ Run these probes in one turn (parallel, independent). Record each value and its 
     | head -20
   ```
 
-  Extract the dominant shape: `type(scope):` vs `type:` vs plain English; emoji presence and position (gitzy's own format puts it right after the colon, e.g. `fix(create-pr): 🐛 keep bot blocks`); ticket-id form if any; breaking marker style (`!`, footer, or both); subject casing; imperative check (flag `added`/`fixed`/`updated`/etc.); whether non-trivial commits in the sample carry a body at all, this feeds the body decision in step 3.
+  Extract the dominant shape: `type(scope):` vs `type:` vs plain English; emoji presence and position (gitzy's own format puts it right after the colon, e.g. `fix(submit-changes): 🐛 keep bot blocks`); ticket-id form if any; breaking marker style (`!`, footer, or both); subject casing; imperative check (flag `added`/`fixed`/`updated`/etc.); whether non-trivial commits in the sample carry a body at all, this feeds the body decision in step 3.
 - **Ticket id**. Extract from the branch name, then recent commit subjects. Patterns:
   - `[A-Z][A-Z0-9]+-\d+`: Jira or Linear style.
   - `#\d+`: an issue on the host.
@@ -94,7 +94,7 @@ git diff --cached -- . ':(exclude,glob)**/*.lock' ':(exclude,glob)pnpm-lock.yaml
 
 Use this for subject, scope, and type inference.
 
-**Multi-concern check.** Group the staged diff by top-level directory or package and by whether each group's change is additive, fixing, or mechanical (formatting, deps, config). More than one concern, not just more than one file, means stop before drafting anything. Name each concern found, for example "A: fixes the recent-commit filter in `commit`" and "B: adds the new linter script", and ask the user to pick one, pick several to combine deliberately, or describe their own framing. Never guess a dominant concern and draft against it silently. One coherent concern spread across many files is not a multi-concern diff; don't flag on file count alone.
+**Multi-concern check.** Group the staged diff by top-level directory or package and by whether each group's change is additive, fixing, or mechanical (formatting, deps, config). More than one concern, not just more than one file, means stop before drafting anything. Name each concern found, for example "A: fixes the recent-commit filter in `commit-changes`" and "B: adds the new linter script", and ask the user to pick one, pick several to combine deliberately, or describe their own framing. Never guess a dominant concern and draft against it silently. One coherent concern spread across many files is not a multi-concern diff; don't flag on file count alone.
 
 ### 3. Decide the parts
 
@@ -142,8 +142,8 @@ Print one block, then wait:
 
 ```
 mode: create | branch: <name> | convention: gitzy (repo config) | conventional (fallback) | <repo custom>
-type: fix (behavior signal: corrects recent-commit filter) | scope: commit (touched dir)
-message: fix(commit): skip reverts when sampling recent titles
+type: fix (behavior signal: corrects recent-commit filter) | scope: commit-changes (touched dir)
+message: fix(commit-changes): skip reverts when sampling recent titles
 via: gitzy | written directly (gitzy unavailable)
 stage: 3 files via `git add -u` | hooks: commit-msg (will run)
 ```

@@ -1,6 +1,6 @@
 # GitHub (`gh`)
 
-Host commands for `create-pr`. Read Gotchas before running anything.
+Host commands for `submit-changes`. Read Gotchas before running anything.
 
 **Version floors.** `gh pr edit --attach` needs gh 2.99.0+ on GitHub.com or Enterprise Cloud. Older gh and Enterprise Server fall back to the placeholder path below. Check with `gh --version` and `gh pr edit --help | grep attach`.
 

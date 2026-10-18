@@ -1,6 +1,6 @@
 # gitzy
 
-Optional commit-message tool for `commit`. Read Gotchas before running anything.
+Optional commit-message tool for `commit-changes`. Read Gotchas before running anything.
 
 ## Contents
 
@@ -13,7 +13,7 @@ Optional commit-message tool for `commit`. Read Gotchas before running anything.
 
 ## Gotchas
 
-- **gitzy is optional, never a blocker.** Treat any non-zero exit, timeout, or missing `npx` as "not available" and fall back to writing the message by hand (see `commit`'s step 5). Don't prompt the user to install anything, don't retry.
+- **gitzy is optional, never a blocker.** Treat any non-zero exit, timeout, or missing `npx` as "not available" and fall back to writing the message by hand (see `commit-changes`'s step 5). Don't prompt the user to install anything, don't retry.
 - **Always `npx -y gitzy ...`.** Skips the one-time package-install confirmation, which has no TTY to answer in an agent session.
 - **Always preview with `--dry-run --json` first.** Run the exact commit invocation with `--dry-run --json` appended during the confirmation step, parse `.header` from the JSON, and show that literal string to the user before committing anything.
 - **`--retry` after a hook rejection.** Reuses the last answers and skips prompts; faster than rebuilding every flag.
@@ -92,6 +92,6 @@ gitzy auto-detects a local commitlint config and merges its own rules over it; g
 }
 ```
 
-Use `.header` directly in the `commit` skill's confirmation block.
+Use `.header` directly in the `commit-changes` skill's confirmation block.
 
-Branch generation (`gitzy branch`) is a separate command with its own flags and is out of scope for this skill; `commit` only drives `gitzy commit`.
+Branch generation (`gitzy branch`) is a separate command with its own flags and is out of scope for this skill; `commit-changes` only drives `gitzy commit`.
