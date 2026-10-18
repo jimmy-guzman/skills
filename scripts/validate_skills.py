@@ -35,7 +35,6 @@ NAME_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 EM_EN_RE = re.compile(r"[–—]")
 FRONTMATTER_RE = re.compile(r"\A---\n(.*?)\n---\n", re.DOTALL)
 LINK_RE = re.compile(r"\[([^\]]*)\]\(([^)]+)\)")
-TOKEN_RATIO = 3.7
 
 def _rec(records, relpath, line, kind, msg):
     records.append((relpath, line, kind, msg))
@@ -146,15 +145,11 @@ def _check_dashes(skill_dir, folder, records):
 
 
 def _check_body_size(body_text, relpath, records):
+    # Anthropic's skill authoring guidance: keep the SKILL.md body under 500 lines.
     line_count = body_text.count("\n")
-    char_count = len(body_text)
-    est_tokens = int(char_count / TOKEN_RATIO)
     if line_count > 500:
         _rec(records, relpath, 1, "warning",
              f"body is {line_count} lines (>500)")
-    if est_tokens > 5000:
-        _rec(records, relpath, 1, "warning",
-             f"body is ~{est_tokens} tokens, est. (chars/{TOKEN_RATIO:.1f}) (>5000)")
 
 
 def _check_skill(skill_dir, records):

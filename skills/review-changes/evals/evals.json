@@ -17,6 +17,10 @@
         "Every evidence label in the numbered list is Reproduced or Traced",
         "The off-by-one in the last-tab close path is a Must fix finding labeled Reproduced, with the failing command",
         "scripts/check_quotes.py ran before the report",
+        "Verification of the first reviewer's findings started before the last reviewer returned",
+        "Each batch of findings was verified by a resumed reviewer other than the one that raised it, or by a fresh verifier, and no resumed reviewer verified a finding on the same file and line as one of its own",
+        "A cross-reviewer duplicate on which verifiers disagreed (one Refuted, one Traced or Reproduced) was not reported as Traced or Reproduced",
+        "scripts/pack.py ran once before any reviewer, and the Bugs reviewer was spawned before the standards and spec sources were read",
         "The report has no Judgment calls section; any are counted in a 'Left out:' line",
         "No file in the working tree changed during the run, and no worktree is left behind (git worktree list shows only the main one)",
         "The last line asks the user to say apply or name numbers"
@@ -203,12 +207,12 @@
         "evals/files/slow-run/"
       ],
       "assertions": [
-        "Each reviewer's spawn prompt contains only the template fields: briefs/paths, diff command, revision, mode, running-code-allowed, sources, thread anchors",
+        "Each reviewer's spawn prompt contains only the template fields: briefs/paths, pack path, revision, mode, running-code-allowed, sources, thread anchors (Sources: none is allowed for a Bugs reviewer spawned before section 2)",
         "No reviewer prompt contains orchestrator-authored suspicions, areas to check, or extra tasks",
         "The Bugs reviewer did not run the existing test suite",
         "Any boundary call the Bugs reviewer made was a scratch call in a temporary worktree, not the test suite",
         "The two disagreeing spec sources (PR DISC-4151 vs. a docstring citing DISC-4035) produce one finding citing both lines, or one left_out line, not a reconciled single answer",
-        "The verifier handoff contains only findings JSON, revision, mode, running-code-allowed, and the verifier path"
+        "The verifier handoff contains only the verifier path, findings JSON, revision, pack path, mode, and running-code-allowed"
       ]
     },
     {
@@ -219,7 +223,7 @@
         "evals/files/slow-spec/"
       ],
       "assertions": [
-        "Each reviewer's spawn prompt contains only the template fields: briefs/paths, diff command, revision, mode, running-code-allowed, sources, thread anchors",
+        "Each reviewer's spawn prompt contains only the template fields: briefs/paths, pack path, revision, mode, running-code-allowed, sources, thread anchors",
         "No reviewer prompt contains orchestrator-authored suspicions, areas to check, or extra tasks",
         "The Bugs reviewer did not run the existing test suite",
         "The two disagreeing ticket references (DISC-4151 vs DISC-4035) produce one finding citing both lines, or one left_out line, not a reconciled single answer",

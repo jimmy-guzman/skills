@@ -4,8 +4,8 @@ Read by every reviewer in SKILL.md §3, alongside its own role file.
 
 ## All reviewers
 
-- Read the diff and the changed files at the reviewed revision. Take line numbers from the file at the reviewed revision, not from diff output.
-- Never edit, fix, or format files in the user's tree. You find problems; the user picks the fixes.
+- Read the pack in one round: `diff.patch`, every file under `files/`, `callers.txt`, and `tests.txt`, all at the reviewed revision. Batch independent greps and reads the same way; the clock counts tool-call rounds, not bytes. `callers.txt` is a word-boundary grep, a head start, not the truth: confirm a caller before you lean on it. Read anything else with `git show <rev>:<path>` (the working tree when the revision is `working tree`). Take line numbers from the file at the reviewed revision, not from diff output.
+- Never edit, fix, or format files in the user's tree. You find problems; the user picks the fixes. If you were given your own worktree, check out the revision there first, and leave the user's checkout (the first line of `git worktree list`) alone except to run its existing tests when allowed.
 - Before returning a finding, reread the lines and follow the caller. Drop what doesn't survive that.
 - Skip anything a linter, formatter, or type checker already enforces.
 - Never suggest a fix that needs a lint rule disabled, a shorter form that reads worse, or deleting a test because it is small.
@@ -43,7 +43,8 @@ Return one JSON object and nothing else: no preamble, no summary, no code fence.
   "cuts": [
     {"id": "C1", "path": "src/lib/retry.ts", "line": "1-40", "quote": "export async function withRetry(", "tag": "yagni", "replace": "Call `readNote` directly."}
   ],
-  "left_out": ["src/editor/find.ts:52: not from this change: hidden matches show \"0 / 0\" in source mode."]
+  "left_out": ["src/editor/find.ts:52: not from this change: hidden matches show \"0 / 0\" in source mode."],
+  "context": "about a third"
 }
 ```
 
@@ -62,4 +63,5 @@ Return one JSON object and nothing else: no preamble, no summary, no code fence.
 - Bugs adds `"load": "many users and processes, from the README."`, the load it judged scale against.
 - Standards adds `"coverage": "Walked 12 rules from AGENTS.md against 6 changed files."`, and, when covering for a Spec reviewer that isn't running, `"verdicts": {"Consistency": [...]}`.
 - Spec adds `"verdicts"`: `{"Completeness": ["P1"], "Scope": "none: only tabs.ts and types.ts change."}` and so on.
+- `context`: a rough share of your context window used by the time you return ("under a quarter", "about a third", "over half"). §4 uses it to decide whether you can take on verification.
 - Keep every key, with empty lists when there's nothing.
