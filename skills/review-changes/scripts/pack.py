@@ -97,12 +97,16 @@ def main():
     (out / "files").mkdir(parents=True, exist_ok=True)
     (out / "diff.patch").write_text(diff)
 
+    repo_root = pathlib.Path(top.strip()).resolve()
+    files_root = (out / "files").resolve()
     paths = []
     for candidates in header_paths(diff) + [(p,) for p in a.extra]:
         for p in candidates:
-            content = git("show", f"{a.rev}:{p}") if a.rev and p not in a.extra else _read_tree(p)
+            dest = out / "files" / p
+            if not _contained(dest, files_root):
+                continue
+            content = git("show", f"{a.rev}:{p}") if a.rev and p not in a.extra else _read_tree(p, repo_root)
             if content is not None:
-                dest = out / "files" / p
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 dest.write_text(content)
                 paths.append(p)
@@ -128,9 +132,20 @@ def main():
     print(json.dumps({"pack": str(out), "files": len(paths), "symbols": len(chunks), "tests": len(tests)}))
 
 
-def _read_tree(p):
+def _contained(path, root):
+    """True if path resolves to somewhere inside root (guards absolute paths and ../ escapes)."""
     try:
-        return pathlib.Path(p).read_text(errors="replace")
+        return path.resolve().is_relative_to(root)
+    except (OSError, ValueError):
+        return False
+
+
+def _read_tree(p, root):
+    path = pathlib.Path(p)
+    if not _contained(path, root):
+        return None
+    try:
+        return path.read_text(errors="replace")
     except (FileNotFoundError, IsADirectoryError):
         return None
 

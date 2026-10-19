@@ -120,6 +120,21 @@ class PackTest(unittest.TestCase):
         res = run_pack(None, b"", "--out", tempfile.mkdtemp())
         self.assertEqual(res.returncode, 1)
 
+    def test_path_traversal_and_absolute_paths_are_rejected(self):
+        with tempfile.TemporaryDirectory() as repo, tempfile.TemporaryDirectory() as out, \
+                tempfile.TemporaryDirectory() as outside:
+            make_repo(repo)
+            secret = pathlib.Path(outside) / "secret.txt"
+            secret.write_text("top secret\n")
+            diff = f"--- a/x\n+++ b/../../../..{secret}\n@@ -0,0 +1 @@\n+x\n".encode()
+            res = run_pack(repo, diff, "--out", out, "--extra", str(secret), "--extra", f"../../../..{secret}")
+            self.assertEqual(res.returncode, 0, res.stderr)
+            o = pathlib.Path(out)
+            # Nothing escaped out/files, and the outside file was neither read into the pack nor overwritten.
+            self.assertEqual(sorted(p.name for p in (o / "files").rglob("*") if p.is_file()), [])
+            self.assertFalse(secret.with_suffix(".txt.bak").exists())
+            self.assertEqual(secret.read_text(), "top secret\n")
+
 
 if __name__ == "__main__":
     unittest.main()
