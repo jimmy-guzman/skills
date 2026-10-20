@@ -130,8 +130,9 @@ Each reviewer's findings are one batch. Run steps 1 and 2 on a batch as soon as 
    Send this and nothing else; a fresh verifier gets it without the first clause. No reasoning, no conversation: the verifier judges each finding on its own evidence.
 
    Without subagents, verify each finding yourself with that file, one at a time, starting from the quoted line rather than the reviewer's explanation.
-3. Keep Reproduced and Traced findings. The rest go to the left-out count in §5 with their reasons.
-4. Once every batch is back, merge duplicates across batches into the finding that found the cause. Keep the worse severity and the stronger label, Reproduced over Traced. When the verifiers disagree, one Refuted and one Reproduced or Traced, that's a conflict, not a win: label it Unverified, or send it to one fresh verifier with both pieces of evidence.
+3. A verifier's `new` list is a batch of its own: run step 1 on it, then step 2, and the verifier that raised it never verifies it, the same rule as a reviewer and its own findings. One that holds takes a number in §5 like any other finding. The verifier's `left_out` lines join the reviewers' for the `Left out:` count. A `new` list from that second round isn't sent round again: it counts in `Left out:` as unverified. Nothing a verifier wrote in `evidence` about a different problem is a finding until it has been through this.
+4. Keep Reproduced and Traced findings. The rest go to the left-out count in §5 with their reasons.
+5. Once every batch is back, merge duplicates across batches into the finding that found the cause. Keep the worse severity and the stronger label, Reproduced over Traced. When the verifiers disagree, one Refuted and one Reproduced or Traced, that's a conflict, not a win: label it Unverified, or send it to one fresh verifier with both pieces of evidence.
 
 ### 5. Report and stop
 

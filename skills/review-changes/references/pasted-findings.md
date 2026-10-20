@@ -8,7 +8,7 @@ The user pasted review comments and wants them handled. Pasting them is the requ
 - Read the standards and spec sources as in §2. If the tree has uncommitted changes, take the §1 snapshot and give the verifier that SHA as the revision. Then verify each finding with [reviewer-verifier.md](reviewer-verifier.md) against the current code, matching by content when line numbers have drifted. Fix the Reproduced and Traced ones with the smallest change that does it.
 - Skip the rest with a one-line reason: refuted (cite the guard's file:line or the run that passes), unverified (say what would settle it), already fixed, against a repo rule, undoing a deliberate choice, or not a code finding.
 - Finish as in [apply.md](apply.md): a test for each bug fix, then the repo's checks. Leave the PR threads alone unless asked. No commit, no push.
-- Anything else you notice gets one closing line, unfixed.
+- Anything else you notice, including what the verifier returned in `new`, gets one closing line, unfixed.
 
 ```text
 Fixed 2 of 3, skipped 1.
