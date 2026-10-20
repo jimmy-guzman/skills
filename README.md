@@ -16,8 +16,9 @@ pnpx skills add jimmy-guzman/skills -g
 
 ### Changes
 
-They cover both sides of a change. As the author: commit it, submit it for review, then answer the feedback. As the reviewer: review it, whether it's your own work in progress or someone else's PR. Each skill works on its own and follows the repo's own conventions (agent docs, templates, history) before falling back to defaults.
+They cover both sides of a change. As the author: plan it, commit it, submit it for review, then answer the feedback. As the reviewer: review it, whether it's your own work in progress or someone else's PR. Each skill works on its own and follows the repo's own conventions (agent docs, templates, history) before falling back to defaults.
 
+- [`plan-changes`](skills/plan-changes/SKILL.md): turn a ticket, doc, or request into a short plan a human can approve, with the repo's facts settled and the open questions routed to their owners.
 - [`commit-changes`](skills/commit-changes/SKILL.md): stage changes and write a commit message that follows the repo's own convention, falling back to Conventional Commits otherwise.
 - [`submit-changes`](skills/submit-changes/SKILL.md): draft, open, or describe GitHub pull requests and GitLab merge requests that follow the repo's own conventions.
 - [`review-changes`](skills/review-changes/SKILL.md): review a change with three parallel reviewers (bugs, the repo's standards, the spec), as one verified list that applies on request or leaves suggestions for the author.

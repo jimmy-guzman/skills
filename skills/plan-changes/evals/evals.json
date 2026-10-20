@@ -1,0 +1,51 @@
+{
+  "skill_name": "plan-changes",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I got assigned #41, can you plan it out? the tab close thing",
+      "expected_output": "Fetches the ticket with comments, reads the tabs store and its tests, and prints a plan in the \u00a74 shape: Decided cites a file, one Assumed line names the PM who owns the scroll-restore question, a Questions for others block, Verdict Needs info. Nothing written or posted; ends with the \u00a75 offer.",
+      "files": [
+        "evals/files/github-issue-41/"
+      ],
+      "assertions": [
+        "The ticket was fetched with its comments (gh issue view --comments or comments in --json) before any plan was printed",
+        "The plan follows the section order Change, Kind, Risk, Decided, Assumed, Steps, Don't touch, Not doing, Done means, Questions for others, Verdict",
+        "Every Decided line ends with a file:line, doc, or commit it came from",
+        "The scroll-restore question appears under Questions for others addressed to the reporter, with the assumed answer stated",
+        "The Verdict line is Needs info and names the owner",
+        "Nothing was written to a file and nothing was posted; the run ends with the offer to keep, write, or post and the question about posting the questions"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "what would it take to add a --json flag to scripts/validate_skills.py",
+      "expected_output": "No ticket fetched. Reads the validator and its test, prints a plan with Risk green, Decided citing validate_skills.py lines, no Questions for others block, Verdict Ready to build, and a Done means naming the unittest to add. No tracker call.",
+      "files": [],
+      "assertions": [
+        "No tracker command ran and no label lookup ran",
+        "The plan has no Questions for others section and no post offer",
+        "The Risk line says green and names a reversal",
+        "Every Decided line cites scripts/validate_skills.py or tests/test_validate_skills.py with a line number, or a commit",
+        "The flag and its test are not split across two steps; a step carries its own test",
+        "Done means names the unittest command and a command that parses the --json output",
+        "The Verdict line is Ready to build",
+        "The offer lists keep-here and write-to-file only, and says building is a separate ask"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "plan #212 before I touch billing",
+      "expected_output": "Risk red with no tests covering the invoice path. Step 1 is a characterization test pinning current invoice totals; the behavior change is a later step. Done means names a runnable test. Verdict says red zone, human on every step.",
+      "files": [
+        "evals/files/github-issue-212/"
+      ],
+      "assertions": [
+        "The Risk line says red and the Verdict says human on every step",
+        "Step 1 is a characterization test that pins current invoice behavior, and the behavior change is a later step",
+        "Done means names a runnable test, not a claim that it works",
+        "Don't touch lists the invoice totals path or its existing tests"
+      ]
+    }
+  ]
+}

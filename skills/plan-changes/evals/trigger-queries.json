@@ -1,0 +1,22 @@
+[
+  { "query": "plan PROJ-412", "should_trigger": true },
+  { "query": "run plan-changes on #88", "should_trigger": true },
+  { "query": "I got assigned this ticket, whats the plan? https://github.com/acme/inventory/issues/212", "should_trigger": true },
+  { "query": "how should we build #41? don't write code yet", "should_trigger": true },
+  { "query": "what would it take to add retries to src/api/client.ts", "should_trigger": true },
+  { "query": "turn docs/rfc-retries.md into something I can start on monday", "should_trigger": true },
+  { "query": "before I touch the billing module for #212, what's the approach", "should_trigger": true },
+  { "query": "my manager wants LIN-903 scoped before standup, can you work out what it touches and what we still need to ask product", "should_trigger": true },
+  { "query": "im picking up the tab-restore bug, where do I even start", "should_trigger": true },
+  { "query": "https://gitlab.acme.io/platform/inventory/-/issues/77 figure out how we'd do this and what's unclear", "should_trigger": true },
+  { "query": "implement #88", "should_trigger": false },
+  { "query": "write the PR description for #88", "should_trigger": false },
+  { "query": "break #88 into tickets for the team", "should_trigger": false },
+  { "query": "how long will #88 take, roughly?", "should_trigger": false },
+  { "query": "explain how the retry code in src/api/client.ts works", "should_trigger": false },
+  { "query": "review PR 285", "should_trigger": false },
+  { "query": "plan my week around the oncall rotation", "should_trigger": false },
+  { "query": "add the plan from the ticket to the README", "should_trigger": false },
+  { "query": "the plan is approved, go build step 1", "should_trigger": false },
+  { "query": "respond to the comments on PR 285", "should_trigger": false }
+]
