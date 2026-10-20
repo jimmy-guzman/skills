@@ -141,6 +141,13 @@ Work out where plans go in this repo, first hit wins: agent docs that say so; an
 2. Write it to a file: `<inferred path>`, or "name a path" when nothing was inferred.
 3. Post it on the ticket as a comment. Only when §1 found a ticket.
 
+A posted comment is not the full plan: a ticket reader wants the approach, not the internal contract. Write it as:
+- **Approach.** 2-4 sentences of prose, in the voice submit-changes uses for its Approach paragraph: the real decisions (what changes, the files or areas it touches, anything departing from the repo's usual pattern), not the Steps list restated.
+- **Risk.** Zone and reversal only (`red zone, reverts by flag`). Drop build-in and in-flight; those are build logistics for whoever picks up the work, not useful on the ticket.
+- **Deviations.** One line, only when the plan's Change, Decided, or Assumed differs from what the ticket's own body or comments say the problem is. Leave the line out entirely when there's none; never write "none."
+
+Kind, the Decided citations, the Steps list, Don't touch, Not doing, Done means, Questions for others, and the Verdict stay out of the comment. Keeping it here or writing it to a file still uses the full §4 shape.
+
 Before writing to a file that already exists: if it holds a plan with unfinished steps for different work, stop and ask. Someone may be mid-build from it in another session. Same on a tracker: never close or edit another plan's items to make room.
 
 When §3 produced questions for others and there is a ticket, ask separately: `Post these questions on <ticket>? Say "post", or name the owners.` When there's a ticket and its tracker uses triage labels (`ready-to-implement`, `needs-info`, whatever `gh label list`, `glab label list`, or the tracker shows), offer to set the one matching the Verdict. No ticket: skip both, and don't look up labels. Write to a file or a tracker only on an explicit yes.
