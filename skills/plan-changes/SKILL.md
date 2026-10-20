@@ -64,7 +64,7 @@ Three judgments come out of this pass and go on the plan's Risk line:
 
 - **Zone.** Red when the area touches auth, billing, permissions, data migrations, or anything the repo's docs mark sensitive: a human reviews every step. Yellow when tests are thin or missing: the first step pins today's behavior before anything changes. Green otherwise.
 - **Reversal.** How the change comes back out if it's wrong: a revert, a flag, a migration down. No clean way: the plan says so.
-- **Build in.** A worktree when the host has them. It keeps a long or risky build off the tree the user is working in, and a stray edit lands somewhere disposable. The current tree only when the user said so explicitly ("build it here") — not inferred from a change looking small or green-zone, since that swallows the default.
+- **Build in.** Ask every time, with the question tool, in the §3 batch: a worktree off the base branch as the recommended answer, the current tree as the other. Recommend the worktree for every plan, small or green-zone included, and even when the user is already on a feature branch: it keeps the build off the tree the user is working in, and a stray edit lands somewhere disposable. The answer goes on the Risk line; never decide it without asking.
 
 ### 3. Sort every open point into a bin
 
@@ -86,7 +86,7 @@ Change: two or three sentences. What changes and why, in the ticket's or the use
 
 Kind: <feat | fix | perf | spike | docs | chore>, from <the ticket's type, a label, or the user>
 
-Risk: <zone> | reverse by <revert, flag, migration down> | in flight: <PR or none> | build in: <worktree or current tree>
+Risk: <zone> | reverse by <revert, flag, migration down> | in flight: <PR or none> | build in: <worktree off <base> or current tree, as the user answered>
 
 Decided
 - <fact>, from <file:line, doc, or commit>
