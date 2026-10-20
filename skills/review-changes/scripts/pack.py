@@ -6,13 +6,17 @@ Reads a unified diff on stdin and writes, under --out:
   files/<path>   each changed file at --rev (or from the working tree)
   callers.txt    git grep hits for symbols the diff defines or touches
   tests.txt      test files that name a changed file
+  anchors.txt    git grep hits for strings quoted in --spec, when given
 Stdlib only. Runs from the repo root whatever the working directory.
 
 Usage:
-  <diff command> | pack.py --out DIR [--rev REV] [--extra PATH ...]
+  <diff command> | pack.py --out DIR [--rev REV] [--extra PATH ...] [--spec PATH]
 
 --extra copies untracked working-tree files into files/ (read-only mode, where
-the diff can't show them). Prints a one-line JSON summary.
+the diff can't show them). --spec is a text file holding the spec source (a
+ticket, plan, or PR description): strings it quotes are grepped against the
+tree so the Spec reviewer gets a head start on where they landed. Prints a
+one-line JSON summary.
 """
 
 import argparse
@@ -31,7 +35,8 @@ SYMBOL = re.compile(
 HUNK = re.compile(r"^@@ .* @@ .*?\b([A-Za-z_]\w{2,})\s*\(")
 PREFIX = re.compile(r"^[abciwo]/")
 TEST_PATH = re.compile(r"(^|/)(tests?|__tests__|spec)(/|$)|[._-](test|spec)\.\w+$")
-MAX_SYMBOLS, MAX_HITS = 60, 40
+QUOTED = re.compile(r"`([^`]{4,120})`|[\"“]([^\"”]{4,120})[\"”]|'([^']{4,120})'")
+MAX_SYMBOLS, MAX_HITS, MAX_ANCHORS = 60, 40, 40
 
 
 def git(*args):
@@ -80,16 +85,28 @@ def symbols(diff):
     return list(seen)[:MAX_SYMBOLS]
 
 
+def quoted_strings(text):
+    """Backtick- or quote-delimited spans in a spec source, e.g. a ticket's exact output strings."""
+    seen = {}
+    for m in QUOTED.finditer(text):
+        s = next(g for g in m.groups() if g is not None).strip()
+        if s:
+            seen.setdefault(s, None)
+    return list(seen)[:MAX_ANCHORS]
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
     ap.add_argument("--rev")
     ap.add_argument("--extra", nargs="*", default=[])
+    ap.add_argument("--spec")
     a = ap.parse_args()
     out = pathlib.Path(a.out).resolve()
     diff = sys.stdin.buffer.read().decode("utf-8", "replace")
     if not diff.strip():
         sys.exit("pack.py: empty diff on stdin")
+    spec_text = pathlib.Path(a.spec).read_text(errors="replace") if a.spec else ""
     top = git("rev-parse", "--show-toplevel")
     if top is None:
         sys.exit("pack.py: not inside a git repository")
@@ -123,13 +140,23 @@ def main():
             chunks.append(f"## {s}\n" + "\n".join(hits[:MAX_HITS]) + "\n")
     (out / "callers.txt").write_text("".join(chunks))
 
+    anchor_chunks = []
+    for s in quoted_strings(spec_text):
+        hits = [strip(h) for h in (git("grep", "-n", "-F", "-I", "-e", s, *rev_arg) or "").splitlines()]
+        if hits:
+            anchor_chunks.append(f"## {s}\n" + "\n".join(hits[:MAX_HITS]) + "\n")
+    (out / "anchors.txt").write_text("".join(anchor_chunks))
+
     stems = {pathlib.Path(p).stem for p in paths if pathlib.Path(p).stem not in ("index", "__init__", "mod")}
     flags = [f for stem in sorted(stems) for f in ("-e", stem)]
     hits = (git("grep", "-l", "-I", "-F", *flags, *rev_arg) or "").splitlines() if flags else []
     tests = sorted({strip(h) for h in hits if TEST_PATH.search(strip(h))})
     (out / "tests.txt").write_text("\n".join(tests) + ("\n" if tests else ""))
 
-    print(json.dumps({"pack": str(out), "files": len(paths), "symbols": len(chunks), "tests": len(tests)}))
+    print(json.dumps({
+        "pack": str(out), "files": len(paths), "symbols": len(chunks),
+        "tests": len(tests), "anchors": len(anchor_chunks),
+    }))
 
 
 def _contained(path, root):

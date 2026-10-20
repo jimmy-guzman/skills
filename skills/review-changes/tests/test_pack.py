@@ -116,6 +116,29 @@ class PackTest(unittest.TestCase):
             self.assertIn("force=False", (o / "files" / "pkg" / "src" / "tabs.py").read_text())
             self.assertFalse((o / "files" / "appended").exists())
 
+    def test_spec_anchors_are_grepped_and_grouped(self):
+        with tempfile.TemporaryDirectory() as repo, tempfile.TemporaryDirectory() as out:
+            git = make_repo(repo)
+            rev = git("rev-parse", "HEAD").decode().strip()
+            diff = git("diff", "HEAD~1", "HEAD")
+            spec = pathlib.Path(repo) / "spec.txt"
+            spec.write_text('Ticket says `close_tab` must return "nope, not in the repo" too.\n')
+            res = run_pack(repo, diff, "--out", out, "--rev", rev, "--spec", str(spec))
+            self.assertEqual(res.returncode, 0, res.stderr)
+            anchors = (pathlib.Path(out) / "anchors.txt").read_text()
+            self.assertIn("## close_tab", anchors)
+            self.assertIn("pkg/src/tabs.py:1:", anchors)
+            self.assertNotIn("nope, not in the repo", anchors)
+
+    def test_no_spec_writes_empty_anchors(self):
+        with tempfile.TemporaryDirectory() as repo, tempfile.TemporaryDirectory() as out:
+            git = make_repo(repo)
+            rev = git("rev-parse", "HEAD").decode().strip()
+            diff = git("diff", "HEAD~1", "HEAD")
+            res = run_pack(repo, diff, "--out", out, "--rev", rev)
+            self.assertEqual(res.returncode, 0, res.stderr)
+            self.assertEqual((pathlib.Path(out) / "anchors.txt").read_text(), "")
+
     def test_empty_diff_fails(self):
         res = run_pack(None, b"", "--out", tempfile.mkdtemp())
         self.assertEqual(res.returncode, 1)
