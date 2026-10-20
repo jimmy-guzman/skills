@@ -60,10 +60,11 @@ This is a read-only research pass. It answers most "questions" before anyone is 
 
 Where the host has subagents, run this pass as one read-only subagent (in Claude Code, Explore) and take back a memo: entry points, callers, tests and seams, owners, zone, reversal, open questions, each line citing a file, commit, or doc. Without subagents, make the same pass yourself and skip the memo: the files are already in your context, so cite them straight into §4.
 
-Two judgments come out of this pass and go on the plan's Risk line:
+Three judgments come out of this pass and go on the plan's Risk line:
 
 - **Zone.** Red when the area touches auth, billing, permissions, data migrations, or anything the repo's docs mark sensitive: a human reviews every step. Yellow when tests are thin or missing: the first step pins today's behavior before anything changes. Green otherwise.
 - **Reversal.** How the change comes back out if it's wrong: a revert, a flag, a migration down. No clean way: the plan says so.
+- **Build in.** A worktree when the host has them, unless the user said otherwise ("build it here"). It keeps a long or risky build off the tree the user is working in, and a stray edit lands somewhere disposable. The current tree only for a green-zone change with nothing in flight that fits one sitting.
 
 ### 3. Sort every open point into a bin
 
@@ -84,7 +85,7 @@ Change: two or three sentences. What changes and why, in the ticket's or the use
 
 Kind: <feat | fix | perf | spike | docs | chore>, from <the ticket's type, a label, or the user>
 
-Risk: <zone> | reverse by <revert, flag, migration down> | in flight: <PR or none>
+Risk: <zone> | reverse by <revert, flag, migration down> | in flight: <PR or none> | build in: <worktree or current tree>
 
 Decided
 - <fact>, from <file:line, doc, or commit>
@@ -144,7 +145,7 @@ Before writing to a file that already exists: if it holds a plan with unfinished
 
 When §3 produced questions for others and there is a ticket, ask separately: `Post these questions on <ticket>? Say "post", or name the owners.` When there's a ticket and its tracker uses triage labels (`ready-to-implement`, `needs-info`, whatever `gh label list`, `glab label list`, or the tracker shows), offer to set the one matching the Verdict. No ticket: skip both, and don't look up labels. Write to a file or a tracker only on an explicit yes.
 
-Then stop. Building from the plan is a separate ask; say so in one line. If building later shows a Decided line doesn't hold, the move is to stop and re-plan, not patch around it; say that too.
+Then stop. Building from the plan is a separate ask; say so in one line, and name where it starts from the Risk line (`Build in a worktree off <base>.` or `Build in the current tree.`). If building later shows a Decided line doesn't hold, the move is to stop and re-plan, not patch around it; say that too.
 
 ## Voice
 
