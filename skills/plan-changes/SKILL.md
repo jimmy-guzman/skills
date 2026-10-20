@@ -73,6 +73,7 @@ Settle the kind first, because it changes step 1 and Done means: feat, fix, perf
 - **Settled by the repo.** The code or a doc answers it. Record the answer and where it came from (`file:line`, doc, commit).
 - **The user's to decide.** An engineering choice with no owner outside this conversation: which helper, which layer, keep or drop a flag. Ask now, with the question tool. Each question carries a recommended answer, so the user reacts instead of composing, but a recommended answer is a draft to react to, not a decision already made: don't treat the question as settled until the user actually answers. Before presenting options, check they're not a false binary, the real answer may be both or neither, and that the wording is plain enough to act on without a follow-up (the same bar Voice sets for the plan itself; no jargon the user has to ask to be restated). One batch when the questions are independent; one at a time when an answer changes the next question. "Whatever you think" is not an answer: re-ask as two concrete options. Don't ask what §2 could have answered.
 - **Someone else's.** Product behavior, another team's API, something only the reporter knows. Draft one question per owner, short, with the plan's assumed answer stated. Don't block on these: plan around the assumption and mark it. When a pending answer would change the plan's shape, say so and stop after §5 instead of pretending.
+- **None of the above.** A decision that doesn't settle into any of the three bins isn't guessed at. Ask the user with the question tool, same as an engineering choice, and say why it didn't fit a bin. Inventing an answer here is worse than asking, even one that looks reasonable.
 
 A vague ask with no finish line ("make it faster", "clean this up") gets reframed into something measurable (a number, a named test, a before and after) and goes in Assumed until someone confirms it.
 
@@ -116,7 +117,7 @@ Verdict: Ready to build | Needs info (<owner>) | Needs spec
 What the kind changes, and nothing else changes with it:
 
 - **feat, docs, chore**: the default shape. A story's acceptance criteria go into Done means as they are, one line each, so the approver can match them to the ticket.
-- **fix**: step 1 is a failing test that reproduces the bug, not a characterization test; the fix is a later step. Done means is that test passing with the existing ones still green. This replaces the thin-tests pin, since reproducing the bug is the pin.
+- **fix**: step 1 is a failing test that reproduces the bug, not a characterization test; the fix is a later step. Done means is that test passing with the existing ones still green. This replaces the thin-tests pin, since reproducing the bug is the pin. Decided names the root cause §2 found, not just the symptom the ticket reports. When the same structural condition could produce other bugs, say so, on the Risk line or in Not doing, rather than quietly fixing only the reported instance.
 - **perf**: Decided carries the baseline number and how it was measured. Done means names the target and the same measurement, so before and after are comparable. No baseline yet: step 1 measures it, and the target stays Assumed until it exists.
 - **spike**: nothing gets built. Steps are the questions to answer, one line each with how (read, prototype, measure). Done means is what will be known at the end and the time box. Not doing says no production code. The Verdict reads the same; `Ready to build` means ready to start.
 
@@ -130,6 +131,7 @@ Rules for the shape:
 - Two real approaches, meaning the Steps themselves would differ (different files, a different reversal): give each in three lines (files touched, invariant kept, how it reverses) and ask the user to pick before writing Steps. Don't pick for them. A choice that only changes what's inside a step (a flag's shape, a field name) is a §3 question with a recommended answer, not a second approach.
 - `Done means` is an independent check, not "the agent says it works". Prefer something deterministic: a named test, a command and its expected output. review-changes reads this later as the spec, so write it as a checklist it can walk.
 - Verdict: `Needs info` when an Assumed line waiting on someone other than the user would change which steps exist or their order if wrong. A line waiting on the user, or one that only changes what's inside a step, doesn't. `Needs spec` when the ticket doesn't say what done looks like and §3 couldn't settle it. Otherwise `Ready to build`.
+- `Not doing` takes a scope reason only: belongs in a separate ticket, needs a call from an owner outside this conversation, or sits outside the area this plan already touches. Never "low-value," "an edge case," or "not worth it": a known-wrong behavior inside the area this plan touches stays in Steps unless the cut is a scope call, not a value judgment.
 
 Caps: Change 60 words, each step one line, at most 8 steps. Past 8, the change is two tickets; say so. Leave out an empty section.
 
@@ -147,6 +149,8 @@ A posted comment is not the full plan: a ticket reader wants the approach, not t
 - **Deviations.** One line, only when the plan's Change, Decided, or Assumed differs from what the ticket's own body or comments say the problem is. Leave the line out entirely when there's none; never write "none."
 
 Kind, the Decided citations, the Steps list, Don't touch, Not doing, Done means, Questions for others, and the Verdict stay out of the comment. Keeping it here or writing it to a file still uses the full §4 shape.
+
+When the plan introduces a pattern, convention, or structural change the repo's agent docs don't already describe, ask once, alongside the keep/write/post offer, whether `AGENTS.md` (or the repo's equivalent) should be updated to record it. Don't write it without a yes.
 
 Before writing to a file that already exists: if it holds a plan with unfinished steps for different work, stop and ask. Someone may be mid-build from it in another session. Same on a tracker: never close or edit another plan's items to make room.
 
