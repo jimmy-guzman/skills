@@ -198,7 +198,7 @@ Never state a before you didn't observe. A test that is new in this diff and was
 
 ### 5. Confirm inline
 
-Write the drafted body to a file, then lint it. Fix every flagged line and rerun until it exits 0, before showing the user.
+Write the drafted body to a file, then lint it. Fix every error and rerun until it exits 0, before showing the user. A `warning:` line flags length or shape: reread the span, cut what the diff already says, keep what the reviewer needs. Keeping one is fine; say so in the chat summary.
 
 ```bash
 body="$(git rev-parse --git-dir)/PR_BODY.md"
@@ -242,21 +242,27 @@ Run _Verify_ from the reference file. Confirm draft state and base match what §
 
 Applies to the body. The title follows the shape from §1 exactly, emoji and all.
 
-**Default shape** (no template). Prose paragraphs opened by bold run-in labels, no headings: a heading is a slot that gets filled whether or not there is anything to say, a label exists only when its sentence does. It scans like a form and reads as prose in `git log`.
+**Default shape** (no template). Three `###` headings, Why, Approach, Review, in that order, always headings and never bold run-in labels. A heading exists only when it has something under it. Inside a section use whatever tells the story: a list for same-shaped items, a table for a series of pairs, a fenced block for a command or its output, a file tree or Mermaid diagram for structure, `### Before` / `### After` for evidence. Prose is the default; a block earns its place by being clearer than the sentence it replaces.
 
 ```markdown
 <ticket reference, alone, if there is one>
 
-**Why.** <The problem: what was wrong, how it showed up, why now.>
+### Why
 
-**Approach.** <The decisions the diff does not show.>
+<The problem: what was wrong, how it showed up, why now.>
+
+### Approach
+
+<The decisions the diff does not show.>
 
 <Evidence, where a real before and after exists.>
 
-**Review.** <What the reviewer should do with this.>
+### Review
+
+<What the reviewer should do with this.>
 ```
 
-Why is required and first. Approach and Review exist only when they have content; a dependency bump is often a Why alone. Nothing else gets a label, nothing follows Review. Three sentences or fewer per paragraph, the first carrying the point.
+Why is required and first. Approach and Review exist only when they have content; a dependency bump is often a Why alone. No other section names, nothing follows Review. The first sentence of each section carries the point.
 
 **Why** answers "what was wrong and why it mattered," never "what changed": that is Approach's job. Readable without opening the ticket; short sentences, concrete nouns, no "This PR introduces". Asked for more detail, say more about the problem (where it leads, how it showed up, why now), not about the changes.
 
@@ -270,13 +276,13 @@ Why is required and first. Approach and Review exist only when they have content
 
 **Evidence** is a real before and after a reviewer can't get elsewhere: a number, a screenshot, a test that failed and now passes. "Tests pass" is not evidence; the PR shows CI. Most changes need none. When one does, it sits right after the sentence it supports, under `### Before` / `### After` headings; a table only for a real series of pairs. For structure or flow, the smallest visual that makes it clear: a file tree, call tree, or Mermaid diagram.
 
-**Review** is the one paragraph written to the reviewer, and only from what the user or the session actually said; an invented doubt sends them to the wrong place. Its content: the feedback wanted ("design check on the cache key, the rest is mechanical"), where to start in a large diff, what the author is unsure of, and a behavior left unverified that a reviewer would assume was covered. Say the behavior, not the step skipped: "the retry path never ran against the real API" is actionable; "`pnpm dev` was not run" is not, and a reviewer once said so. Mechanical files (renames, formatter output) go as self-comments on the diff. Coordination talk ("Deploy order", "This merges first", "Follow-up MR") stays in the chat summary: the body is about the change, not the session.
+**Review** is the one paragraph written to the reviewer, and only from what the user or the session actually said; an invented doubt sends them to the wrong place. A specific feedback request is the single element of a description with the strongest measured effect on review (MSR 2026, 80k PRs: such PRs merge far more often and draw deeper comments), so write one whenever the user or session gave anything to ask. Its content: the feedback wanted ("design check on the cache key, the rest is mechanical"), where to start in a large diff, what the author is unsure of, and a behavior left unverified that a reviewer would assume was covered. Say the behavior, not the step skipped: "the retry path never ran against the real API" is actionable; "`pnpm dev` was not run" is not, and a reviewer once said so. Mechanical files (renames, formatter output) go as self-comments on the diff. Coordination talk ("Deploy order", "This merges first", "Follow-up MR") stays in the chat summary: the body is about the change, not the session.
 
 A risk gets one clause in the Approach sentence it belongs to, only when the reviewer has something specific to check. Don't attribute to a role you can't verify ("reviewer flagged", "per discussion") unless a named reviewer said it in the thread. Same for a referenced PR, ticket, or incident: fetch it and confirm before saying what it did or broke; unverified, state only what's known ("spooked the team", not "broke builds").
 
 Every file the body names must be in the diff, and a claimed test must have a test file behind it; describing work the diff does not contain is what most reliably gets a PR rejected.
 
-Length scales with the change, then stops: Why 80 words (ticket line aside), Approach prose 100 with at most 6 top-level bullets and 10 in all, Review 60, the whole body 180 with evidence aside. Past that, group harder or cut. The diff holds the rest.
+Length scales with the change. Description length does not predict whether a PR merges; what it says does. The lint warns past Why 80 words (ticket line aside), Approach prose 100, Review 60, 6 top-level bullets or 10 in all, 25 words a bullet. A warning asks whether the diff already says it, not for a cut: a substantial problem gets a substantial Why. The diff holds the how.
 
 No filler: no em dashes, sign-offs, emoji, or summary of the summary; no self-grading ("robust", "comprehensive", "properly"); no assertions in place of evidence ("tests pass", "tested locally", "fully backward compatible"). The §5 lint enforces this section.
 

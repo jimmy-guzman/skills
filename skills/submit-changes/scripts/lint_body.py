@@ -12,30 +12,32 @@ Usage:
   lint_body.py BODY.md [--files CHANGED.txt]
 
 Prints one line per problem: BODY.md:LINE: message
+A warning is prefixed "warning: "; it asks a question, it does not fail.
 CHANGED.txt holds one changed path per line (git diff --name-only).
 
-Checks, anywhere:
+Errors, anywhere:
   em dash, en dash, middle dot, curly quotes or apostrophes
-Checks outside fenced code blocks:
-  bullets at any indent: 3+ version arrows (->), more than 25 words
-    (an inline code span counts as one), more than one semicolon
+Errors outside fenced code blocks:
   assertions without evidence ("tests pass", "tested locally", ...)
   self-grading words ("robust", "comprehensive", "properly", ...)
-Checks when the body uses the default shape (a **Why.** / **Approach.** /
-**Review.** label opens a paragraph):
-  a label other than those three, or a label with nothing after it
+Errors when the body uses the default shape (a "### Why", "### Approach"
+or "### Review" heading):
+  a run-in label such as **Why.** in place of a heading
+  a section heading with nothing under it, or one that appears twice
   Why first (only a ticket line may precede it), Review last
   Why opening with "This PR", "This change", "Adds", and the like
-  Why over 80 words, Approach prose over 100, Review over 60
-  more than 6 top-level bullets or 10 in all
-  more than 180 words in all, fenced blocks excluded
-Checks with --files:
+Errors with --files:
   a backticked path that is not in the diff
   a claim of a new or added test when no test file changed
+Warnings:
+  bullets at any indent: 3+ version arrows (->), more than 25 words
+    (an inline code span counts as one), more than one semicolon
+  Why over 80 words, Approach prose over 100, Review over 60
+  more than 6 top-level bullets or 10 in all
 
 Exit codes:
-  0 clean
-  1 problems found; fix every line before showing the body
+  0 clean, or warnings only
+  1 errors found; fix every error before showing the body
   2 bad arguments or unreadable file
 """
 
@@ -50,7 +52,8 @@ CHARS = {
 }
 BULLET = re.compile(r"^( *)- (.*)")
 CODE = re.compile(r"`([^`]+)`")
-LABEL = re.compile(r"^\*\*([A-Za-z]+)\.\*\*(.*)$")
+LABEL = re.compile(r"^\*\*([A-Za-z]+)\.\*\*")
+HEADING = re.compile(r"^### (Why|Approach|Review)$")
 LABELS = ("Why", "Approach", "Review")
 TICKET = re.compile(
     r"^(?:(?i:closes|fixes|resolves|relates to)\s+)?"
@@ -89,7 +92,6 @@ PATH = re.compile(r"^(?:[\w.-]+/)*[\w.-]+\.([A-Za-z]\w{0,10})$")
 MAX_WORDS = 25
 MAX_TOP = 6
 MAX_BULLETS = 10
-MAX_BODY_WORDS = 180
 MAX_LABEL_WORDS = {"Why": 80, "Approach": 100, "Review": 60}
 
 
@@ -115,12 +117,17 @@ def in_diff(token, files):
 
 def lint(lines, files=None):
     problems = []
+
+    def warn(n, message):
+        problems.append((n, "warning: " + message))
+
     fenced = False
     label = None  # (name, heading line)
-    seen = []  # labels in order, with their line numbers
-    counts = {name: 0 for name in LABELS}  # words per label section
-    top = total = body_words = 0
-    preceded = False  # text other than a ticket line appeared before **Why.**
+    seen = []  # sections in order, with their line numbers
+    counts = {name: 0 for name in LABELS}  # words per section
+    filled = set()  # sections with something under the heading
+    top = total = 0
+    preceded = False  # text other than a ticket line appeared before ### Why
     review_para = False  # inside the Review paragraph itself
     review_done = False  # the Review paragraph has ended
     review_end = None  # line of the first text after the Review paragraph
@@ -132,6 +139,8 @@ def lint(lines, files=None):
                 problems.append((n, message))
         if line.lstrip().startswith("```"):
             fenced = not fenced
+            if label:
+                filled.add(label[0])
             continue
         if fenced:
             continue
@@ -143,34 +152,32 @@ def lint(lines, files=None):
         if review_done and review_end is None:
             review_end = n
 
-        m = LABEL.match(stripped)
-        if m:
-            name, rest = m.group(1), m.group(2).strip()
-            if name not in LABELS:
-                problems.append((n, f"unknown label **{name}.**: use Why, Approach, or Review"))
-                label = None
-            else:
-                if not rest:
-                    problems.append((n, f"**{name}.** stands alone: attach it to a sentence"))
-                if name in dict(seen):
-                    problems.append((n, f"**{name}.** appears twice: merge the paragraphs"))
-                seen.append((name, n))
-                label = (name, n)
-                review_para = name == "Review"
-                if name == "Why" and preceded:
-                    problems.append((n, "**Why.** must come first: only the ticket line may precede it"))
-                if name == "Why" and rest and OPENERS.match(rest):
-                    problems.append((n, "Why opens with the change, not the problem: start with what was wrong"))
+        h = HEADING.match(stripped)
+        if h:
+            name = h.group(1)
+            if name in dict(seen):
+                problems.append((n, f"### {name} appears twice: merge the sections"))
+            seen.append((name, n))
+            label = (name, n)
+            if name == "Why" and preceded:
+                problems.append((n, "### Why must come first: only the ticket line may precede it"))
             preceded = True
-            text_for_count = rest
-        elif line.startswith(("## ", "### ")):
+            continue
+        if line.startswith(("## ", "### ")):
             label = None
             preceded = True
-            text_for_count = None
-        else:
-            text_for_count = stripped
-            if not TICKET.match(stripped):
-                preceded = True
+            continue
+        m = LABEL.match(stripped)
+        if m:
+            problems.append((n, f"run-in label **{m.group(1)}.**: use a ### heading"))
+        if not TICKET.match(stripped):
+            preceded = True
+        if label and label[0] not in filled:
+            filled.add(label[0])
+            if label[0] == "Why" and OPENERS.match(stripped):
+                problems.append((n, "Why opens with the change, not the problem: start with what was wrong"))
+            if label[0] == "Review":
+                review_para = True
 
         for am in ASSERTIONS.finditer(stripped):
             problems.append((n, f'assertion without evidence "{am.group(0)}": show the before and after, or cut'))
@@ -189,39 +196,35 @@ def lint(lines, files=None):
             total += 1
             top += not indent
             if text.count("->") >= 3:
-                problems.append((n, "3+ version arrows on one bullet: split into a sub-list"))
+                warn(n, "3+ version arrows on one bullet: would a sub-list read better?")
             if words(text) > MAX_WORDS:
-                problems.append((n, f"bullet over {MAX_WORDS} words: say what changed, not how"))
+                warn(n, f"bullet over {MAX_WORDS} words: is this what changed, or how?")
             if text.count(";") > 1:
-                problems.append((n, "more than one semicolon in a bullet: split it or cut a clause"))
+                warn(n, "more than one semicolon in a bullet: two bullets, or one clause fewer?")
             if label and label[0] != "Approach":
                 counts[label[0]] += words(text)
-            if label:
-                body_words += words(text)
-        elif label and text_for_count is not None:
-            w = words(text_for_count)
-            counts[label[0]] += w
-            body_words += w
+        elif label:
+            counts[label[0]] += words(stripped)
 
     if not seen:
         return sorted(problems)
 
     for name, at in seen:
+        if name not in filled:
+            problems.append((at, f"### {name} has nothing under it: write it or drop the heading"))
         limit = MAX_LABEL_WORDS[name]
         what = "prose " if name == "Approach" else ""
         if counts[name] > limit:
-            problems.append((at, f"{name} runs {counts[name]} {what}words: keep it to {limit} or fewer"))
+            warn(at, f"{name} runs {counts[name]} {what}words: does the reviewer need all of it?")
     if "Why" not in dict(seen):
-        problems.append((seen[0][1], "no **Why.** paragraph: the body needs the problem first"))
+        problems.append((seen[0][1], "no ### Why section: the body needs the problem first"))
     if "Review" in dict(seen) and review_end is not None:
-        problems.append((review_end, "text after **Review.**: the Review paragraph closes the body"))
+        problems.append((review_end, "text after ### Review: the Review paragraph closes the body"))
     first_label_line = seen[0][1]
     if top > MAX_TOP:
-        problems.append((first_label_line, f"{top} top-level bullets: group to {MAX_TOP} or fewer"))
+        warn(first_label_line, f"{top} top-level bullets: can some share a group?")
     if total > MAX_BULLETS:
-        problems.append((first_label_line, f"{total} bullets: keep it to {MAX_BULLETS} or fewer"))
-    if body_words > MAX_BODY_WORDS:
-        problems.append((first_label_line, f"body runs {body_words} words: keep it to {MAX_BODY_WORDS} or fewer"))
+        warn(first_label_line, f"{total} bullets: is this a file inventory?")
     if files is not None and test_claims and not any(TEST_FILE.search(f) for f in files):
         for n in test_claims:
             problems.append((n, "claims a test change, but no test file is in the diff"))
@@ -252,7 +255,7 @@ def main(argv):
     problems = lint(lines, files)
     for n, message in problems:
         print(f"{path}:{n}: {message}")
-    return 1 if problems else 0
+    return 1 if any(not m.startswith("warning: ") for _, m in problems) else 0
 
 
 if __name__ == "__main__":

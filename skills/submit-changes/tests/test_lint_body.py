@@ -20,6 +20,7 @@ def write(text, suffix):
 
 
 def run(text, files=None):
+    """Returns (exit code, output lines). Warnings keep the "warning: " prefix."""
     paths = [write(text, ".md")]
     args = [sys.executable, "-I", SCRIPT, paths[0]]
     if files is not None:
@@ -46,11 +47,11 @@ def shaped(why="Nothing closed the last tab.", approach=None, review=None, ticke
     parts = []
     if ticket:
         parts.append(ticket)
-    parts.append(f"**Why.** {why}")
+    parts.append(f"### Why\n\n{why}")
     if approach is not None:
-        parts.append(f"**Approach.** {approach}")
+        parts.append(f"### Approach\n\n{approach}")
     if review is not None:
-        parts.append(f"**Review.** {review}")
+        parts.append(f"### Review\n\n{review}")
     return "\n\n".join(parts) + "\n"
 
 
@@ -73,11 +74,11 @@ class Characters(unittest.TestCase):
 class Bullets(unittest.TestCase):
     def test_three_version_arrows(self):
         code, out = run("- `eslint`: 8 -> 9 -> 10 -> 10.12\n")
-        self.assertEqual(code, 1)
-        self.assertIn("version arrows", out[0])
+        self.assertEqual(code, 0)
+        self.assertIn("warning: 3+ version arrows", out[0])
         code, out = run("- Toolchain:\n  - `eslint`: 8 -> 9 -> 10 -> 10.12\n")
-        self.assertEqual(code, 1)
-        self.assertIn("version arrows", out[0])
+        self.assertEqual(code, 0)
+        self.assertIn("warning: 3+ version arrows", out[0])
 
     def test_prose_commas_pass(self):
         self.assertEqual(run("- `a.ts`: guards empty, null, and missing input\n"), (0, []))
@@ -97,8 +98,8 @@ class Bullets(unittest.TestCase):
         for prefix in ("- ", "- Group:\n  - "):
             self.assertEqual(run(prefix + words(25) + "\n"), (0, []))
             code, out = run(prefix + words(26) + "\n")
-            self.assertEqual(code, 1)
-            self.assertIn("bullet over 25 words", out[0])
+            self.assertEqual(code, 0)
+            self.assertIn("warning: bullet over 25 words", out[0])
 
     def test_code_span_is_one_word(self):
         self.assertEqual(run("- " + words(24) + " `<img src alt width>`\n"), (0, []))
@@ -106,14 +107,14 @@ class Bullets(unittest.TestCase):
     def test_unmatched_backtick_splits_on_whitespace(self):
         self.assertEqual(run("- " + words(24) + " `<img\n"), (0, []))
         code, out = run("- " + words(24) + " `<img src\n")
-        self.assertEqual(code, 1)
-        self.assertIn("bullet over 25 words", out[0])
+        self.assertEqual(code, 0)
+        self.assertIn("warning: bullet over 25 words", out[0])
 
     def test_semicolons(self):
         self.assertEqual(run("- a; b\n"), (0, []))
         code, out = run("  - a; b; c\n")
-        self.assertEqual(code, 1)
-        self.assertIn("more than one semicolon", out[0])
+        self.assertEqual(code, 0)
+        self.assertIn("warning: more than one semicolon", out[0])
 
     def test_fenced_blocks_skipped(self):
         body = "- Shape:\n\n  ```diff\n  - " + words(30) + "; a; b\n  ```\n"
@@ -122,12 +123,12 @@ class Bullets(unittest.TestCase):
     def test_counts_only_capped_in_default_shape(self):
         self.assertEqual(run("## Changes\n\n" + bullets(12)), (0, []))
         code, out = run(shaped(approach="Grouped.") + bullets(7))
-        self.assertEqual(code, 1)
-        self.assertIn("7 top-level bullets", out[0])
+        self.assertEqual(code, 0)
+        self.assertIn("warning: 7 top-level bullets", out[0])
         self.assertEqual(run(shaped(approach="Grouped.") + bullets(2) + bullets(8, "  ")), (0, []))
         code, out = run(shaped(approach="Grouped.") + bullets(2) + bullets(9, "  "))
-        self.assertEqual(code, 1)
-        self.assertIn("11 bullets", out[0])
+        self.assertEqual(code, 0)
+        self.assertIn("warning: 11 bullets", out[0])
 
 
 class Phrases(unittest.TestCase):
@@ -160,16 +161,15 @@ class DefaultShape(unittest.TestCase):
         joined = "\n".join(out)
         for message in (
             "Why opens with the change",
-            "Why runs 119 words",
-            "body runs",
-            "20 bullets",
-            "bullet over 25 words",
-            "more than one semicolon",
+            "warning: Why runs 119 words",
+            "warning: 20 bullets",
+            "warning: bullet over 25 words",
+            "warning: more than one semicolon",
             'assertion without evidence "All tests pass"',
             'self-grading word "robust"',
             "`CHANGELOG.md` is not in the diff",
-            "unknown label **Testing.**",
-            "**Review.** stands alone",
+            "run-in label **Testing.**",
+            "### Review has nothing under it",
         ):
             self.assertIn(message, joined)
 
@@ -184,70 +184,75 @@ class DefaultShape(unittest.TestCase):
     def test_why_must_come_first(self):
         code, out = run("Some preamble.\n\n" + shaped())
         self.assertEqual(code, 1)
-        self.assertIn("**Why.** must come first", out[0])
-        code, out = run("**Approach.** First.\n\n**Why.** Second.\n")
+        self.assertIn("### Why must come first", out[0])
+        code, out = run("### Approach\n\nFirst.\n\n### Why\n\nSecond.\n")
         self.assertEqual(code, 1)
-        self.assertIn("**Why.** must come first", "\n".join(out))
+        self.assertIn("### Why must come first", "\n".join(out))
 
     def test_why_required_when_shaped(self):
-        code, out = run("**Approach.** Alone.\n")
+        code, out = run("### Approach\n\nAlone.\n")
         self.assertEqual(code, 1)
-        self.assertIn("no **Why.** paragraph", out[0])
+        self.assertIn("no ### Why section", out[0])
 
     def test_why_openers(self):
         for opener in ("This PR adds", "This change moves", "Adds a", "Introduces the", "Updates the"):
             code, out = run(shaped(why=f"{opener} thing."))
             self.assertEqual(code, 1, opener)
-            self.assertIn("Why opens with the change", out[0])
+            self.assertIn(":3: Why opens with the change", out[0])
         self.assertEqual(run(shaped(why="The thing was missing, so adds failed.")), (0, []))
+
+    def test_run_in_labels_are_errors(self):
+        code, out = run("**Why.** Nothing closed the last tab.\n")
+        self.assertEqual(code, 1)
+        self.assertIn("run-in label **Why.**: use a ### heading", out[0])
 
     def test_label_limits(self):
         self.assertEqual(run(shaped(why=words(80), approach=words(100))), (0, []))
         self.assertEqual(run(shaped(why=words(80), review=words(60))), (0, []))
         code, out = run(shaped(why=words(81)))
-        self.assertEqual(code, 1)
-        self.assertIn(":1: Why runs 81 words", out[0])
+        self.assertEqual(code, 0)
+        self.assertIn(":1: warning: Why runs 81 words", out[0])
         code, out = run(shaped(approach=words(101)))
-        self.assertEqual(code, 1)
-        self.assertIn(":3: Approach runs 101 prose words", out[0])
+        self.assertEqual(code, 0)
+        self.assertIn(":5: warning: Approach runs 101 prose words", out[0])
         code, out = run(shaped(review=words(61)))
-        self.assertEqual(code, 1)
-        self.assertIn(":3: Review runs 61 words", out[0])
+        self.assertEqual(code, 0)
+        self.assertIn(":5: warning: Review runs 61 words", out[0])
 
-    def test_approach_bullets_count_toward_body_not_prose(self):
-        body = shaped(approach=words(100)) + bullets(2)
-        self.assertEqual(run(body), (0, []))
-        body = shaped(why=words(80), approach=words(100)) + "- " + words(5) + "\n"
-        code, out = run(body)
+    def test_approach_bullets_not_counted_as_prose(self):
+        self.assertEqual(run(shaped(approach=words(100)) + bullets(2)), (0, []))
+
+    def test_warnings_pass_errors_fail(self):
+        code, out = run(shaped(why=words(81), approach="A robust fix."))
         self.assertEqual(code, 1)
-        self.assertIn("body runs 185 words", out[0])
+        self.assertEqual(len(out), 2)
+        self.assertEqual(sum(":1: warning:" in line for line in out), 1)
 
     def test_ticket_line_not_counted(self):
         self.assertEqual(run(shaped(why=words(80), approach=words(100), ticket="Closes #1.")), (0, []))
 
-    def test_unknown_and_empty_labels(self):
-        code, out = run(shaped() + "**Testing.** Ran it.\n")
+    def test_empty_section(self):
+        code, out = run(shaped() + "\n### Review\n")
         self.assertEqual(code, 1)
-        self.assertIn("unknown label **Testing.**", out[0])
-        code, out = run(shaped() + "**Review.**\n")
-        self.assertEqual(code, 1)
-        self.assertIn("**Review.** stands alone", out[0])
+        self.assertIn("### Review has nothing under it", out[0])
+        self.assertEqual(run(shaped(approach="| a | b |\n| - | - |\n| 1 | 2 |")), (0, []))
+        self.assertEqual(run(shaped(approach="```text\ntree\n```")), (0, []))
 
-    def test_duplicate_label(self):
-        code, out = run(shaped() + "**Why.** Again.\n")
+    def test_duplicate_section(self):
+        code, out = run(shaped() + "\n### Why\n\nAgain.\n")
         self.assertEqual(code, 1)
-        self.assertIn("**Why.** appears twice", out[0])
+        self.assertIn("### Why appears twice", out[0])
 
     def test_review_closes_the_body(self):
         body = shaped(review="Start in `a.ts`.") + "\n### Before\n\nold\n"
         code, out = run(body)
         self.assertEqual(code, 1)
-        self.assertIn("text after **Review.**", out[0])
+        self.assertIn("text after ### Review", out[0])
         body = shaped(review="Start in `a.ts`.\nThen `b.ts`.")
         self.assertEqual(run(body), (0, []))
 
     def test_evidence_between_approach_and_review_passes(self):
-        body = shaped(approach="The cap is gone.") + "\n### Before\n\nold\n\n### After\n\nnew\n\n**Review.** Look at `a.ts`.\n"
+        body = shaped(approach="The cap is gone.") + "\n### Before\n\nold\n\n### After\n\nnew\n\n### Review\n\nLook at `a.ts`.\n"
         self.assertEqual(run(body), (0, []))
 
     def test_template_bodies_skip_shape_checks(self):
