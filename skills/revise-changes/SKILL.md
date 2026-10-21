@@ -90,3 +90,4 @@ Applies to §5's drafted replies. §5 already sets what each label must contain;
 - No self-grading ("robust", "properly"). No hedges ("I think", "it seems") once verification is in hand.
 - No assertion standing in for evidence. "Fixed, tests pass" is not a Fixed reply; show the commit short-SHA and what changed instead. "Confirmed unreachable" is not a Refuted reply; show the guard or the grep.
 - Don't credit a role you can't verify ("reviewer flagged", "per discussion").
+- In the chat turn around the draft, no chatty opener ("Great, let's...") or closing pleasantry ("Let me know if you need anything else!"). Start with the content; end with the thing itself or its next-action line.

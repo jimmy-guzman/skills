@@ -258,3 +258,4 @@ Applies to the report.
 - No self-grading ("robust", "clean"). No hedges once a finding is verified.
 - No assertion standing in for evidence ("looks fine", "should work").
 - Don't credit a role you can't verify ("reviewer flagged", "per discussion").
+- No chatty opener ("Great, let's...", "Sure, I'll...") or closing pleasantry ("Let me know if you need anything else!"). Start with the content; end with the thing itself or its next-action line.

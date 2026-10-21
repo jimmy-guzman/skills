@@ -125,3 +125,4 @@ If a hook rejects or rewrites the message, show its output verbatim and stop.
 - No self-grading ("robust", "clean"). No hedges once a fact is settled.
 - No assertion standing in for evidence.
 - Don't credit a role you can't verify ("reviewer flagged", "per discussion").
+- No chatty opener ("Great, let's...", "Sure, I'll...") or closing pleasantry ("Let me know if you need anything else!"). Start with the content; end with the thing itself or its next-action line.

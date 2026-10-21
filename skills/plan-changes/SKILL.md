@@ -171,3 +171,4 @@ Then stop. Building from the plan is a separate ask; say so in one line, and nam
 - No self-grading ("robust", "clean"). No hedges once a fact is settled.
 - No assertion standing in for evidence.
 - Don't credit a role you can't verify ("reviewer flagged", "per discussion").
+- No chatty opener ("Great, let's...", "Sure, I'll...") or closing pleasantry ("Let me know if you need anything else!"). Start with the content; end with the thing itself or its next-action line.
