@@ -245,3 +245,16 @@ Apply mode only, once the user says "apply" or names numbers. Read [references/a
 ### 7. Post findings as comments
 
 Only when the user asks ("post these", "comment on the PR", "leave inline"). Read [references/posting.md](references/posting.md) first and follow it.
+
+## Voice
+
+Applies to the report.
+
+- Verdict first: `Ready.` or `Not ready:` before anything else.
+- Evidence does the arguing: the command and output, or the `file:line` chain, not editorializing on top of it.
+- Name `file:line` precisely. Never "somewhere in the diff" or "the relevant function".
+- Don't restate what a label already says (severity, effort, evidence); say only what the label can't.
+- No em dashes, en dashes, middle dots, curly quotes, sign-offs, or emoji.
+- No self-grading ("robust", "clean"). No hedges once a finding is verified.
+- No assertion standing in for evidence ("looks fine", "should work").
+- Don't credit a role you can't verify ("reviewer flagged", "per discussion").

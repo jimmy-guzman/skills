@@ -127,7 +127,7 @@ No match means no ticket. Only ask if agent docs require one or nearly every rec
 1. Agent docs.
 2. Recent PR descriptions (_Lookups: ticket link base_).
 3. A connected tracker tool. Jira: list the accessible Atlassian sites, take the site URL, append `/browse/`. Linear: use the workspace URL plus `/issue/`.
-4. Ask once. Offer to record the answer as one line in the repo's `AGENTS.md` (team-wide) or the user's personal agent instructions (every repo at this org). Don't write either without a yes.
+4. Ask once. Offer to add it to `AGENTS.md` (team) or the user's personal agent instructions (personal). Don't write either without a yes.
 
 `#123` needs no base. The host links it.
 
@@ -224,9 +224,9 @@ labels: frontend (8/10 of yours) | assignee: @me | draft: yes
 
 For describe and update, also show what changed against the current description.
 
-Wait for approval or edits. No pushes, uploads, or host writes until then. A request that already said to go ahead ("just open it", "ship it") is the approval: print the summary and continue to §6.
+`Go ahead with this? Say "go", or name an edit.` No pushes, uploads, or host writes until then. A request that already said to go ahead ("just open it", "ship it") is the approval: print the summary and continue to §6.
 
-If the user corrects a detected convention, apply it to this PR. If it sounds durable ("we always target develop"), offer once to add it to agent docs: the repo's `AGENTS.md` for team conventions, the user's personal agent instructions for personal defaults.
+If the user corrects a detected convention, apply it to this PR. If it sounds durable ("we always target develop"), offer once to add it to `AGENTS.md` (team) or the user's personal agent instructions (personal). Don't write either without a yes.
 
 ### 6. Create or update
 
@@ -284,6 +284,6 @@ Every file the body names must be in the diff, and a claimed test must have a te
 
 Length scales with the change. Description length does not predict whether a PR merges; what it says does. The lint warns past Why 80 words (ticket line aside), Approach prose 100, Review 60, 6 top-level bullets or 10 in all, 25 words a bullet. A warning asks whether the diff already says it, not for a cut: a substantial problem gets a substantial Why. The diff holds the how.
 
-No filler: no em dashes, sign-offs, emoji, or summary of the summary; no self-grading ("robust", "comprehensive", "properly"); no assertions in place of evidence ("tests pass", "tested locally", "fully backward compatible"). The §5 lint enforces this section.
+No em dashes, en dashes, middle dots, curly quotes, sign-offs, or emoji. No summary of the summary. No self-grading ("robust", "comprehensive", "properly"). No hedges once a fact is settled. No assertion standing in for evidence ("tests pass", "tested locally", "fully backward compatible"). The §5 lint enforces this section.
 
 **With a template**, its headings and order win. Fill each section in this voice: Why's rules where it asks for motivation, Approach's where it asks for the changes. Handle unused sections the way recent merged PRs do; when they don't settle it, delete a section with nothing to say rather than writing "N/A". Never leave the template's HTML comments in. An AI disclosure field gets the tool and the extent, truthfully.

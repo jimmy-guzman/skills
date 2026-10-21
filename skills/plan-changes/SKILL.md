@@ -143,6 +143,8 @@ Work out where plans go in this repo, first hit wins: agent docs that say so; an
 2. Write it to a file: `<inferred path>`, or "name a path" when nothing was inferred.
 3. Post it on the ticket as a comment. Only when §1 found a ticket.
 
+`Keep it here, write it to a file, or post it on the ticket? Say "keep", "write", or "post".` No answer keeps it here.
+
 In a host plan mode, make this offer with the question tool before calling the host's own plan-approval action (`ExitPlanMode` in Claude Code). That action approves building from the plan; it does not answer where the plan document goes, and it never substitutes for this offer. Record the user's answer now, then carry it out once the host leaves plan mode and the write is no longer blocked.
 
 A posted comment is not the full plan: a ticket reader wants the approach, not the internal contract. Write it as:
@@ -152,7 +154,7 @@ A posted comment is not the full plan: a ticket reader wants the approach, not t
 
 Kind, the Decided citations, the Steps list, Don't touch, Not doing, Done means, Questions for others, and the Verdict stay out of the comment. Keeping it here or writing it to a file still uses the full §4 shape.
 
-When the plan introduces a pattern, convention, or structural change the repo's agent docs don't already describe, ask once, alongside the keep/write/post offer, whether `AGENTS.md` (or the repo's equivalent) should be updated to record it. Don't write it without a yes.
+When the plan introduces a pattern, convention, or structural change the repo's agent docs don't already describe, alongside the keep/write/post offer, offer once to add it to `AGENTS.md` (team) or the user's personal agent instructions (personal). Don't write either without a yes.
 
 Before writing to a file that already exists: if it holds a plan with unfinished steps for different work, stop and ask. Someone may be mid-build from it in another session. Same on a tracker: never close or edit another plan's items to make room.
 
@@ -165,5 +167,7 @@ Then stop. Building from the plan is a separate ask; say so in one line, and nam
 - Short sentences, everyday words. The approver reads it once and can explain it to someone else.
 - Name files, symbols, and tickets. Never "update the relevant code".
 - Every Decided line says where it came from. Every Assumed line says who settles it.
-- No hedges once a fact is settled. No self-grading ("robust", "clean").
-- No em dashes, en dashes, middle dots, curly quotes, or emoji.
+- No em dashes, en dashes, middle dots, curly quotes, sign-offs, or emoji.
+- No self-grading ("robust", "clean"). No hedges once a fact is settled.
+- No assertion standing in for evidence.
+- Don't credit a role you can't verify ("reviewer flagged", "per discussion").

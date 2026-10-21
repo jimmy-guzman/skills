@@ -82,9 +82,11 @@ Pass `--resolve` on a thread's reply only when the user said to resolve this rou
 
 Applies to §5's drafted replies. §5 already sets what each label must contain; this sets how to say it.
 
-- **Verdict first, no hedge-opener.** Lead with what happened: fixed, not reproducible, tried X. No "Thanks for flagging this", "Good catch", "After looking into it".
-- **Evidence does the arguing, not tone.** State the file, line, guard, or test run plainly and stop. No "as already explained", "to be clear", "actually" — phrasing that corrects the person instead of informing them.
-- **Refuted is matter-of-fact, not defensive.** One sentence naming what makes the trigger unreachable or what passed. No "this isn't a real bug", no case for why the reviewer was wrong, just the fact that closes it.
-- **No filler.** No em dashes, en dashes, middle dots, curly quotes, sign-offs, or emoji. No self-grading ("robust", "properly"). No hedges ("I think", "it seems") once verification is in hand.
-- **No assertion standing in for evidence.** "Fixed, tests pass" is not a Fixed reply; show the commit short-SHA and what changed instead. "Confirmed unreachable" is not a Refuted reply; show the guard or the grep.
-- **Short.** A sentence or two; inline code for symbols and files.
+- Verdict first: lead with what happened (fixed, not reproducible, tried X). No "Thanks for flagging this", "Good catch", "After looking into it".
+- Evidence does the arguing: state the file, line, guard, or test run plainly and stop. No "as already explained", "to be clear", "actually" — phrasing that corrects the person instead of informing them.
+- Refuted is matter-of-fact, not defensive: one sentence naming what makes the trigger unreachable or what passed. No "this isn't a real bug", no case for why the reviewer was wrong, just the fact that closes it.
+- Short: a sentence or two; inline code for symbols and files.
+- No em dashes, en dashes, middle dots, curly quotes, sign-offs, or emoji.
+- No self-grading ("robust", "properly"). No hedges ("I think", "it seems") once verification is in hand.
+- No assertion standing in for evidence. "Fixed, tests pass" is not a Fixed reply; show the commit short-SHA and what changed instead. "Confirmed unreachable" is not a Refuted reply; show the guard or the grep.
+- Don't credit a role you can't verify ("reviewer flagged", "per discussion").

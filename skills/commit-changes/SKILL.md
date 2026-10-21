@@ -98,9 +98,9 @@ message: fix(commit-changes): 🐛 skip reverts in the sample
 stage: 3 files via git add -u | hooks: commit-msg (commitlint)
 ```
 
-With candidates, list them numbered instead of `message:`. If the user's message already said to commit, continue to step 5; otherwise wait.
+With candidates, list them numbered instead of `message:`. If the user's message already said to commit, continue to step 5; otherwise ask: `Commit this? Say "commit", or name a different message.`
 
-If the user corrects a convention and it sounds durable ("we never use scopes"), offer once to add it to `AGENTS.md` (team) or their personal instructions. Don't write either without a yes.
+If the user corrects a convention and it sounds durable ("we never use scopes"), offer once to add it to `AGENTS.md` (team) or the user's personal agent instructions (personal). Don't write either without a yes.
 
 ### 5. Commit and verify
 
@@ -120,6 +120,8 @@ If a hook rejects or rewrites the message, show its output verbatim and stop.
 - Name the file, symbol, package, or flag. Never "updated things".
 - Subject says the effect ("accept optional timeout"), not the mechanics ("changed function signature") or a list of files.
 - Imperative, lowercase first word, unless history says otherwise.
-- No em dashes, en dashes, middle dots, curly quotes, sign-offs, or emoji in the body.
-- Don't credit a role you can't verify ("reviewer flagged", "per discussion").
 - Most commits need no body.
+- No em dashes, en dashes, middle dots, curly quotes, sign-offs, or emoji.
+- No self-grading ("robust", "clean"). No hedges once a fact is settled.
+- No assertion standing in for evidence.
+- Don't credit a role you can't verify ("reviewer flagged", "per discussion").
