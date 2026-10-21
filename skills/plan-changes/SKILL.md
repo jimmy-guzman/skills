@@ -33,7 +33,7 @@ compatibility: >
 - `gh issue view` and `glab issue view` both leave comments out unless you pass `--comments` (for gh, `comments` in `--json` also works). The decision you need is often in comment four.
 - A ticket that already carries a plan in its body or comments is a re-plan, not a fresh one: start from that plan and say what changed and why.
 - `CODEOWNERS` names who reviews code, not who decides product questions. Those go to the ticket's reporter unless the ticket says otherwise.
-- In a host plan mode every write outside the host's own plan file is blocked. The §5 offers to write a file or post still get made, with a note that plan mode has to be turned off first.
+- In a host plan mode every write outside the host's own plan file is blocked. The §5 offer still happens, with the question tool, before calling the host's own plan-approval action: that action approves building from the plan, it never answers where the plan document goes, and finishing it is not a reason to skip the offer. Record the answer now; carry it out once the host leaves plan mode and the write is no longer blocked.
 - With subagents, don't pull the repo's files into your own context in §2. The memo is the read surface; it keeps the planner's context for the plan.
 
 ## Process
@@ -142,6 +142,8 @@ Work out where plans go in this repo, first hit wins: agent docs that say so; an
 1. Keep it here (default).
 2. Write it to a file: `<inferred path>`, or "name a path" when nothing was inferred.
 3. Post it on the ticket as a comment. Only when §1 found a ticket.
+
+In a host plan mode, make this offer with the question tool before calling the host's own plan-approval action (`ExitPlanMode` in Claude Code). That action approves building from the plan; it does not answer where the plan document goes, and it never substitutes for this offer. Record the user's answer now, then carry it out once the host leaves plan mode and the write is no longer blocked.
 
 A posted comment is not the full plan: a ticket reader wants the approach, not the internal contract. Write it as:
 - **Approach.** 2-4 sentences of prose, in the voice submit-changes uses for its Approach paragraph: the real decisions (what changes, the files or areas it touches, anything departing from the repo's usual pattern), not the Steps list restated.
