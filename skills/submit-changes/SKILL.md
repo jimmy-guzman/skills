@@ -150,6 +150,24 @@ No match means no ticket. Only ask if agent docs require one or nearly every rec
 
 ### 2. Gather context
 
+**Branch freshness** (create and update only; describe has no local branch).
+
+```bash
+git merge-base --is-ancestor <remote>/<base> HEAD
+```
+
+Success means the base is already merged into `HEAD`: skip ahead, nothing to do. Failure means the base has commits `HEAD` lacks:
+
+```bash
+git rev-list --count HEAD..<remote>/<base>
+```
+
+Show the count and ask whether to update now (merge or rebase) or continue as is. Never update without asking. On conflicts from either, stop and hand control back; never auto-resolve, never force anything.
+
+- Rebase: `git rebase <remote>/<base>`.
+- Merge: `git merge <remote>/<base>`.
+- Continue as is: proceed, and say so in the §5 summary.
+
 **Create and update.** The base fetch ran in §1. One command:
 
 ```bash
