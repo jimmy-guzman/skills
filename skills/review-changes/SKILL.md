@@ -234,7 +234,7 @@ Don't trim the report. When it runs past eight numbered items, add this above th
 This is long. Anything to cut? For example "drop nice to have", "must fix only", or numbers.
 ```
 
-For a PR, rerun `scripts/pr.py state`, then add one line after the report, outside it, so the report still hands off clean: `Post these to <ref>? Say "post", or name the numbers.` Say if the PR merged or closed during the review, and if a read-only or planning mode must be turned off first. Then wait.
+For a PR, rerun `scripts/pr.py state`, then add one line after the report, outside it, so the report still hands off clean: `Post these to <ref>, plus a summary comment? Say "post", or name the numbers. Say "no summary" to post only the findings.` Say if the PR merged or closed during the review, and if a read-only or planning mode must be turned off first. Then wait.
 
 Then stop. Don't edit anything yet.
 

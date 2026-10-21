@@ -28,8 +28,9 @@ python3 <skill-dir>/scripts/pr.py post <pr> --head <sha> \
 - A line outside the diff can't take an inline comment. The script posts a general comment instead and says why in `reason`. The body already names the `file:line`, so nothing is lost.
 - A retry is safe: an identical comment at the same spot comes back as `"posted": "skipped"`.
 - `--dry-run` prints what would be posted without posting it. Use it when the user wants to see the comments first.
+- Post the summary comment unless the user said "no summary" (or otherwise declined it) in the §5 ask. Skipping it also skips the `<!-- review-changes: <sha> -->` marker, so the next preflight on this head won't see this review as done; say so in the landing report.
 
-After the findings, post one summary comment: the same command without `--path` and `--line`, plus `--marker`. The marker adds `<!-- review-changes: <head_sha> -->`, which the next preflight reads to spot "already reviewed at this SHA". The body is the `Change:` line, the verdict, recounted over the posted findings, the `Reviewed:` line, the Standards and Spec footer lines if the report has them, and one line per posted finding: number, title, `file:line`. Leave out the `Left out:` line and the agent handoff line.
+Unless the user declined it, after the findings post one summary comment: the same command without `--path` and `--line`, plus `--marker`. The marker adds `<!-- review-changes: <head_sha> -->`, which the next preflight reads to spot "already reviewed at this SHA". The body is the `Change:` line, the verdict, recounted over the posted findings, the `Reviewed:` line, the Standards and Spec footer lines if the report has them, and one line per posted finding: number, title, `file:line`. Leave out the `Left out:` line and the agent handoff line.
 
 ```text
 Change: Closing a tab now picks a neighbour instead of leaving none active, and each tab remembers its caret so switching back restores it.
@@ -49,6 +50,12 @@ Then report what landed in one block:
 
 ```text
 Posted 4 to #285: 3 inline, 1 general (src/find.ts:52 is outside the diff), plus the summary.
+```
+
+When the user declined the summary:
+
+```text
+Posted 3 to #285: 3 inline (no summary posted).
 ```
 
 ## Fix or remove a posted comment
