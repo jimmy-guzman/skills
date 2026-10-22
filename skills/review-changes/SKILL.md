@@ -119,7 +119,7 @@ Reviewers and verifiers are told not to edit, and one sometimes does anyway. A h
 Each reviewer's findings are one batch. Run steps 1 and 2 on a batch as soon as its reviewer returns; don't wait for the others.
 
 1. Merge the batch's own duplicates into the finding that found the cause. A bug and a cut on the same lines are one finding. Pipe the findings and cuts that have a path, as one JSON list, to `python3 scripts/check_quotes.py --rev <sha> -`; it reads `id`, `path`, `line`, and `quote` and ignores the rest. Fix the line of a `moved` finding. For `missing` or `no-quote`, re-quote once (from the `near` lines, if printed) and rerun. What still fails, and any `no-file`, goes to the left-out count as "quote not found". Exit 1 only means something needs fixing.
-2. Hand the survivors, cuts included, to a different reviewer that has already finished, by resuming it with the message below. It has read the code, so it starts warm instead of cold. The first batch waits for the second reviewer to return; every later batch goes to whichever other reviewer is idle. Under §3's thorough rule, the other Bugs run counts as a different reviewer. Two exceptions, both served by the third reviewer when there is one and a fresh verifier otherwise: a finding on the same file and line as one of the verifier's own findings, and a verifier whose `context` says it is over half full. With one reviewer, or on a host that can't resume a subagent, use a fresh verifier per batch instead, started when the batch is ready. Give it the findings as JSON with `fix` and `replace` removed (a verifier holding the fix tends to apply it to prove it), the revision, the pack, the mode, whether the user allowed running their code, and the path of [references/reviewer-verifier.md](references/reviewer-verifier.md). Don't give it the reviewer's reasoning or the conversation.
+2. Hand the survivors, cuts included, to a different reviewer that has already finished, by resuming it with the message below. It has read the code, so it starts warm instead of cold. The first batch waits for the second reviewer to return; every later batch goes to whichever other reviewer is idle. Under §3's thorough rule, the other Bugs run counts as a different reviewer. Two exceptions, both served by the third reviewer when there is one and a fresh verifier otherwise: a finding on the same file and line as one of the verifier's own findings, and a verifier whose `context` says it is over half full. With one reviewer, or on a host that can't resume a subagent, use a fresh verifier per batch instead, started when the batch is ready. Give it the findings as JSON with `fix`, `source_fix`, and `replace` removed (a verifier holding the fix tends to apply it to prove it), the revision, the pack, the mode, whether the user allowed running their code, and the path of [references/reviewer-verifier.md](references/reviewer-verifier.md). Don't give it the reviewer's reasoning or the conversation.
 
    ```text
    New task, replacing your reviewer brief. Read <abs path>/references/reviewer-verifier.md and follow it.
@@ -139,12 +139,13 @@ Each reviewer's findings are one batch. Run steps 1 and 2 on a batch as soon as 
 The report is read top to bottom once, so each line earns its place. Order: `Change:`, the verdict, `Reviewed:`, the groups, the footer, `Worth an issue`, `Left out:`, the closing line.
 
 - `Change:` two or three sentences on what the change does, from the Bugs reviewer's `summary` (the lone reviewer's when Bugs didn't run). Never write it yourself: you haven't read the diff.
-- The verdict. `Not ready:` when Must fix has anything, with counts and finding numbers. Else `Ready.` and the count of findings, or `Ready. Nothing to fix.`
+- The verdict. `Not ready:` when Must fix has anything, with counts and finding numbers. Else `Ready.` and the count of findings, or `Ready. Nothing to fix.` Questions never make it Not ready; append their count and numbers: `1 question (2).`
 - `Reviewed:` what was reviewed, against which sources, the load Bugs judged scale against (when it reported one), then what ran: `Ran the tab tests.` or `Nothing was run.` Say nothing about what wasn't run.
 
 Group the findings by what to do, and number straight through so "apply 1-4" spans groups:
 
-- **Must fix**: Critical, Major, and any finding that answers Completeness.
+- **Must fix**: Critical and Major findings that aren't questions.
+- **Questions**: every finding with a `source_fix`. The code and a spec or doc disagree, and the source may be the side that's wrong, so the user picks. A question that merged with a Bugs or rule finding on the same lines isn't one: that finding stands on its own evidence.
 - **Nice to have**: Minor findings whose `sees` (or `does`, if `sees` is empty) names no effect a user hits today: a cosmetic fix (naming, comment-only, typo) or a trigger only reachable in a hypothetical or future config.
 - **Should fix**: every other finding, and all cuts.
 
@@ -159,6 +160,8 @@ Each finding has:
 - An `Evidence:` line: the command and the failing output for Reproduced, or the file:line steps for Traced. Leave it out when the prose already shows the whole path. When §4 changed the severity, say why here.
 - A diff of the fix when it is a few lines. A heavy lift gets the approach in a sentence. In Suggest mode, name the file, the symbol, and the change precisely enough that someone without this conversation can make it.
 
+A question differs in two places. Its title asks which side is right and names the source. In place of the fix, two lines: `If <source> holds:` and the code fix, then `If <source> is out of date:` and the `source_fix`.
+
 A cut is one line: `file:line`, tag, what it is, what replaces it.
 
 Labels:
@@ -171,7 +174,7 @@ The footer is one line per source, written after §4 from what survived. `Standa
 ```text
 Change: Closing a tab now picks a neighbour instead of leaving none active, and each tab remembers its caret so switching back restores it. A retry wrapper is added around the note read.
 
-Not ready: 1 Major (1), 1 missing from issue #41 (2).
+Not ready: 1 Major (1). 1 question (2).
 Reviewed: uncommitted changes (6 files, lockfile left out) against AGENTS.md and issue #41. Load assumed: one user, desktop app. Ran the tab tests.
 
 Must fix
@@ -184,11 +187,14 @@ Must fix
    -  const active = next[index] ?? null;
    +  const active = next[Math.min(index, next.length - 1)] ?? null;
 
-2. Keep the tab's scroll position, which the issue asks for
+Questions
+2. Should a tab keep its scroll position, as issue #41 asks?
    Minor | Heavy lift | Traced | issue #41
    `src/store/tabs.ts:40`
-   Issue #41 asks for scroll and caret to survive a tab switch. The change saves the caret only, so switching back lands at the top. Store `scrollTop` beside the caret in `TabState` and restore both in `activate`.
+   Issue #41 asks for scroll and caret to survive a tab switch. The change saves the caret only, so switching back lands at the top.
    Evidence: `activate` (`tabs.ts:52`) restores the caret only, and `TabState` (`types.ts:12`) has no scroll field.
+   If issue #41 holds: store `scrollTop` beside the caret in `TabState` and restore both in `activate`.
+   If issue #41 is out of date: drop scroll from its acceptance list.
 
 Should fix
 3. `src/lib/retry.ts:1-40` yagni: retry wrapper around a local, idempotent call with one caller. Call `readNote` directly.
@@ -206,7 +212,7 @@ Worth an issue
 - `src/editor/find.ts:52`: hidden matches show "0 / 0" in source mode. Not from this change.
 
 Left out: 1 judgment call, 2 unverified, 1 refuted. Say "show left out" to see them.
-Say "apply", or name the numbers.
+Say "apply", or name the numbers. Answer questions as "2: code" or "2: source".
 ```
 
 With nothing to report:
@@ -223,8 +229,8 @@ Spec (issue #52): none.
 
 Before writing the last line, say the mode out loud: Apply or Suggest. Then close with:
 
-- **Apply**: `Say "apply", or name the numbers.`
-- **Suggest**: `Nothing applied. For an agent: verify each item against the current code, fix the ones that still hold, and skip the rest with a one-line reason.` The report must stand alone here, because it gets handed to the author or pasted to their agent: don't refer to the conversation, and reprint it in full after any cut.
+- **Apply**: `Say "apply", or name the numbers.` With questions, add `Answer questions as "2: code" or "2: source".`
+- **Suggest**: `Nothing applied. For an agent: verify each item against the current code, fix the ones that still hold, and skip the rest with a one-line reason.` With questions, add `Ask the author each question before acting on it.` The report must stand alone here, because it gets handed to the author or pasted to their agent: don't refer to the conversation, and reprint it in full after any cut.
 
 The report holds only what to act on. Judgment calls, unverified, refuted, and quote-not-found findings only get counted in the `Left out:` line, by kind. "Worth an issue" lists at most three; the rest count there as "N more worth an issue". Leave out the `Left out:` line when it has nothing. On "show left out", print one line each, numbered `L1`, `L2`: `file:line`, kind, and why, with what would settle an unverified one and the proof for a refuted one, then one line per none Spec verdict with what the reviewer checked.
 
@@ -234,7 +240,7 @@ Don't trim the report. When it runs past eight numbered items, add this above th
 This is long. Anything to cut? For example "drop nice to have", "must fix only", or numbers.
 ```
 
-For a PR, rerun `scripts/pr.py state`, then add one line after the report, outside it, so the report still hands off clean: `Post these to <ref>, plus a summary comment? Say "post", or name the numbers. Say "no summary" to post only the findings.` Say if the PR merged or closed during the review, and if a read-only or planning mode must be turned off first. Then wait.
+For a PR, rerun `scripts/pr.py state`, then add one line after the report, outside it, so the report still hands off clean: `Post these to <ref>, plus a summary comment? Say "post", or name the numbers. Say "no summary" to post only the findings.` With questions, add `Questions post as questions for the author; answer one first ("2: code") to post only that side.` Say if the PR merged or closed during the review, and if a read-only or planning mode must be turned off first. Then wait.
 
 Then stop. Don't edit anything yet.
 

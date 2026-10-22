@@ -37,6 +37,7 @@ Return one JSON object and nothing else: no preamble, no summary, no code fence.
       "does": "Reads `next[index]`, which is past the end after the removal.",
       "sees": "Tabs open and none active.",
       "fix": "-  const active = next[index] ?? null;\n+  const active = next[Math.min(index, next.length - 1)] ?? null;",
+      "source_fix": null,
       "ran": "`pnpm test tabs -t \"closes last tab\"` fails: expected \"t2\", received null.",
       "probe": null
     }
@@ -58,6 +59,7 @@ Return one JSON object and nothing else: no preamble, no summary, no code fence.
 - `source`: Standards and Spec only, the rule or spec line in a few words.
 - `trigger`, `does`, `sees`: concrete inputs or state, what the code does, what the user ends up seeing. One sentence each.
 - `fix`: a diff when it is a few lines, otherwise the approach in a sentence. `ran`: the command and result, or null.
+- `source_fix`: Spec findings, and Standards' docs-vs-code findings when covering for Spec: the edit to the source that would settle the finding if the source is the wrong side. Null on every other finding.
 - `probe`: `{"inputs": [...], "expected": "...", "why": "..."}` when you want the verifier to run or trace something you didn't settle yourself, null otherwise. `why` is the concrete reason to suspect this input, not every boundary gets one.
 - `tag`: delete, reuse, stdlib, native, yagni, shrink, merge, or split. A `reuse` cut names the existing path in `replace`.
 - `left_out`: judgment calls and problems the diff didn't cause, one string each: file:line, kind, why.

@@ -4,7 +4,7 @@
     {
       "id": 1,
       "prompt": "ok I think the tab close fix is done, is this ready? didn't commit yet",
-      "expected_output": "Apply mode on uncommitted changes. Findings pass a verify step, and the numbered report grouped Must fix, Should fix, Nice to have holds only Reproduced or Traced findings, ending with 'Say \"apply\", or name the numbers.' Nothing edited yet.",
+      "expected_output": "Apply mode on uncommitted changes. Findings pass a verify step, and the numbered report grouped Must fix, Questions, Should fix, Nice to have holds only Reproduced or Traced findings, ending with 'Say \"apply\", or name the numbers.' Nothing edited yet.",
       "files": [
         "evals/files/uncommitted-tab-fix/"
       ],
@@ -16,6 +16,7 @@
         "The Spec footer line names issue #41 and lists only the verdicts that name a finding",
         "Every evidence label in the numbered list is Reproduced or Traced",
         "The off-by-one in the last-tab close path is a Must fix finding labeled Reproduced, with the failing command",
+        "Any finding where the code and issue #41 disagree sits under Questions, titled as a question naming the issue, with an 'If issue #41 holds:' line and an 'If issue #41 is out of date:' line, and is not counted in 'Not ready:'",
         "scripts/check_quotes.py ran before the report",
         "Verification of the first reviewer's findings started before the last reviewer returned",
         "Each batch of findings was verified by a resumed reviewer other than the one that raised it, or by a fresh verifier, and no resumed reviewer verified a finding on the same file and line as one of its own",
@@ -39,6 +40,7 @@
         "The report does not refer to the conversation",
         "The report's last line starts with 'Nothing applied. For an agent:'",
         "After the report, one line offers to post the findings to #285",
+        "If the report has questions, the post offer says they post as questions for the author, and the handoff line asks the author each question before acting on it",
         "In a planning mode, the offer says that mode has to be turned off first",
         "If the PR names an issue, the report has a Spec footer line even when Spec has no findings"
       ]

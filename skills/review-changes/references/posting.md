@@ -23,6 +23,7 @@ python3 <skill-dir>/scripts/pr.py post <pr> --head <sha> \
 ```
 
 - The body is the full finding: title, label line with its evidence label, `file:line`, prose, the `Evidence:` line, and the fix. The evidence tells the author what was run and what was only read.
+- A question posts as the report shows it: the question title and both `If` lines, so the author picks the side. When the user answered it ("2: code" or "2: source"), post only that side, with a command title like any finding.
 - A finding about a new test, with no line yet, anchors on the nearest sibling test and names it in the body ("sibling of `test_x`").
 - A finding with no file (for example "the description is empty") leaves out `--path` and `--line` and becomes one general comment.
 - A line outside the diff can't take an inline comment. The script posts a general comment instead and says why in `reason`. The body already names the `file:line`, so nothing is lost.
@@ -35,14 +36,14 @@ Unless the user declined it, after the findings post one summary comment: the sa
 ```text
 Change: Closing a tab now picks a neighbour instead of leaving none active, and each tab remembers its caret so switching back restores it.
 
-Not ready: 1 Major (1), 1 missing from issue #41 (2).
+Not ready: 1 Major (1). 1 question (2).
 Reviewed at 1a2b3c4 against AGENTS.md and issue #41.
 
 Standards (AGENTS.md): 3. Walked 12 rules against 6 changed files.
 Spec (issue #41): Completeness 2.
 
 1. Fall back to the previous tab when the last one closes, `src/store/tabs.ts:88`
-2. Keep the tab's scroll position, which the issue asks for, `src/store/tabs.ts:40`
+2. Should a tab keep its scroll position, as issue #41 asks?, `src/store/tabs.ts:40`
 3. Delete the comment that restates the code, `src/store/tabs.ts:70-74`
 ```
 

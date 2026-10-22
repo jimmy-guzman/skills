@@ -9,6 +9,7 @@ Read [reviewer-common.md](reviewer-common.md) first.
 - Check only PR-description claims about behavior the diff changes. A claim the code can't settle (production data, percentages, outcomes elsewhere) is one `left_out` line: "can't verify from code".
 - If a linked ticket doesn't describe this change, return one finding saying so and grade against the PR description instead. Don't grade completeness against unrelated items.
 - When spec sources disagree with each other (two tickets, or a ticket and a docstring), or wording may just be imprecise, return one finding citing both lines if the code depends on which is right, otherwise one `left_out` line. Don't decide which source is right.
+- The source can be the wrong side: a stale issue, a doc nobody updated, a plan the author outgrew. So for every finding where code and a source disagree, set `fix` to the code change and `source_fix` to the source change that would settle it instead ("Drop scroll from issue #41's acceptance list", "Update README.md:40 to say the cache is per user"). Write `does` and `sees` as the disagreement, not as the code being wrong. Leave `source_fix` null only for findings no source edit can settle, such as filler or em dashes in a doc the diff adds.
 - Answer each question in `verdicts` with the ids of the findings that answer it, or "none" plus one sentence on what you checked. A bare "none" is not an answer.
   - Completeness: is anything the spec asked for not done?
   - Scope: did anything change that the spec didn't ask for?
