@@ -4,7 +4,7 @@
     {
       "id": 1,
       "prompt": "I got assigned #41, can you plan it out? the tab close thing",
-      "expected_output": "Fetches the ticket with comments, reads the tabs store and its tests, and prints a plan in the \u00a74 shape: Decided cites a file, one Assumed line names the PM who owns the scroll-restore question, a Questions for others block, Verdict Needs info. Nothing written or posted; ends with the \u00a75 offer.",
+      "expected_output": "Fetches the ticket with comments, reads the tabs store and its tests, and prints a plan in the \u00a74 shape: Decided cites a file, one Assumed line names the PM who owns the scroll-restore question, a Questions for others block, Verdict Needs info. Nothing written or posted; ends with the single \u00a75 question.",
       "files": [
         "evals/files/github-issue-41/"
       ],
@@ -14,7 +14,7 @@
         "Every Decided line ends with a file:line, doc, or commit it came from",
         "The scroll-restore question appears under Questions for others addressed to the reporter, with the assumed answer stated",
         "The Verdict line is Needs info and names the owner",
-        "Nothing was written to a file and nothing was posted; the run ends with the offer to keep, write, or post and the question about posting the questions"
+        "Nothing was written to a file and nothing was posted; the run ends with one question that offers keep, write, post the plan, and post the questions"
       ]
     },
     {

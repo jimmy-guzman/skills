@@ -33,8 +33,8 @@ compatibility: >
 - `gh issue view` and `glab issue view` both leave comments out unless you pass `--comments` (for gh, `comments` in `--json` also works). The decision you need is often in comment four.
 - A ticket that already carries a plan in its body or comments is a re-plan, not a fresh one: start from that plan and say what changed and why.
 - `CODEOWNERS` names who reviews code, not who decides product questions. Those go to the ticket's reporter unless the ticket says otherwise.
-- In a host plan mode every write outside the host's own plan file is blocked. The §5 offer still happens, with the question tool, before calling the host's own plan-approval action: that action approves building from the plan, it never answers where the plan document goes, and finishing it is not a reason to skip the offer. Record the answer now; carry it out once the host leaves plan mode and the write is no longer blocked.
-- With subagents, don't pull the repo's files into your own context in §2. The memo is the read surface; it keeps the planner's context for the plan.
+- In a host plan mode every write outside the host's own plan file is blocked. The §5 question still gets asked, with the question tool, before calling the host's own plan-approval action: that action approves building from the plan, it never answers where the plan document goes, and finishing it is not a reason to skip the question. Record the answer now; carry it out once the host leaves plan mode and the write is no longer blocked.
+- With a subagent in §2, don't pull the repo's files into your own context as well. The memo is the read surface; it keeps the planner's context for the plan.
 
 ## Process
 
@@ -42,23 +42,30 @@ compatibility: >
 
 First hit wins:
 
-1. A ticket the user named. On the host: `gh issue view <n> --comments` or `gh issue view <n> --json title,body,comments,labels,url,closedByPullRequestsReferences`; `glab issue view <n> --comments`. A Jira or Linear id: the connected tracker tool, and the ticket alone isn't enough. Fetch its comments too (a separate call in most tools), its parent epic when it has one (the epic's description carries the why and the scope line the ticket leaves out), and every related ticket: linked (relates to, blocks, is blocked by, duplicates), sub-tasks, and siblings under the same epic that touch the same area. Take the title, body, every comment, labels, and linked tickets and PRs from whichever host.
+1. A ticket the user named. On the host, one call: `gh issue view <n> --comments` or `gh issue view <n> --json title,body,comments,labels,url,closedByPullRequestsReferences`; `glab issue view <n> --comments`. A Jira or Linear id: the connected tracker tool, plus its comments (a separate call in most tools). Take the title, body, every comment, labels, and linked PRs.
 2. A doc or path the user named: read it.
 3. The request in chat.
 4. Nothing named: a ticket id in the branch name (`[A-Z][A-Z0-9]+-\d+` for Jira or Linear, `#\d+` for the host). Still nothing: ask what to plan.
 
-Fetch what the ticket links too; a closed sibling often holds a decision. Then look for work in flight on the same area: `gh pr list --search "<path or keyword>"`, `glab mr list --search`, or the tracker's search. A collision goes on the plan's Risk line, not in a surprise at review.
+Don't fetch the parent epic, linked tickets, or siblings by default. Follow one only when the ticket's own text points at it for the why or the scope, or when a §3 question is still open after §2. Say which link was followed and why.
+
+When §1 found a ticket, look for work in flight on the same area: `gh pr list --search "<path or keyword>"`, `glab mr list --search`, or the tracker's search. A collision goes on the plan's Risk line, not in a surprise at review. A chat request or a doc path skips this.
 
 ### 2. Read the repo, write nothing
 
 This is a read-only research pass. It answers most "questions" before anyone is asked.
 
-- Agent docs (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, `CONTRIBUTING.md`) for rules that shape the plan.
-- ADRs, design, and decision docs in the area (`docs/adr`, `docs/decisions`, a glossary). The plan uses the repo's own words for things.
-- The code the change touches: entry points, callers, the tests that cover it (or don't) and where the repo tests things like it, owners (`CODEOWNERS`, recent authors in `git log`), and the helper or pattern that already does part of it.
+Every run reads:
+
+- The code the change touches: entry points, callers, the tests that cover it (or don't) and where the repo tests things like it, and the helper or pattern that already does part of it.
 - `git log` on the area: the last change there and why it was made.
 
-Where the host has subagents, run this pass as one read-only subagent (in Claude Code, Explore) and take back a memo: entry points, callers, tests and seams, owners, zone, reversal, open questions, each line citing a file, commit, or doc. Without subagents, make the same pass yourself and skip the memo: the files are already in your context, so cite them straight into §4.
+Only when it applies:
+
+- The host already loads `AGENTS.md` and `CLAUDE.md`. Read the rest (`CONTRIBUTING.md`, `GEMINI.md`, `.github/copilot-instructions.md`, ADRs, design and decision docs under `docs/`) only when one exists in or names the area; one `ls` of `docs/` settles that. The plan uses the repo's own words for things.
+- Owners (`CODEOWNERS`, recent authors in `git log`): only when §3 puts a question in the someone-else's bin and needs a name.
+
+Spawn a read-only subagent (in Claude Code, Explore) only when the change spans more than one area or more than about five files. Take back a memo: entry points, callers, tests and seams, zone, reversal, open questions, each line citing a file, commit, or doc. Otherwise, and without subagents, read the files yourself and skip the memo: they're already in your context, so cite them straight into §4.
 
 Three judgments come out of this pass and go on the plan's Risk line:
 
@@ -137,15 +144,18 @@ Caps: Change 60 words, each step one line, at most 8 steps. Past 8, the change i
 
 ### 5. Deliver, offer, stop
 
-Work out where plans go in this repo, first hit wins: agent docs that say so; an existing plans folder (`docs/plans`, `.plans`, `plans/`); recent tickets that carry a plan as a comment; the host's own plan file. Then print the plan in the conversation and offer, in one question:
+Work out where plans go in this repo, first hit wins: agent docs that say so; an existing plans folder (`docs/plans`, `.plans`, `plans/`); the host's own plan file. Don't search tickets for it. Then print the plan in the conversation and ask one question with the question tool, multi-select where the host has it. Offer only the options that apply:
 
 1. Keep it here (default).
 2. Write it to a file: `<inferred path>`, or "name a path" when nothing was inferred.
 3. Post it on the ticket as a comment. Only when §1 found a ticket.
+4. Post the questions for others on the ticket. Only when §1 found a ticket and §3 produced some.
+5. Set the triage label matching the Verdict (`ready-to-implement`, `needs-info`, whatever the tracker uses). Only when §1 found a ticket. Look the labels up (`gh label list`, `glab label list`, or the tracker) after the user picks this, never before asking.
+6. Record the new pattern in `AGENTS.md` (team) or the user's personal agent instructions (personal). Only when the plan introduces a pattern, convention, or structural change the repo's agent docs don't already describe.
 
-`Keep it here, write it to a file, or post it on the ticket? Say "keep", "write", or "post".` No answer keeps it here.
+No answer keeps it here. No ticket: options 3 to 5 don't exist, and nothing looks up labels. Write to a file or a tracker only on an explicit yes.
 
-In a host plan mode, make this offer with the question tool before calling the host's own plan-approval action (`ExitPlanMode` in Claude Code). That action approves building from the plan; it does not answer where the plan document goes, and it never substitutes for this offer. Record the user's answer now, then carry it out once the host leaves plan mode and the write is no longer blocked.
+In a host plan mode, ask this question with the question tool before calling the host's own plan-approval action (`ExitPlanMode` in Claude Code). That action approves building from the plan; it does not answer where the plan document goes, and it never substitutes for this question. Record the user's answer now, then carry it out once the host leaves plan mode and the write is no longer blocked.
 
 A posted comment is not the full plan: a ticket reader wants the approach, not the internal contract. Write it as:
 - **Approach.** 2-4 sentences of prose, in the voice submit-changes uses for its Approach paragraph: the real decisions (what changes, the files or areas it touches, anything departing from the repo's usual pattern), not the Steps list restated.
@@ -154,11 +164,7 @@ A posted comment is not the full plan: a ticket reader wants the approach, not t
 
 Kind, the Decided citations, the Steps list, Don't touch, Not doing, Done means, Questions for others, and the Verdict stay out of the comment. Keeping it here or writing it to a file still uses the full §4 shape.
 
-When the plan introduces a pattern, convention, or structural change the repo's agent docs don't already describe, alongside the keep/write/post offer, offer once to add it to `AGENTS.md` (team) or the user's personal agent instructions (personal). Don't write either without a yes.
-
 Before writing to a file that already exists: if it holds a plan with unfinished steps for different work, stop and ask. Someone may be mid-build from it in another session. Same on a tracker: never close or edit another plan's items to make room.
-
-When §3 produced questions for others and there is a ticket, ask separately: `Post these questions on <ticket>? Say "post", or name the owners.` When there's a ticket and its tracker uses triage labels (`ready-to-implement`, `needs-info`, whatever `gh label list`, `glab label list`, or the tracker shows), offer to set the one matching the Verdict. No ticket: skip both, and don't look up labels. Write to a file or a tracker only on an explicit yes.
 
 Then stop. Building from the plan is a separate ask; say so in one line, and name where it starts from the Risk line (`Build in a worktree off <base>.` or `Build in the current tree.`). If building later shows a Decided line doesn't hold, the move is to stop and re-plan, not patch around it; say that too.
 
