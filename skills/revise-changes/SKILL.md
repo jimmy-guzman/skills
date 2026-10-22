@@ -83,7 +83,7 @@ Pass `--resolve` on a thread's reply only when the user said to resolve this rou
 Applies to §5's drafted replies. §5 already sets what each label must contain; this sets how to say it.
 
 - Verdict first: lead with what happened (fixed, not reproducible, tried X). No "Thanks for flagging this", "Good catch", "After looking into it".
-- Evidence does the arguing: state the file, line, guard, or test run plainly and stop. No "as already explained", "to be clear", "actually" — phrasing that corrects the person instead of informing them.
+- Evidence does the arguing: state the file, line, guard, or test run plainly and stop. No "as already explained", "to be clear", "actually": phrasing that corrects the person instead of informing them.
 - Refuted is matter-of-fact, not defensive: one sentence naming what makes the trigger unreachable or what passed. No "this isn't a real bug", no case for why the reviewer was wrong, just the fact that closes it.
 - Short: a sentence or two; inline code for symbols and files.
 - No em dashes, en dashes, middle dots, curly quotes, sign-offs, or emoji.

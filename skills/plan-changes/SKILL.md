@@ -45,7 +45,7 @@ First hit wins:
 1. A ticket the user named. On the host, one call: `gh issue view <n> --comments` or `gh issue view <n> --json title,body,comments,labels,url,closedByPullRequestsReferences`; `glab issue view <n> --comments`. A Jira or Linear id: the connected tracker tool, plus its comments (a separate call in most tools). Take the title, body, every comment, labels, and linked PRs.
 2. A doc or path the user named: read it.
 3. The request in chat.
-4. Nothing named: a ticket id in the branch name (`[A-Z][A-Z0-9]+-\d+` for Jira or Linear, `#\d+` for the host). Still nothing: ask what to plan.
+4. Nothing named: a ticket id in the branch name (`[A-Z][A-Z0-9]+-\d+` for Jira or Linear, `#\d+` for the host; discard look-alikes such as `UTF-8`, `ISO-8601`, `ES-2015`). Still nothing: ask what to plan.
 
 Don't fetch the parent epic, linked tickets, or siblings by default. Follow one only when the ticket's own text points at it for the why or the scope, or when a §3 question is still open after §2. Say which link was followed and why.
 

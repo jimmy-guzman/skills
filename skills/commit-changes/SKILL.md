@@ -17,13 +17,17 @@ compatibility: Requires git and python3.
 
 Detect every value. Sources, highest precedence first:
 
-1. Instructions: the repo's agent docs (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`), then the user's own instructions and saved preferences. Repo docs win on conflict.
+1. Instructions: the repo's agent docs (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, `.cursor/rules/`, `CONTRIBUTING.md`), then the user's own instructions and saved preferences. Repo docs win on conflict.
 2. The repo: what `detect.py` reports (hooks, gitzy and commitlint config, commit template, recent human commits). Config is read, never run.
 3. Fallback: Conventional Commits, written by hand. Say so in the confirmation block.
 
-This covers the `Co-Authored-By:` trailer too: instructions first, then whether human commits carry one (`co-author N/20`), then append it if the sample is empty.
+This covers the `Co-Authored-By:` trailer too: instructions first, then whether human commits carry one (`co-author N/20`), and omit it if the sample is empty.
 
 **Go-ahead.** Run `git commit` only when the current user message asked for a commit. A plan or an earlier approval of something else does not count. Never pass `--no-verify` unless asked.
+
+## In any agent
+
+- To ask the user something, use the agent's question tool if it has one. Otherwise ask in plain text with numbered choices, and wait for the answer.
 
 ## Process
 
@@ -42,7 +46,7 @@ Stop and ask once when it shows: `changes: nothing to commit`, `(protected)` bra
 What gets committed: the staged files, or all tracked changes (`git add -u`) if nothing is staged.
 
 ```bash
-git diff --cached -- . ':(exclude,glob)**/*.lock' ':(exclude,glob)pnpm-lock.yaml'
+git diff --cached -- . ':(exclude,glob)**/*.lock' ':(exclude,glob)**/*-lock.*' ':(exclude,glob)**/go.sum'
 ```
 
 Use `git diff HEAD` with the same excludes when nothing is staged.
@@ -63,7 +67,7 @@ Must be in the commitlint `type-enum` if one exists.
 
 **Verb cross-check.** "add", "support", "introduce" mean `feat`; "correct", "guard", "stop", "trim" mean `fix`. If verb and type disagree, re-derive the type from the diff; don't reword the verb.
 
-**Scope.** The one top-level directory under `skills/`, `src/`, or `packages/*`. Omit when ambiguous or history shows no scopes.
+**Scope.** The one top-level directory under `src/` or `packages/*`. Omit when ambiguous or history shows no scopes.
 
 **Emoji.** If `shape:` shows `emoji after colon`, put that type's emoji right after the colon (`fix(x): 🐛 subject`). If this type has none in history, read the `emoji` setting in the gitzy config `detect.py` found. Otherwise leave it out.
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read PR state and post review comments on GitHub or GitLab.
+"""Read PR state and post, fix, and resolve review comments on GitHub or GitLab.
 
 Wraps gh and glab so the skill gets the same JSON from both providers.
 Run it with the repo as the working directory. Stdlib only.
@@ -19,6 +19,10 @@ Usage:
   pr.py post  <pr> --body-file F [--path P --line N[-M]] [--head SHA]
               [--marker] [--allow-closed] [--dry-run]
               [--provider P] [--repo R] [--host H]
+  pr.py edit    <pr> --comment ID --body-file F [--general] [--allow-closed] [--dry-run]
+  pr.py delete  <pr> --comment ID [--general] [--allow-closed] [--dry-run]
+  pr.py reply   <pr> --comment ID --body-file F [--allow-closed] [--dry-run]
+  pr.py resolve <pr> --comment ID [--dry-run]
 
 <pr> is a number (285), a ref (#285, !482), or a PR/MR URL.
 Without --path, post writes one general comment.
@@ -31,8 +35,14 @@ state prints one JSON object:
 post prints one JSON object:
   posted (inline|general|skipped), reason, id
 
-post refuses a closed or merged PR by default and exits 4. Pass
---allow-closed only when the user explicitly asked to post on that PR.
+edit, delete, reply, and resolve take the id that post returned. Pass
+--general when that id came from a general comment; reply and resolve
+work on inline comments only. Each prints one JSON object:
+  <command> (true|dry-run), id
+
+post, edit, delete, and reply refuse a closed or merged PR by default and
+exit 4. Pass --allow-closed only when the user explicitly asked to write
+on that PR.
 
 Exit codes:
   0 ok (including a skipped duplicate)
@@ -40,6 +50,7 @@ Exit codes:
   3 head moved: the PR head is not --head; re-review before posting
   4 PR is closed or merged and --allow-closed wasn't passed; nothing posted
   5 gh/glab call failed (auth, network, not found); stderr says which
+  6 resolve found no review thread for --comment
 
 Examples:
   pr.py state 285
@@ -47,6 +58,8 @@ Examples:
   pr.py post 285 --head 1a2b3c4 --path src/tabs.ts --line 88 \\
       --body-file /tmp/f1.md --marker
   pr.py post !482 --body-file /tmp/general.md --dry-run
+  pr.py reply 285 --comment 991 --body-file /tmp/downgrade.md
+  pr.py resolve 285 --comment 991
 """
 
 MARKER = "<!-- review-changes: {} -->"
@@ -178,6 +191,19 @@ query($owner: String!, $name: String!, $number: Int!) {
 }
 """
 
+GH_THREAD_IDS_QUERY = """
+query($owner: String!, $name: String!, $number: Int!, $after: String) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $number) {
+      reviewThreads(first: 100, after: $after) {
+        pageInfo { hasNextPage endCursor }
+        nodes { id comments(first: 1) { nodes { databaseId } } }
+      }
+    }
+  }
+}
+"""
+
 
 class GitHub:
     def __init__(self, repo, host, number):
@@ -267,6 +293,39 @@ class GitHub:
     def post_general(self, ctx, body):
         return self.api("-X", "POST", f"repos/{{owner}}/{{repo}}/issues/{self.number}/comments",
                         body={"body": body})["id"]
+
+    def comment_url(self, cid, general):
+        return f"repos/{{owner}}/{{repo}}/{'issues' if general else 'pulls'}/comments/{cid}"
+
+    def edit(self, cid, body, general):
+        self.api("-X", "PATCH", self.comment_url(cid, general), body={"body": body})
+        return cid
+
+    def delete(self, cid, general):
+        self.api("-X", "DELETE", self.comment_url(cid, general))
+        return cid
+
+    def reply(self, cid, body):
+        return self.api("-X", "POST", f"repos/{{owner}}/{{repo}}/pulls/comments/{cid}/replies",
+                        body={"body": body})["id"]
+
+    def resolve(self, cid):
+        after = []
+        while True:
+            data = self.api("graphql", "-F", "owner={owner}", "-F", "name={repo}",
+                            "-F", f"number={self.number}", *after,
+                            "-f", f"query={GH_THREAD_IDS_QUERY}")
+            page = data["data"]["repository"]["pullRequest"]["reviewThreads"]
+            for t in page["nodes"]:
+                first = t["comments"]["nodes"]
+                if first and str(first[0]["databaseId"]) == str(cid):
+                    self.api("graphql", "-f",
+                             f'query=mutation {{ resolveReviewThread(input: {{threadId: "{t["id"]}"}}) '
+                             '{ thread { isResolved } } }')
+                    return t["id"]
+            if not page["pageInfo"]["hasNextPage"]:
+                raise Fail(6, f"no review thread starts with comment {cid}")
+            after = ["-f", f"after={page['pageInfo']['endCursor']}"]
 
 
 # GitLab -----------------------------------------------------------------
@@ -374,6 +433,28 @@ class GitLab:
     def post_general(self, ctx, body):
         return self.api("-X", "POST", f"{self.mr}/notes", body={"body": body})["id"]
 
+    # An inline id is a discussion id; a general id is a note id.
+    def note_id(self, cid, general):
+        return cid if general else self.api(f"{self.mr}/discussions/{cid}")["notes"][0]["id"]
+
+    def edit(self, cid, body, general):
+        nid = self.note_id(cid, general)
+        self.api("-X", "PUT", f"{self.mr}/notes/{nid}", body={"body": body})
+        return nid
+
+    def delete(self, cid, general):
+        nid = self.note_id(cid, general)
+        self.api("-X", "DELETE", f"{self.mr}/notes/{nid}")
+        return nid
+
+    def reply(self, cid, body):
+        return self.api("-X", "POST", f"{self.mr}/discussions/{cid}/notes",
+                        body={"body": body})["id"]
+
+    def resolve(self, cid):
+        self.api("-X", "PUT", f"{self.mr}/discussions/{cid}", body={"resolved": True})
+        return cid
+
 
 def first_line(body):
     text = norm(body)
@@ -429,9 +510,9 @@ def parse_lines(raw):
     return start, end
 
 
-def cmd_post(args):
-    if bool(args.path) != bool(args.line):
-        raise Fail(2, "--path and --line go together; leave both out for a general comment")
+def read_body(args):
+    if not args.body_file:
+        raise Fail(2, f"{args.command} needs --body-file")
     try:
         with open(args.body_file, encoding="utf-8") as fh:
             body = fh.read().strip()
@@ -439,13 +520,25 @@ def cmd_post(args):
         raise Fail(2, f"can't read --body-file: {e}")
     if not body:
         raise Fail(2, "--body-file is empty")
+    return body
 
-    c, _ = client(args)
+
+def open_state(c, args):
     ctx = c.state()
     if ctx["state"] in ("closed", "merged") and not args.allow_closed:
-        raise Fail(4, f"{ctx['ref']} is {ctx['state']}; nothing posted. "
-                      "Pass --allow-closed only if the user asked to "
-                      "post on it anyway")
+        raise Fail(4, f"{ctx['ref']} is {ctx['state']}; nothing written. "
+                      f"Pass --allow-closed only if the user asked to "
+                      f"{args.command} on it anyway")
+    return ctx
+
+
+def cmd_post(args):
+    if bool(args.path) != bool(args.line):
+        raise Fail(2, "--path and --line go together; leave both out for a general comment")
+    body = read_body(args)
+
+    c, _ = client(args)
+    ctx = open_state(c, args)
     head = ctx["head_sha"]
     if args.head and not head.startswith(args.head):
         raise Fail(3, f"{ctx['ref']} head is {head[:12]}, not {args.head[:12]}; "
@@ -486,12 +579,38 @@ def cmd_post(args):
     print(json.dumps({"posted": kind, "reason": reason, "id": nid}))
 
 
+def cmd_followup(args):
+    cmd = args.command
+    if not args.comment:
+        raise Fail(2, f"{cmd} needs --comment")
+    if args.general and cmd in ("reply", "resolve"):
+        raise Fail(2, f"a general comment has no thread to {cmd}; edit it instead")
+    body = read_body(args) if cmd in ("edit", "reply") else None
+
+    c, _ = client(args)
+    if cmd != "resolve":
+        open_state(c, args)
+    if args.dry_run:
+        print(json.dumps({cmd: "dry-run", "id": args.comment, "body": body}, indent=1))
+        return
+
+    if cmd == "edit":
+        nid = c.edit(args.comment, body, args.general)
+    elif cmd == "delete":
+        nid = c.delete(args.comment, args.general)
+    elif cmd == "reply":
+        nid = c.reply(args.comment, body)
+    else:
+        nid = c.resolve(args.comment)
+    print(json.dumps({cmd: True, "id": nid}))
+
+
 def main(argv):
     if not argv or argv[0] in ("-h", "--help", "help"):
         print(USAGE)
         return 0
     p = argparse.ArgumentParser(prog="pr.py", add_help=False)
-    p.add_argument("command", choices=["state", "post"])
+    p.add_argument("command", choices=["state", "post", "edit", "delete", "reply", "resolve"])
     p.add_argument("pr")
     p.add_argument("--provider", choices=["github", "gitlab"])
     p.add_argument("--repo", help="owner/name or group/sub/project")
@@ -501,6 +620,8 @@ def main(argv):
     p.add_argument("--line")
     p.add_argument("--head")
     p.add_argument("--marker", action="store_true")
+    p.add_argument("--comment")
+    p.add_argument("--general", action="store_true")
     p.add_argument("--allow-closed", action="store_true")
     p.add_argument("--dry-run", action="store_true")
     try:
@@ -511,10 +632,10 @@ def main(argv):
     try:
         if args.command == "state":
             cmd_state(args)
-        else:
-            if not args.body_file:
-                raise Fail(2, "post needs --body-file")
+        elif args.command == "post":
             cmd_post(args)
+        else:
+            cmd_followup(args)
     except Fail as e:
         print(f"error: {e}", file=sys.stderr)
         return e.code

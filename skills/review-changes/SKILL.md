@@ -74,7 +74,7 @@ With the mode picked, choose the reviewer count from §3's rules, using the file
 
 ### 2. Find the sources
 
-- **Standards**: `AGENTS.md`, the agent-specific instruction files the repo has (`CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, `.cursor/rules/`), `CONTRIBUTING.md`, the docs they point to, and any file or URL the user named, as in "review against taste.md".
+- **Standards**: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, `.cursor/rules/`, `CONTRIBUTING.md` (whichever the repo has), the docs they point to, and any file or URL the user named, as in "review against taste.md".
 - **Spec**: issues referenced in the commits or the PR (fetch them), the PR description, a plan file, a path the user passed, and the repo's own spec, design, and decision docs. If an issue or doc was already fetched earlier in this conversation, reuse that content instead of re-fetching: write it to a temp file and pass that path in `Sources:` below. With more than one spec source, append each into that same temp file as it's found, so there's one path to pass on. When none of an issue, a plan file, or a PR description exists, say so in the report; §3 then runs Spec's docs-vs-code check inside Standards instead of as its own reviewer.
 
 ### 3. Pick and run the reviewers

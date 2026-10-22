@@ -25,13 +25,17 @@ compatibility: Requires git and python3, plus gh (GitHub) or glab and jq (GitLab
 
 Detect every value. Sources, highest precedence first:
 
-1. Instructions: the repo's agent docs (`AGENTS.md`, plus agent-specific files such as `CLAUDE.md`, `GEMINI.md`, and `.github/copilot-instructions.md`), then the user's own instructions and saved preferences, in whatever form the agent has them. Repo docs win on conflict; they describe the team.
+1. Instructions: the repo's agent docs (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, `.cursor/rules/`, `CONTRIBUTING.md`), then the user's own instructions and saved preferences, in whatever form the agent has them. Repo docs win on conflict; they describe the team.
 2. The repo itself: PR templates, recent PRs, branch and commit history.
 3. Fallbacks listed in each step.
 
 When a source has a convention, follow it. When none does, use the fallback and say so in the confirmation step.
 
 **Attribution line.** If the agent is set up to add an attribution line to PR bodies (a "Generated with ..." footer), it ranks below all three sources above. Detected the same way as the rest of §1 (see **Attribution convention** below).
+
+## In any agent
+
+- To ask the user something, use the agent's question tool if it has one. Otherwise ask in plain text with numbered choices, and wait for the answer.
 
 ## Process
 
@@ -83,13 +87,11 @@ Stop and ask if:
 
 ### 1. Detect conventions
 
-Fetch first so every ref the parallel runs read actually exists locally:
+Fetch the base first so every ref the parallel runs read actually exists locally:
 
 ```bash
-git fetch <remote> <base> <candidate>...
+git fetch <remote> <base>
 ```
-
-The candidates are the head branches of your open PRs, for the stacked-branch check below; one fetch covers them all. Shallow and single-branch clones have none of these refs otherwise.
 
 Then run the lookups as parallel calls in one turn. Record each value and its source for §5. Commands are under _Lookups_ in the reference file. An error is a failed lookup: report it, never read it as "none found".
 
@@ -101,7 +103,7 @@ When sampling recent PRs anywhere below, exclude bot authors and reverts. Review
 
 1. The existing PR's base (describe and update).
 2. Agent docs.
-3. Stacked branch. For each candidate fetched above, check `git merge-base --is-ancestor <remote>/<candidate> HEAD`, all in one loop. If one is an ancestor and closer than the default branch (smaller `git rev-list --count <remote>/<candidate>..HEAD`), propose it and ask.
+3. Stacked branch. The candidates are the head branches of your open PRs, from the lookup. Fetch them all in one call (`git fetch <remote> <candidate>...`); shallow and single-branch clones have none of these refs otherwise. For each candidate, check `git merge-base --is-ancestor <remote>/<candidate> HEAD`, all in one loop. If one is an ancestor and closer than the default branch (smaller `git rev-list --count <remote>/<candidate>..HEAD`), propose it and ask.
 4. Default branch.
 
 **Title shape.** Agent docs, then the dominant shape (not the words) of recent merged titles. Match it exactly: ticket prefix and its punctuation, `type(scope):` if used, casing, and whether identifiers are backticked. Fallbacks: the branch's first commit subject (`git log <remote>/<base>..HEAD --format=%s | tail -1`), then plain English.
@@ -280,7 +282,7 @@ Applies to the body. The title follows the shape from §1 exactly, emoji and all
 <What the reviewer should do with this.>
 ```
 
-Why is required and first. Approach and Review exist only when they have content; a dependency bump is often a Why alone. No other section names, nothing follows Review. The first sentence of each section carries the point.
+Why is required and first. Approach and Review exist only when they have content; a dependency bump is often a Why alone. No other section names, nothing follows Review except the attribution footer from Principle. The first sentence of each section carries the point.
 
 **Why** answers "what was wrong and why it mattered," never "what changed": that is Approach's job. Readable without opening the ticket; short sentences, concrete nouns, no "This PR introduces". Asked for more detail, say more about the problem (where it leads, how it showed up, why now), not about the changes.
 
@@ -294,7 +296,7 @@ Why is required and first. Approach and Review exist only when they have content
 
 **Evidence** is a real before and after a reviewer can't get elsewhere: a number, a screenshot, a test that failed and now passes. "Tests pass" is not evidence; the PR shows CI. Most changes need none. When one does, it sits right after the sentence it supports, under `### Before` / `### After` headings; a table only for a real series of pairs. For structure or flow, the smallest visual that makes it clear: a file tree, call tree, or Mermaid diagram.
 
-**Review** is the one paragraph written to the reviewer, and only from what the user or the session actually said; an invented doubt sends them to the wrong place. A specific feedback request is the single element of a description with the strongest measured effect on review (MSR 2026, 80k PRs: such PRs merge far more often and draw deeper comments), so write one whenever the user or session gave anything to ask. Its content: the feedback wanted ("design check on the cache key, the rest is mechanical"), where to start in a large diff, what the author is unsure of, and a behavior left unverified that a reviewer would assume was covered. Say the behavior, not the step skipped: "the retry path never ran against the real API" is actionable; "`pnpm dev` was not run" is not, and a reviewer once said so. Mechanical files (renames, formatter output) go as self-comments on the diff. Coordination talk ("Deploy order", "This merges first", "Follow-up MR") stays in the chat summary: the body is about the change, not the session.
+**Review** is the one paragraph written to the reviewer, and only from what the user or the session actually said; an invented doubt sends them to the wrong place. A specific feedback request is the single element of a description with the strongest measured effect on review, so write one whenever the user or session gave anything to ask. Its content: the feedback wanted ("design check on the cache key, the rest is mechanical"), where to start in a large diff, what the author is unsure of, and a behavior left unverified that a reviewer would assume was covered. Say the behavior, not the step skipped: "the retry path never ran against the real API" is actionable; "`pnpm dev` was not run" is not, and a reviewer once said so. Mechanical files (renames, formatter output) go as self-comments on the diff. Coordination talk ("Deploy order", "This merges first", "Follow-up MR") stays in the chat summary: the body is about the change, not the session.
 
 A risk gets one clause in the Approach sentence it belongs to, only when the reviewer has something specific to check. Don't attribute to a role you can't verify ("reviewer flagged", "per discussion") unless a named reviewer said it in the thread. Same for a referenced PR, ticket, or incident: fetch it and confirm before saying what it did or broke; unverified, state only what's known ("spooked the team", not "broke builds").
 
@@ -302,6 +304,6 @@ Every file the body names must be in the diff, and a claimed test must have a te
 
 Length scales with the change. Description length does not predict whether a PR merges; what it says does. The lint warns past Why 80 words (ticket line aside), Approach prose 100, Review 60, 6 top-level bullets or 10 in all, 25 words a bullet. A warning asks whether the diff already says it, not for a cut: a substantial problem gets a substantial Why. The diff holds the how.
 
-No em dashes, en dashes, middle dots, curly quotes, sign-offs, or emoji. No summary of the summary. No self-grading ("robust", "comprehensive", "properly"). No hedges once a fact is settled. No assertion standing in for evidence ("tests pass", "tested locally", "fully backward compatible"). The §5 lint enforces this section. In the chat turn around the draft, no chatty opener ("Great, let's...") or closing pleasantry ("Let me know if you need anything else!"); start with the content and end with the thing itself or its next-action line.
+No em dashes, en dashes, middle dots, curly quotes, sign-offs, or emoji; the attribution footer from Principle is the one exception, added after the lint. No summary of the summary. No self-grading ("robust", "comprehensive", "properly"). No hedges once a fact is settled. No assertion standing in for evidence ("tests pass", "tested locally", "fully backward compatible"). The §5 lint enforces this section. In the chat turn around the draft, no chatty opener ("Great, let's...") or closing pleasantry ("Let me know if you need anything else!"); start with the content and end with the thing itself or its next-action line.
 
 **With a template**, its headings and order win. Fill each section in this voice: Why's rules where it asks for motivation, Approach's where it asks for the changes. Handle unused sections the way recent merged PRs do; when they don't settle it, delete a section with nothing to say rather than writing "N/A". Never leave the template's HTML comments in. An AI disclosure field gets the tool and the extent, truthfully.

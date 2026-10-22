@@ -140,7 +140,7 @@ def _check_dashes(skill_dir, folder, records):
             if in_fence:
                 continue
             if EM_EN_RE.search(line):
-                _rec(records, rel, lineno, "warning",
+                _rec(records, rel, lineno, "error",
                      "em-dash or en-dash; use ASCII hyphen or rewrite")
 
 

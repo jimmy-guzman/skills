@@ -60,38 +60,17 @@ Posted 3 to #285: 3 inline (no summary posted).
 
 ## Fix or remove a posted comment
 
-The `id` from `post` addresses the comment.
+Pass the `id` from `post` as `--comment`, plus `--general` when `post` made a general comment:
 
-- GitHub: `gh api -X PATCH repos/{owner}/{repo}/pulls/comments/<id> -F body=@<tmp>` for inline, `.../issues/comments/<id>` for general. Use `-X DELETE` without the body to remove one.
-- GitLab: `glab api -X PUT projects/:fullpath/merge_requests/<n>/notes/<note_id> -f "body=$(cat <tmp>)"`, or `-X DELETE` without the body. The `id` from an inline post is a discussion id; the note id is in `notes[0].id` of `glab api projects/:fullpath/merge_requests/<n>/discussions/<id>`.
+```bash
+python3 <skill-dir>/scripts/pr.py edit <pr> --comment <id> --body-file <tmp>
+python3 <skill-dir>/scripts/pr.py delete <pr> --comment <id>
+```
 
 ## Downgrade or dismiss a posted finding
 
 When the user decides a posted finding no longer holds as scored (lower severity, not a real issue, already fixed elsewhere), do all three, in order:
 
-1. Reply on the finding's thread saying so, in a few words.
-2. Resolve the thread.
-3. Patch the summary comment (found by its `<!-- review-changes: <sha> -->` marker) so it still matches what the threads show: strike through that finding's line and add its new disposition in a few words, e.g. `~~2. Delete the comment that restates the code~~ (downgraded to nice to have, resolved)`. Don't delete the line or leave it stale.
-
-GitHub:
-
-```bash
-gh api -X POST repos/{owner}/{repo}/pulls/comments/<id>/replies -f body=@<tmp>
-```
-
-Resolving needs the thread's node id (`PRRT_...`), not the REST comment id `post` returned. Find it by matching `databaseId` to that id in the PR's `reviewThreads`, then:
-
-```bash
-gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "<PRRT_id>"}) { thread { isResolved } } }'
-```
-
-GitLab, with the discussion id from `post`:
-
-```bash
-glab api -X POST projects/:fullpath/merge_requests/<n>/discussions/<discussion_id>/notes -f "body=$(cat <tmp>)"
-glab api -X PUT projects/:fullpath/merge_requests/<n>/discussions/<discussion_id> -f resolved=true
-```
-
-Then patch the summary comment with the fix recipe above.
-
-Then stop. Never commit, push, open a PR, approve, or merge.
+1. Reply on the finding's thread saying so, in a few words: `pr.py reply <pr> --comment <id> --body-file <tmp>`.
+2. Resolve the thread: `pr.py resolve <pr> --comment <id>`.
+3. Patch the summary comment (found by its `<!-- review-changes: <sha> -->` marker) with `pr.py edit <pr> --comment <summary-id> --general --body-file <tmp>`, so it still matches what the threads show: strike through that finding's line and add its new disposition in a few words, e.g. `~~2. Delete the comment that restates the code~~ (downgraded to nice to have, resolved)`. Don't delete the line or leave it stale.

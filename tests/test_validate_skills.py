@@ -154,7 +154,7 @@ class BrokenLink(unittest.TestCase):
 
 
 class EmDash(unittest.TestCase):
-    def test_em_dash_in_body_warns(self):
+    def test_em_dash_in_body_errors(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             write_skill(
@@ -164,8 +164,8 @@ class EmDash(unittest.TestCase):
                 "This is a sentence — and here is more.\n",
             )
             r = run_validator(root)
-            self.assertEqual(r.returncode, 0, msg=r.stdout + r.stderr)
-            self.assertIn("warning: em-dash or en-dash", r.stdout)
+            self.assertEqual(r.returncode, 1, msg=r.stdout + r.stderr)
+            self.assertIn("error: em-dash or en-dash", r.stdout)
 
     def test_em_dash_in_fenced_block_silent(self):
         with tempfile.TemporaryDirectory() as td:

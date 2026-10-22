@@ -30,7 +30,15 @@ with open(os.environ["FAKE_LOG"], "a") as fh:
     fh.write(json.dumps({"argv": a, "body": body}) + "\n")
 ep = next(x for x in a if x.startswith("repos/") or x == "graphql")
 post = "POST" in a
-if ep == "graphql":
+query = next((x for x in a if x.startswith("query=")), "")
+if ep == "graphql" and "mutation" in query:
+    print(json.dumps({"data": {"resolveReviewThread": {"thread": {"isResolved": True}}}}))
+elif ep == "graphql" and "databaseId" in query:
+    print(json.dumps({"data": {"repository": {"pullRequest": {"reviewThreads": {
+        "pageInfo": {"hasNextPage": False, "endCursor": None},
+        "nodes": [{"id": "PRRT_other", "comments": {"nodes": [{"databaseId": 5}]}},
+                  {"id": "PRRT_991", "comments": {"nodes": [{"databaseId": 991}]}}]}}}}}))
+elif ep == "graphql":
     print(json.dumps({"data": {"repository": {"pullRequest": {
         "state": os.environ.get("FAKE_STATE", "OPEN"), "isDraft": False,
         "headRefOid": "1a2b3c4d5e6f", "baseRefName": "main", "title": "Tabs", "body": "Closes #41",
@@ -48,6 +56,8 @@ elif ep.endswith("/comments") and not post and "/pulls/" in ep:
     print(json.dumps([[{"path": "src/tabs.ts", "line": 83, "body": "same body"}]]))
 elif ep.endswith("/comments") and not post:
     print(json.dumps([[]]))
+elif "DELETE" in a:
+    pass
 else:
     print(json.dumps({"id": 991}))
 '''
@@ -94,7 +104,7 @@ class Targets(unittest.TestCase):
         self.assertEqual(pr.norm("<!-- review-changes: abc1234 -->\nbody\n"), "body")
 
 
-class EndToEndGitHub(unittest.TestCase):
+class FakeGh(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         bindir = os.path.join(self.tmp.name, "bin")
@@ -125,6 +135,8 @@ class EndToEndGitHub(unittest.TestCase):
         with open(self.log) as fh:
             return [json.loads(l) for l in fh if '"POST"' in l]
 
+
+class EndToEndGitHub(FakeGh):
     def test_state(self):
         code, out, _ = self.run_pr("state", "285")
         self.assertEqual(code, 0)
@@ -190,6 +202,85 @@ class EndToEndGitHub(unittest.TestCase):
                                    "--body-file", self.body, "--dry-run")
         self.assertEqual((code, out["posted"]), (0, "dry-run:inline"))
         self.assertEqual(self.posted(), [])
+
+
+class FollowUpGitHub(FakeGh):
+    def calls(self):
+        with open(self.log) as fh:
+            return [json.loads(l) for l in fh]
+
+    def writes(self):
+        return [c for c in self.calls()
+                if {"POST", "PATCH", "DELETE"} & set(c["argv"])
+                or any("mutation" in x for x in c["argv"])]
+
+    def test_edit_inline(self):
+        code, out, _ = self.run_pr("edit", "285", "--comment", "991", "--body-file", self.body)
+        self.assertEqual((code, out), (0, {"edit": True, "id": "991"}))
+        (w,) = self.writes()
+        self.assertIn("PATCH", w["argv"])
+        self.assertIn("repos/{owner}/{repo}/pulls/comments/991", w["argv"])
+        self.assertEqual(json.loads(w["body"]), {"body": "Fix it"})
+
+    def test_edit_general(self):
+        code, _, _ = self.run_pr("edit", "285", "--comment", "991", "--general",
+                                 "--body-file", self.body)
+        self.assertEqual(code, 0)
+        (w,) = self.writes()
+        self.assertIn("repos/{owner}/{repo}/issues/comments/991", w["argv"])
+
+    def test_delete(self):
+        code, out, _ = self.run_pr("delete", "285", "--comment", "991")
+        self.assertEqual((code, out["delete"]), (0, True))
+        (w,) = self.writes()
+        self.assertIn("DELETE", w["argv"])
+        self.assertIsNone(w["body"])
+
+    def test_reply(self):
+        code, out, _ = self.run_pr("reply", "285", "--comment", "991", "--body-file", self.body)
+        self.assertEqual((code, out["reply"]), (0, True))
+        (w,) = self.writes()
+        self.assertIn("repos/{owner}/{repo}/pulls/comments/991/replies", w["argv"])
+
+    def test_resolve_matches_thread_by_first_comment(self):
+        code, out, _ = self.run_pr("resolve", "285", "--comment", "991")
+        self.assertEqual((code, out), (0, {"resolve": True, "id": "PRRT_991"}))
+        (w,) = self.writes()
+        self.assertTrue(any('threadId: "PRRT_991"' in x for x in w["argv"]))
+
+    def test_resolve_unknown_comment_exits_6(self):
+        code, _, _ = self.run_pr("resolve", "285", "--comment", "404")
+        self.assertEqual(code, 6)
+        self.assertEqual(self.writes(), [])
+
+    def test_resolve_works_on_merged(self):
+        code, _, _ = self.run_pr("resolve", "285", "--comment", "991", FAKE_STATE="MERGED")
+        self.assertEqual(code, 0)
+
+    def test_reply_on_general_is_refused(self):
+        code, _, _ = self.run_pr("reply", "285", "--comment", "991", "--general",
+                                 "--body-file", self.body)
+        self.assertEqual(code, 2)
+        self.assertFalse(os.path.exists(self.log))
+
+    def test_merged_edit_exits_4(self):
+        code, _, err = self.run_pr("edit", "285", "--comment", "991", "--body-file", self.body,
+                                   FAKE_STATE="MERGED")
+        self.assertEqual(code, 4)
+        self.assertEqual(self.writes(), [])
+        self.assertIn("edit on it anyway", err)
+
+    def test_dry_run_writes_nothing(self):
+        for args in (("edit", "--body-file", self.body), ("delete",),
+                     ("reply", "--body-file", self.body), ("resolve",)):
+            code, out, _ = self.run_pr(args[0], "285", "--comment", "991", *args[1:], "--dry-run")
+            self.assertEqual((code, out[args[0]]), (0, "dry-run"))
+        self.assertEqual(self.writes(), [])
+
+    def test_missing_comment_exits_2(self):
+        code, _, err = self.run_pr("delete", "285")
+        self.assertEqual(code, 2)
+        self.assertIn("--comment", err)
 
 
 if __name__ == "__main__":
