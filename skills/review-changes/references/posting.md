@@ -29,9 +29,10 @@ python3 <skill-dir>/scripts/pr.py post <pr> --head <sha> \
 - A line outside the diff can't take an inline comment. The script posts a general comment instead and says why in `reason`. The body already names the `file:line`, so nothing is lost.
 - A retry is safe: an identical comment at the same spot comes back as `"posted": "skipped"`.
 - `--dry-run` prints what would be posted without posting it. Use it when the user wants to see the comments first.
-- Post the summary comment unless the user said "no summary" (or otherwise declined it) in the §5 ask. Skipping it also skips the `<!-- review-changes: <sha> -->` marker, so the next preflight on this head won't see this review as done; say so in the landing report.
+- Every post, finding or summary, starts with `<!-- review-changes: <head_sha> -->`. The next preflight reads it to spot "already reviewed at this SHA", so a run that posts findings without a summary still counts.
+- Post the summary comment unless the user said "no summary" (or otherwise declined it) in the §5 ask.
 
-Unless the user declined it, after the findings post one summary comment: the same command without `--path` and `--line`, plus `--marker`. The marker adds `<!-- review-changes: <head_sha> -->`, which the next preflight reads to spot "already reviewed at this SHA". The body is the `Change:` line, the verdict, recounted over the posted findings, the `Reviewed:` line, the Standards and Spec footer lines if the report has them, and one line per posted finding: number, title, `file:line`. Leave out the `Left out:` line and the agent handoff line.
+Unless the user declined it, after the findings post one summary comment: the same command without `--path` and `--line`. The body is the `Change:` line, the verdict, recounted over the posted findings, the `Reviewed:` line, the Standards and Spec footer lines if the report has them, and one line per posted finding: number, title, `file:line`. Leave out the `Left out:` line and the agent handoff line.
 
 ```text
 Change: Closing a tab now picks a neighbour instead of leaving none active, and each tab remembers its caret so switching back restores it.
@@ -70,8 +71,8 @@ python3 <skill-dir>/scripts/pr.py delete <pr> --comment <id>
 
 ## Downgrade or dismiss a posted finding
 
-When the user decides a posted finding no longer holds as scored (lower severity, not a real issue, already fixed elsewhere), do all three, in order:
+When the user decides a posted finding no longer holds as scored (lower severity, not a real issue, already fixed elsewhere), do these, in order:
 
 1. Reply on the finding's thread saying so, in a few words: `pr.py reply <pr> --comment <id> --body-file <tmp>`.
 2. Resolve the thread: `pr.py resolve <pr> --comment <id>`.
-3. Patch the summary comment (found by its `<!-- review-changes: <sha> -->` marker) with `pr.py edit <pr> --comment <summary-id> --general --body-file <tmp>`, so it still matches what the threads show: strike through that finding's line and add its new disposition in a few words, e.g. `~~2. Delete the comment that restates the code~~ (downgraded to nice to have, resolved)`. Don't delete the line or leave it stale.
+3. If a summary was posted, patch it (the general comment that starts with the `<!-- review-changes: <sha> -->` marker and lists the findings) with `pr.py edit <pr> --comment <summary-id> --general --body-file <tmp>`, so it still matches what the threads show: strike through that finding's line and add its new disposition in a few words, e.g. `~~2. Delete the comment that restates the code~~ (downgraded to nice to have, resolved)`. Don't delete the line or leave it stale.

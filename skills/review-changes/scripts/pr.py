@@ -17,7 +17,7 @@ USAGE = """\
 Usage:
   pr.py state <pr> [--provider P] [--repo R] [--host H]
   pr.py post  <pr> --body-file F [--path P --line N[-M]] [--head SHA]
-              [--marker] [--allow-closed] [--dry-run]
+              [--allow-closed] [--dry-run]
               [--provider P] [--repo R] [--host H]
   pr.py edit    <pr> --comment ID --body-file F [--general] [--allow-closed] [--dry-run]
   pr.py delete  <pr> --comment ID [--general] [--allow-closed] [--dry-run]
@@ -25,7 +25,8 @@ Usage:
   pr.py resolve <pr> --comment ID [--dry-run]
 
 <pr> is a number (285), a ref (#285, !482), or a PR/MR URL.
-Without --path, post writes one general comment.
+Without --path, post writes one general comment. Every post starts with
+<!-- review-changes: <head_sha> -->, which state reads into reviewed_shas.
 
 state prints one JSON object:
   provider, ref, state (open|closed|merged), draft, head_sha, base_ref, title,
@@ -56,7 +57,7 @@ Examples:
   pr.py state 285
   pr.py state https://gitlab.example.com/grp/app/-/merge_requests/482
   pr.py post 285 --head 1a2b3c4 --path src/tabs.ts --line 88 \\
-      --body-file /tmp/f1.md --marker
+      --body-file /tmp/f1.md
   pr.py post !482 --body-file /tmp/general.md --dry-run
   pr.py reply 285 --comment 991 --body-file /tmp/downgrade.md
   pr.py resolve 285 --comment 991
@@ -543,8 +544,7 @@ def cmd_post(args):
     if args.head and not head.startswith(args.head):
         raise Fail(3, f"{ctx['ref']} head is {head[:12]}, not {args.head[:12]}; "
                       "re-review the new head before posting")
-    if args.marker:
-        body = f"{MARKER.format(head)}\n{body}"
+    body = f"{MARKER.format(head)}\n{body}"
 
     kind, reason, anchor = "general", None, None
     if args.path:
@@ -619,7 +619,6 @@ def main(argv):
     p.add_argument("--path")
     p.add_argument("--line")
     p.add_argument("--head")
-    p.add_argument("--marker", action="store_true")
     p.add_argument("--comment")
     p.add_argument("--general", action="store_true")
     p.add_argument("--allow-closed", action="store_true")

@@ -150,9 +150,10 @@ into someone else's conversation.
 Posting only happens on explicit request, and only through
 [`scripts/pr.py`](../skills/review-changes/scripts/pr.py), never a raw API
 call. Each finding becomes its own inline comment (or a general comment if
-it falls outside the diff), followed by one summary comment carrying a
-`<!-- review-changes: <head_sha> -->` marker. The next run's preflight step
-detects that marker to know the PR was already reviewed at that head.
+it falls outside the diff), followed by an optional summary comment. Every
+comment carries a `<!-- review-changes: <head_sha> -->` marker. The next
+run's preflight step detects that marker to know the PR was already reviewed
+at that head, with or without a summary.
 
 ## Scripts at a glance
 

@@ -146,9 +146,9 @@ class EndToEndGitHub(FakeGh):
         self.assertTrue(out["reviewed_at_head"])
         self.assertEqual(out["files"], [{"path": "src/tabs.ts", "additions": 2, "deletions": 1}])
 
-    def test_inline_with_marker(self):
+    def test_inline_carries_marker(self):
         code, out, _ = self.run_pr("post", "285", "--head", "1a2b3c4", "--path", "src/tabs.ts",
-                                   "--line", "82", "--body-file", self.body, "--marker")
+                                   "--line", "82", "--body-file", self.body)
         self.assertEqual((code, out["posted"]), (0, "inline"))
         sent = json.loads(self.posted()[0]["body"])
         self.assertEqual((sent["line"], sent["side"], sent["commit_id"]), (82, "RIGHT", "1a2b3c4d5e6f"))
