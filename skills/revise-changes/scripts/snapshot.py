@@ -31,7 +31,7 @@ import tempfile
 
 
 def git(*args, env=None, input=None):
-    r = subprocess.run(["git", *args], capture_output=True, env=env, input=input)
+    r = subprocess.run(["git", *args], capture_output=True, env=env, input=input, check=False)
     if r.returncode != 0:
         sys.exit(f"snapshot.py: git {args[0]} failed: {r.stderr.decode(errors='replace').strip()}")
     return r.stdout
@@ -49,7 +49,7 @@ def snapshot():
         tree = git("write-tree", env=env).decode().strip()
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
-    head = subprocess.run(["git", "rev-parse", "-q", "--verify", "HEAD"], capture_output=True, text=True)
+    head = subprocess.run(["git", "rev-parse", "-q", "--verify", "HEAD"], capture_output=True, text=True, check=False)
     parent = ["-p", head.stdout.strip()] if head.returncode == 0 else []
     return git("commit-tree", tree, *parent, "-m", "snapshot").decode().strip()
 
@@ -70,7 +70,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--guard", metavar="BEFORE")
     a = ap.parse_args()
-    top = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True)
+    top = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, check=False)
     if top.returncode != 0:
         sys.exit("snapshot.py: not inside a git repository")
     os.chdir(top.stdout.strip())

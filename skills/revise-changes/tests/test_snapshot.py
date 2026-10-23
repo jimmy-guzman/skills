@@ -25,7 +25,7 @@ ENV = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COM
 
 
 def run(cwd, *args):
-    r = subprocess.run([sys.executable, str(SNAPSHOT), *args], cwd=cwd, capture_output=True, text=True, env=ENV)
+    r = subprocess.run([sys.executable, str(SNAPSHOT), *args], cwd=cwd, capture_output=True, text=True, env=ENV, check=False)
     if r.returncode != 0:
         raise AssertionError(r.stderr)
     return r.stdout.strip()
