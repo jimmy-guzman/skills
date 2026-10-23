@@ -209,6 +209,12 @@ class EndToEndGitHub(FakeGh):
         self.assertEqual((sent["line"], sent["side"], sent["commit_id"]), (82, "RIGHT", "1a2b3c4d5e6f"))
         self.assertTrue(sent["body"].startswith("<!-- review-changes: 1a2b3c4d5e6f -->"))
 
+    def test_body_with_own_marker_gets_one(self):
+        self.write_body("<!--review-changes: b15ea212241bcf41d73958c9b7613c60a0d659af-->\nFix it")
+        self.run_pr("post", "285", "--path", "src/tabs.ts", "--line", "82", "--body-file", self.body)
+        sent = json.loads(self.posted()[0]["body"])["body"]
+        self.assertEqual(sent, "<!-- review-changes: 1a2b3c4d5e6f -->\nFix it")
+
     def test_range_inside_one_hunk(self):
         self.run_pr("post", "285", "--path", "src/tabs.ts", "--line", "81-84", "--body-file", self.body)
         sent = json.loads(self.posted()[0]["body"])

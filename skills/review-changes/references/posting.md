@@ -40,7 +40,7 @@ On GitLab, exit 7 means the user already has unpublished draft notes on the MR, 
 - A line outside the diff can't take an inline comment. The script posts a general comment instead, outside the review, and says why in `reason`. The body already names the `file:line`, so nothing is lost.
 - A retry is safe: an identical comment at the same spot comes back as `"posted": "skipped"`.
 - `--dry-run` prints what would be posted without posting it. Use it when the user wants to see the comments first.
-- Every post, finding or summary, starts with `<!-- review-changes: <head_sha> -->`. The next preflight reads it to spot "already reviewed at this SHA", so a run that posts findings without a summary still counts.
+- `pr.py post` starts every post, finding or summary, with `<!-- review-changes: <head_sha> -->`; don't write it in the body. The next preflight reads it to spot "already reviewed at this SHA", so a run that posts findings without a summary still counts.
 - Post the summary comment unless the user said "no summary" (or otherwise declined it) in the §5 ask.
 
 Unless the user declined it, the summary is the batch's last entry, with no `path` or `line`. The body is the `Change:` line, the verdict, recounted over the posted findings, the `Reviewed:` line, the Standards and Spec footer lines if the report has them, and one line per posted finding: number, title, `file:line`. Leave out the `Left out:` line and the agent handoff line.

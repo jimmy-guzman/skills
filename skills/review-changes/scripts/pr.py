@@ -83,7 +83,7 @@ Examples:
 """
 
 MARKER = "<!-- review-changes: {} -->"
-MARKER_RE = re.compile(r"<!-- review-changes: ([0-9a-f]{7,40}) -->")
+MARKER_RE = re.compile(r"<!--\s*review-changes:\s*([0-9a-f]{7,40})\s*-->\n?")
 HUNK_RE = re.compile(r"^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@")
 
 # GitHub asks for at least a second between content-creating requests to stay under
@@ -656,7 +656,7 @@ def cmd_post(args):
         raise Fail(3, f"{ctx['ref']} head is {head[:12]}, not {args.head[:12]}; "
                       "re-review the new head before posting")
     seen = {}
-    plans = [plan(c, seen, e, f"{MARKER.format(head)}\n{b}") for e, b in zip(entries, bodies)]
+    plans = [plan(c, seen, e, f"{MARKER.format(head)}\n{norm(b)}") for e, b in zip(entries, bodies)]
     if args.batch:
         post_batch(c, ctx, entries, plans, args.dry_run)
     else:
