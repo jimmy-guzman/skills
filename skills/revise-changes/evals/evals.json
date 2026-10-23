@@ -4,13 +4,13 @@
     {
       "id": 1,
       "prompt": "address the review comments on PR 285, don't resolve anything yet",
-      "expected_output": "Fetches open threads via pr.py threads, verifies each against current HEAD, fixes what verifies, drafts a reply per thread with --dry-run, and ends by asking whether to post and whether to commit. Posts without --resolve only after a yes.",
+      "expected_output": "Fetches open threads via pr.py threads, verifies each against current HEAD, fixes what verifies, drafts a reply per thread with --dry-run, and ends by asking whether to post and whether to commit. Posts in one --batch call, no entry with \"resolve\": true, only after a yes.",
       "files": ["evals/files/github-pr-285-threads/"],
       "assertions": [
         "scripts/pr.py threads ran before any reply",
         "Every finding carries a label of Reproduced, Traced, Unverified, or Refuted before being replied to",
         "No reply was posted before the user said to post",
-        "No thread was resolved (no --resolve passed)",
+        "No thread was resolved (no entry set \"resolve\": true)",
         "The report's first line is verdict-first, e.g. 'N threads: ...'",
         "The report asks whether to post and whether to commit, and neither happened without a yes"
       ]
@@ -18,12 +18,12 @@
     {
       "id": 2,
       "prompt": "handle the open threads on !482, resolve the ones you fix",
-      "expected_output": "GitLab discussions fetched with full note history (not just the first note). Replies are drafted, then posted on the user's yes; fixed findings get --resolve on their reply, refuted or skipped ones stay open.",
+      "expected_output": "GitLab discussions fetched with full note history (not just the first note). Replies are drafted, then posted on the user's yes; fixed findings get \"resolve\": true in the batch, refuted or skipped ones stay open.",
       "files": ["evals/files/gitlab-mr-482-threads/"],
       "assertions": [
         "scripts/pr.py threads returned all notes per discussion, not just the first",
-        "Only threads whose finding was fixed were replied to with --resolve",
-        "A refuted thread got a reply explaining why, with no --resolve",
+        "Only threads whose finding was fixed had \"resolve\": true in the batch",
+        "A refuted thread got a reply explaining why, without \"resolve\": true",
         "No commit was made without asking first"
       ]
     },

@@ -15,6 +15,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 from urllib.parse import quote, urlparse
 
 USAGE = """\
@@ -23,6 +24,7 @@ Usage:
   pr.py threads <pr> [--include-resolved] [--provider P] [--repo R] [--host H]
   pr.py reply   <pr> --thread ID --body-file F [--resolve] [--allow-closed]
                 [--dry-run] [--provider P] [--repo R] [--host H]
+  pr.py reply   <pr> --batch FILE [--allow-closed] [--dry-run]
   pr.py resolve <pr> --thread ID [--provider P] [--repo R] [--host H]
 
 <pr> is a number (285), a ref (#285, !482), or a PR/MR URL.
@@ -49,6 +51,13 @@ note the current user already left on the thread is not posted again
 successful reply; without it, the thread stays open. --resolve never
 happens on its own.
 
+--batch replies to many threads in one call, so no shell loop is needed.
+FILE is a JSON list of {"thread": ID, "body_file": F, "resolve": bool}
+objects ("resolve" defaults to false), replied in order. Every entry and
+thread is checked before the first reply. Writes are sent one at a time,
+a second apart, per GitHub's rate-limit guidance. Prints one JSON object per entry,
+one per line, in the single-reply shape plus "index" and "thread".
+
 resolve prints one JSON object:
   resolved (true), id
 
@@ -67,8 +76,14 @@ Examples:
   pr.py threads !482 --include-resolved
   pr.py reply 285 --thread PRRT_abc123 --body-file /tmp/r.md
   pr.py reply !482 --thread 9988 --body-file /tmp/r.md --resolve
+  pr.py reply 285 --batch /tmp/replies.json
   pr.py resolve 285 --thread PRRT_abc123
 """
+
+# GitHub asks for at least a second between content-creating requests to stay under
+# its secondary rate limit; GitLab gets the same pacing. REVIEW_PR_WRITE_PAUSE overrides
+# it (tests set 0).
+WRITE_PAUSE = float(os.environ.get("REVIEW_PR_WRITE_PAUSE", "1"))
 
 
 class Fail(Exception):
@@ -378,21 +393,46 @@ def cmd_threads(args):
     print(json.dumps({"threads": threads}, indent=1))
 
 
-def find_thread(c, thread_id):
-    for t in c.threads():
+def find_thread(threads, thread_id):
+    for t in threads:
         if t["id"] == thread_id or t.get("node_id") == thread_id:
             return t
     raise Fail(5, f"no thread {thread_id!r} found")
 
 
-def cmd_reply(args):
+def read_reply_body(path):
     try:
-        with open(args.body_file, encoding="utf-8") as fh:
+        with open(path, encoding="utf-8") as fh:
             body = fh.read().strip()
     except OSError as e:
         raise Fail(2, f"can't read --body-file: {e}")
     if not body:
-        raise Fail(2, "--body-file is empty")
+        raise Fail(2, f"--body-file {path} is empty")
+    return body
+
+
+def read_batch(path):
+    try:
+        with open(path, encoding="utf-8") as fh:
+            entries = json.load(fh)
+    except (OSError, ValueError) as e:
+        raise Fail(2, f"can't read --batch: {e}")
+    if not isinstance(entries, list) or not entries:
+        raise Fail(2, "--batch must be a non-empty JSON list")
+    for i, e in enumerate(entries):
+        if not isinstance(e, dict) or not e.get("thread") or not e.get("body_file"):
+            raise Fail(2, f"--batch entry {i} needs thread and body_file")
+    return [(str(e["thread"]), e["body_file"], e.get("resolve") is True) for e in entries]
+
+
+def cmd_reply(args):
+    if args.batch:
+        if args.thread or args.body_file or args.resolve:
+            raise Fail(2, "--batch replaces --thread, --body-file, and --resolve")
+        entries = read_batch(args.batch)
+    else:
+        entries = [(args.thread, args.body_file, args.resolve)]
+    bodies = [read_reply_body(f) for _, f, _ in entries]
 
     c, _ = client(args)
     ctx = c.state()
@@ -400,14 +440,26 @@ def cmd_reply(args):
         raise Fail(4, f"{ctx['ref']} is {ctx['state']}; nothing replied. "
                       "Pass --allow-closed only if the user asked to "
                       "reply on it anyway")
-    thread = find_thread(c, args.thread)
+    all_threads = c.threads()
+    threads = [find_thread(all_threads, t) for t, _, _ in entries]
+    me = None if args.dry_run else c.me()
+    wrote = False
 
-    if args.dry_run:
-        print(json.dumps({"replied": "dry-run", "resolved": False, "id": None, "body": body},
-                         indent=1))
-        return
+    for i, ((tid, _, resolve), body, thread) in enumerate(zip(entries, bodies, threads)):
+        if args.dry_run:
+            out = {"replied": "dry-run", "resolved": False, "id": None, "body": body}
+        else:
+            if wrote:
+                time.sleep(WRITE_PAUSE)
+            out = reply_one(c, me, thread, body, resolve)
+            wrote = out["replied"] is True or out["resolved"]
+        if args.batch:
+            print(json.dumps({"index": i, "thread": tid, **out}))
+        else:
+            print(json.dumps(out, indent=1 if args.dry_run else None))
 
-    me = c.me()
+
+def reply_one(c, me, thread, body, resolve):
     already_replied = any(n["author"] == me and n["body"].strip() == body
                           for n in thread["notes"])
     nid = None
@@ -416,17 +468,18 @@ def cmd_reply(args):
     else:
         nid = c.reply(thread, body)
         replied = True
+        thread["notes"].append({"author": me, "body": body})
 
     resolved = False
-    if args.resolve and not thread["resolved"]:
+    if resolve and not thread["resolved"]:
         c.resolve(thread)
-        resolved = True
-    print(json.dumps({"replied": replied, "resolved": resolved, "id": nid}))
+        thread["resolved"] = resolved = True
+    return {"replied": replied, "resolved": resolved, "id": nid}
 
 
 def cmd_resolve(args):
     c, _ = client(args)
-    thread = find_thread(c, args.thread)
+    thread = find_thread(c.threads(), args.thread)
     nid = c.resolve(thread)
     print(json.dumps({"resolved": True, "id": nid}))
 
@@ -447,6 +500,7 @@ def main(argv):
     p.add_argument("--resolve", action="store_true")
     p.add_argument("--allow-closed", action="store_true")
     p.add_argument("--dry-run", action="store_true")
+    p.add_argument("--batch")
     try:
         args = p.parse_args(argv)
     except SystemExit:
@@ -458,9 +512,9 @@ def main(argv):
         elif args.command == "threads":
             cmd_threads(args)
         elif args.command == "reply":
-            if not args.thread:
+            if not args.batch and not args.thread:
                 raise Fail(2, "reply needs --thread")
-            if not args.body_file:
+            if not args.batch and not args.body_file:
                 raise Fail(2, "reply needs --body-file")
             cmd_reply(args)
         else:

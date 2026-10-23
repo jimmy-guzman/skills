@@ -13,6 +13,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 
 SCRIPT = os.path.join(os.path.dirname(__file__), "..", "scripts", "pr.py")
@@ -117,7 +118,7 @@ class EndToEndGitHub(unittest.TestCase):
             fh.write(FAKE_GH)
         os.chmod(gh, os.stat(gh).st_mode | stat.S_IEXEC)
         self.log = os.path.join(self.tmp.name, "log")
-        self.env = {**os.environ, "PATH": bindir + os.pathsep + os.environ["PATH"],
+        self.env = {**os.environ, "PATH": bindir + os.pathsep + os.environ["PATH"], "REVIEW_PR_WRITE_PAUSE": "0",
                     "FAKE_LOG": self.log}
         self.body = os.path.join(self.tmp.name, "body.md")
         self.write_body("Guarded the index now, see the test.")
@@ -223,6 +224,56 @@ class EndToEndGitHub(unittest.TestCase):
         self.assertEqual((code, out["resolved"]), (0, True))
 
 
+    def run_batch(self, entries, *args, **env):
+        path = os.path.join(self.tmp.name, "batch.json")
+        rows = []
+        for i, (thread, text, resolve) in enumerate(entries):
+            f = os.path.join(self.tmp.name, f"r{i}.md")
+            with open(f, "w") as fh:
+                fh.write(text)
+            rows.append({"thread": thread, "body_file": f, "resolve": resolve})
+        with open(path, "w") as fh:
+            json.dump(rows, fh)
+        p = subprocess.run([sys.executable, "-I", SCRIPT, "reply", "285", "--batch", path, *args,
+                            "--provider", "github"],
+                           env={**self.env, **env}, capture_output=True, text=True,
+                           cwd=self.tmp.name, check=False)
+        return p.returncode, [json.loads(l) for l in p.stdout.splitlines() if l.strip()], p.stderr
+
+    def test_batch_replies_in_order_and_dedupes(self):
+        code, out, err = self.run_batch([
+            ("PRRT_1", "Rethrown now, see the test.", False),
+            ("PRRT_1", "Second note.", True),
+            ("PRRT_1", "Second note.", False),
+        ])
+        self.assertEqual(code, 0, err)
+        self.assertEqual([(o["index"], o["thread"], o["replied"]) for o in out],
+                         [(0, "PRRT_1", "skipped"), (1, "PRRT_1", True), (2, "PRRT_1", "skipped")])
+        self.assertEqual([o["resolved"] for o in out], [False, True, False])
+        self.assertEqual(len(self.posted()), 1)
+
+    def test_batch_unknown_thread_replies_nothing(self):
+        code, _, err = self.run_batch([("PRRT_1", "ok", False), ("PRRT_404", "x", False)])
+        self.assertEqual(code, 5)
+        self.assertIn("PRRT_404", err)
+        self.assertEqual(self.posted(), [])
+
+    def test_batch_with_single_flags_is_refused(self):
+        code, _, err = self.run_batch([("PRRT_1", "ok", False)], "--thread", "PRRT_1")
+        self.assertEqual(code, 2)
+        self.assertIn("--batch replaces", err)
+
+    def test_batch_pauses_between_writes_only(self):
+        self.env["REVIEW_PR_WRITE_PAUSE"] = "0.3"
+        start = time.monotonic()
+        code, out, err = self.run_batch([
+            ("PRRT_1", "First.", False),
+            ("PRRT_1", "Second.", False),
+        ])
+        self.assertEqual(code, 0, err)
+        self.assertEqual([o["replied"] for o in out], [True, True])
+        self.assertGreaterEqual(time.monotonic() - start, 0.3)
+
 class EndToEndGitLab(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -233,7 +284,7 @@ class EndToEndGitLab(unittest.TestCase):
             fh.write(FAKE_GLAB)
         os.chmod(glab, os.stat(glab).st_mode | stat.S_IEXEC)
         self.log = os.path.join(self.tmp.name, "log")
-        self.env = {**os.environ, "PATH": bindir + os.pathsep + os.environ["PATH"],
+        self.env = {**os.environ, "PATH": bindir + os.pathsep + os.environ["PATH"], "REVIEW_PR_WRITE_PAUSE": "0",
                     "FAKE_LOG": self.log}
         self.body = os.path.join(self.tmp.name, "body.md")
         with open(self.body, "w") as fh:

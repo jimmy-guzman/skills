@@ -55,7 +55,7 @@ Once verification is done, read [references/apply.md](references/apply.md) and f
 
 ### 5. Draft replies
 
-One reply per verified thread. Write each body to its own temp file and run `python3 scripts/pr.py reply <pr> --thread <id> --body-file F --dry-run`, which prints the body without posting. The body by label:
+One reply per verified thread. Write each body to its own temp file, list them in one JSON file, `[{"thread": "<id>", "body_file": "<F>"}, ...]`, and run `python3 scripts/pr.py reply <pr> --batch <file> --dry-run`, which prints every body without posting. One call, not a shell loop: it checks every thread before the first reply, and there's no loop variable to collide with one the shell owns (`path` in zsh is tied to `PATH`). The body by label:
 
 - **Fixed** (Reproduced or Traced): what changed, inline code for symbols and files, a short fenced diff when it clarifies more than prose, the commit short-SHA once one exists (never before).
 - **Refuted**: why, citing the evidence from §3: the guard or caller that makes the trigger unreachable, or the run that passed on it. For a claim that cites a rule or quote that isn't in the repo, say what was searched and that it wasn't found.
@@ -74,9 +74,9 @@ End with two questions, and act on each only on its own explicit yes:
 
 ### 7. Post
 
-Rerun each approved reply without `--dry-run`. A retry is safe: an identical body the current user already posted on the thread comes back as `"replied": "skipped"`.
+Rerun the batch without `--dry-run`, keeping only the approved threads. A retry is safe: an identical body the current user already posted on the thread comes back as `"replied": "skipped"`.
 
-Pass `--resolve` on a thread's reply only when the user said to resolve this round. The default is reply-only; resolving is never implied by applying a fix, writing a reply, or approving a post. Then report what was posted: `Posted 4 replies.` plus anything skipped or refused and why.
+Set `"resolve": true` on a thread's entry only when the user said to resolve this round. The default is reply-only; resolving is never implied by applying a fix, writing a reply, or approving a post. Then report what was posted: `Posted 4 replies.` plus anything skipped or refused and why.
 
 ## Voice
 
