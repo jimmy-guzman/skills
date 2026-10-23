@@ -26,8 +26,8 @@ Two design choices drive everything else:
 
 ```mermaid
 flowchart TD
-    A["1. Pin the diff<br/>snapshot.py + pack.py"] --> B["2. Find sources<br/>standards & spec docs"]
-    B --> C["3. Run reviewers<br/>Bugs / Standards / Spec, in parallel"]
+    A["1. Pin the diff<br/>snapshot.py; Bugs starts here"] --> B["2. Find sources<br/>standards & spec docs"]
+    B --> C["3. Build pack + run reviewers<br/>pack.py; Standards / Spec join Bugs"]
     C --> D["4. Verify findings<br/>warm or fresh verifier"]
     D --> E["5. Report<br/>grouped by action, stop"]
     E -->|"user: apply"| F["6. Apply + re-review<br/>same reviewers, diff of the fix"]
@@ -39,9 +39,11 @@ waits to be told to apply or post.
 
 ## The pack: one read surface, not N
 
-Before any reviewer runs, `scripts/pack.py` reads the pinned diff once and
-builds a shared directory every reviewer and verifier reads from, instead of
-each one re-running `git`/`grep` itself.
+Once §2 has found the sources, `scripts/pack.py` reads the pinned diff once
+and builds a shared directory every reviewer and verifier reads from, instead
+of each one re-running `git`/`grep` itself. The Bugs reviewer doesn't wait for
+it: Bugs needs no sources and is usually the slowest, so it starts in §1 on
+the diff alone and gets the pack path once it's built.
 
 ```mermaid
 flowchart LR
@@ -123,14 +125,19 @@ instead of chased further. If two verifiers disagree on the same finding,
 that's a **conflict**, not a tie-break: it goes to one more fresh verifier
 with both pieces of evidence, or is labeled Unverified.
 
+A verifier that spots a problem the findings don't name returns it in `new`,
+not buried in its evidence. That list is a batch of its own: quote-checked,
+then verified by someone other than the verifier that raised it. A second
+round of `new` findings isn't sent round again; it counts as unverified.
+
 ## Safety rails
 
 - **Snapshot before review.** `scripts/snapshot.py` stages into a copy of
   the index and builds a commit pin without touching the user's real index
   or working tree.
 - **Tree-guard.** `snapshot.py --guard <before>` diffs the tree against the
-  pin after every reviewer/verifier batch; any stray edit is reverted and
-  saved to a patch file that gets reported.
+  pin when verification starts and again once every batch is back; any stray
+  edit is reverted and saved to a patch file that gets reported.
 - **No shell compounds.** Every step is one plain `python3 scripts/...` call
   taking file paths, with no `$(...)`, `&&`, or pipes. Some hosts refuse
   those, notably a Claude Code session that itself runs inside a worktree,
@@ -155,11 +162,17 @@ into someone else's conversation.
 
 Posting only happens on explicit request, and only through
 [`scripts/pr.py`](../skills/review-changes/scripts/pr.py), never a raw API
-call. Each finding becomes its own inline comment (or a general comment if
-it falls outside the diff), followed by an optional summary comment. Every
-comment carries a `<!-- review-changes: <head_sha> -->` marker. The next
-run's preflight step detects that marker to know the PR was already reviewed
-at that head, with or without a summary.
+call. Every post goes in one `pr.py post --batch` call, so the inline
+findings land the way a human review does: one request, one notification. On
+GitHub that's one review whose body is the optional summary. On GitLab the
+findings post as draft notes and publish together, and the summary follows
+as a general comment; if the user already has unpublished drafts on the MR,
+the script refuses rather than publish those too. A finding outside the diff
+becomes a general comment. Every comment carries a
+`<!-- review-changes: <head_sha> -->` marker. The next run's preflight step
+detects that marker to know the PR was already reviewed at that head, with
+or without a summary. `edit`, `delete`, `reply`, and `resolve` fix or
+dismiss a posted finding later.
 
 ## Scripts at a glance
 
@@ -168,7 +181,7 @@ at that head, with or without a summary.
 | `snapshot.py` | Pin the working tree as a commit; with `--guard`, revert and save any edits since a pin | §1 (pin), §4 (tree guard), §6 (pre/post-apply) |
 | `pack.py` | Build the shared read surface (diff.patch, files/, callers.txt, tests.txt, anchors.txt) from a diff file | §3, once the spec source from §2 is known |
 | `check_quotes.py` | Confirm a finding's quote sits at its claimed file:line | §4, and again before posting (rebase drift) |
-| `pr.py` | Wrap `gh`/`glab` behind one JSON interface: `state` (PR info) and `post` (comment) | §1 (state), §7 (post) |
+| `pr.py` | Wrap `gh`/`glab` behind one JSON interface: `state` (PR info), `post` (one comment or a `--batch`), and `edit`/`delete`/`reply`/`resolve` for posted ones | §1 (state), §7 (post and follow-ups) |
 
 ## Compared to other review tools
 
@@ -189,7 +202,7 @@ other's context.
 | Shared read surface | Each sub-agent builds its own diff/context | One `pack.py` run shared by every reviewer and verifier |
 | Line-number trust | Not mechanically checked | `check_quotes.py` confirms every quote sits at its claimed file:line before it's shown |
 | PR posting | Not in scope | Posts via `pr.py`, with a head-SHA marker so a PR isn't reviewed twice |
-| Report shape | Findings kept separate per axis, no cross-axis ranking | Findings merged into one list, grouped by action (Must fix / Should fix / Nice to have) across all reviewers |
+| Report shape | Findings kept separate per axis, no cross-axis ranking | Findings merged into one list, grouped by action (Must fix / Questions / Should fix / Nice to have) across all reviewers; a code-vs-spec disagreement is a Question with both fixes, so the user picks which side is wrong |
 
 `review-changes` adds a disprove step on top of that shared bet. A finding
 that survives one reviewer's own write-up and one that survives a second
