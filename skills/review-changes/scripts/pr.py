@@ -11,6 +11,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 from urllib.parse import quote, urlparse
 
 USAGE = """\
@@ -19,7 +20,8 @@ Usage:
   pr.py post  <pr> --body-file F [--path P --line N[-M]] [--head SHA]
               [--allow-closed] [--dry-run]
               [--provider P] [--repo R] [--host H]
-  pr.py edit    <pr> --comment ID --body-file F [--general] [--allow-closed] [--dry-run]
+  pr.py post  <pr> --batch FILE [--head SHA] [--allow-closed] [--dry-run]
+  pr.py edit    <pr> --comment ID --body-file F [--general | --review] [--allow-closed] [--dry-run]
   pr.py delete  <pr> --comment ID [--general] [--allow-closed] [--dry-run]
   pr.py reply   <pr> --comment ID --body-file F [--allow-closed] [--dry-run]
   pr.py resolve <pr> --comment ID [--dry-run]
@@ -36,8 +38,23 @@ state prints one JSON object:
 post prints one JSON object:
   posted (inline|general|skipped), reason, id
 
+--batch posts a whole review in one call, so no shell loop is needed. FILE is
+a JSON list of {"body_file": F, "path": P, "line": "N[-M]"} objects; leave
+path and line out for a general comment. The last entry with no path is the
+summary. Every entry and the head are checked before anything posts.
+  GitHub: the inline comments land as one review (one request, one
+  notification), with the summary as its body (posted: "review").
+  GitLab: each inline comment is a draft note, then all are published at
+  once; the summary posts after as a general comment. Refuses with exit 7 if
+  you already have unpublished draft notes on the MR, since publishing would
+  send them too.
+A line outside the diff becomes its own general comment, a second apart per
+GitHub's rate-limit guidance. Prints one JSON object per entry, one per
+line, in the single-post shape plus "index"; lines may come out of order.
+
 edit, delete, reply, and resolve take the id that post returned. Pass
---general when that id came from a general comment; reply and resolve
+--general when post said "general", and --review when it said "review"
+(edit only: a submitted GitHub review can't be deleted); reply and resolve
 work on inline comments only. Each prints one JSON object:
   <command> (true|dry-run), id
 
@@ -52,12 +69,14 @@ Exit codes:
   4 PR is closed or merged and --allow-closed wasn't passed; nothing posted
   5 gh/glab call failed (auth, network, not found); stderr says which
   6 resolve found no review thread for --comment
+  7 --batch on GitLab found your own unpublished draft notes; nothing posted
 
 Examples:
   pr.py state 285
   pr.py state https://gitlab.example.com/grp/app/-/merge_requests/482
   pr.py post 285 --head 1a2b3c4 --path src/tabs.ts --line 88 \\
       --body-file /tmp/f1.md
+  pr.py post 285 --head 1a2b3c4 --batch /tmp/findings.json
   pr.py post !482 --body-file /tmp/general.md --dry-run
   pr.py reply 285 --comment 991 --body-file /tmp/downgrade.md
   pr.py resolve 285 --comment 991
@@ -66,6 +85,11 @@ Examples:
 MARKER = "<!-- review-changes: {} -->"
 MARKER_RE = re.compile(r"<!-- review-changes: ([0-9a-f]{7,40}) -->")
 HUNK_RE = re.compile(r"^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@")
+
+# GitHub asks for at least a second between content-creating requests to stay under
+# its secondary rate limit; GitLab gets the same pacing. REVIEW_PR_WRITE_PAUSE overrides
+# it (tests set 0).
+WRITE_PAUSE = float(os.environ.get("REVIEW_PR_WRITE_PAUSE", "1"))
 
 
 class Fail(Exception):
@@ -275,21 +299,46 @@ class GitHub:
         return [{"path": f["filename"], "additions": f.get("additions", 0),
                  "deletions": f.get("deletions", 0)} for f in self.pr_files()]
 
+    SUMMARY = "review"
+
     def existing(self):
         seen = set()
         for c in self.pages(f"repos/{{owner}}/{{repo}}/pulls/{self.number}/comments"):
             seen.add((c["path"], c.get("line") or c.get("original_line"), norm(c["body"])))
         for c in self.pages(f"repos/{{owner}}/{{repo}}/issues/{self.number}/comments"):
             seen.add((None, None, norm(c["body"])))
+        for r in self.pages(f"repos/{{owner}}/{{repo}}/pulls/{self.number}/reviews"):
+            if r.get("body"):
+                seen.add((None, None, norm(r["body"])))
         return seen
 
-    def post_inline(self, ctx, path, start, end, body, _old):
-        payload = {"body": body, "commit_id": ctx["head_sha"], "path": path,
-                   "line": end, "side": "RIGHT"}
+    @staticmethod
+    def comment_payload(path, start, end, body):
+        payload = {"body": body, "path": path, "line": end, "side": "RIGHT"}
         if start != end:
             payload.update(start_line=start, start_side="RIGHT")
+        return payload
+
+    def post_inline(self, ctx, path, start, end, body, _old):
+        payload = {**self.comment_payload(path, start, end, body), "commit_id": ctx["head_sha"]}
         return self.api("-X", "POST", f"repos/{{owner}}/{{repo}}/pulls/{self.number}/comments",
                         body=payload)["id"]
+
+    def post_review(self, ctx, comments, summary):
+        """Every inline comment as one review, summary as its body. Returns (review id, comment ids)."""
+        payload = {"commit_id": ctx["head_sha"], "event": "COMMENT",
+                   "body": summary or MARKER.format(ctx["head_sha"]),
+                   "comments": [self.comment_payload(c["path"], *c["anchor"][:2], c["body"])
+                                for c in comments]}
+        base = f"repos/{{owner}}/{{repo}}/pulls/{self.number}/reviews"
+        rid = self.api("-X", "POST", base, body=payload)["id"]
+        made = {(m["path"], norm(m["body"])): m["id"] for m in self.pages(f"{base}/{rid}/comments")}
+        return rid, [made.get((c["path"], norm(c["body"]))) for c in comments]
+
+    def edit_review(self, rid, body):
+        self.api("-X", "PUT", f"repos/{{owner}}/{{repo}}/pulls/{self.number}/reviews/{rid}",
+                 body={"body": body})
+        return rid
 
     def post_general(self, ctx, body):
         return self.api("-X", "POST", f"repos/{{owner}}/{{repo}}/issues/{self.number}/comments",
@@ -414,7 +463,10 @@ class GitLab:
                 seen.add((pos.get("new_path"), pos.get("new_line"), norm(n.get("body"))))
         return seen
 
-    def post_inline(self, ctx, path, _start, end, body, old):
+    SUMMARY = "general"
+
+    @staticmethod
+    def position(ctx, path, end, old):
         refs = ctx.get("diff_refs") or {}
         position = {
             "position_type": "text",
@@ -427,9 +479,41 @@ class GitLab:
         }
         if old["old_line"] is not None:
             position["old_line"] = old["old_line"]
+        return position
+
+    def post_inline(self, ctx, path, _start, end, body, old):
         res = self.api("-X", "POST", f"{self.mr}/discussions",
-                       body={"body": body, "position": position})
+                       body={"body": body, "position": self.position(ctx, path, end, old)})
         return res["id"]
+
+    def post_review(self, ctx, comments, _summary):
+        """Every inline comment as a draft note, then one bulk publish. Returns (None, discussion ids).
+
+        bulk_publish sends all of the user's drafts on the MR, so pending drafts made elsewhere stop it.
+        The summary isn't passed to bulk_publish (its `note` param is newer); the caller posts it."""
+        if self.pages(f"{self.mr}/draft_notes"):
+            raise Fail(7, f"you have unpublished draft notes on !{self.number}; publishing would "
+                          "send them too. Publish or delete them first. Nothing posted")
+        made = []
+        try:
+            for c in comments:
+                start, end, old = c["anchor"]
+                made.append(self.api("-X", "POST", f"{self.mr}/draft_notes", body={
+                    "note": c["body"], "position": self.position(ctx, c["path"], end, old)})["id"])
+            self.api("-X", "POST", f"{self.mr}/draft_notes/bulk_publish")
+        except Fail:
+            for d in made:
+                try:
+                    self.api("-X", "DELETE", f"{self.mr}/draft_notes/{d}")
+                except Fail:
+                    pass
+            raise
+        found = {}
+        for d in self.pages(f"{self.mr}/discussions"):
+            first = (d.get("notes") or [{}])[0]
+            pos = first.get("position") or {}
+            found[(pos.get("new_path"), pos.get("new_line"), norm(first.get("body")))] = d["id"]
+        return None, [found.get((c["path"], c["anchor"][1], norm(c["body"]))) for c in comments]
 
     def post_general(self, ctx, body):
         return self.api("-X", "POST", f"{self.mr}/notes", body={"body": body})["id"]
@@ -533,10 +617,37 @@ def open_state(c, args):
     return ctx
 
 
+def read_batch(path):
+    try:
+        with open(path, encoding="utf-8") as fh:
+            entries = json.load(fh)
+    except (OSError, ValueError) as e:
+        raise Fail(2, f"can't read --batch: {e}")
+    if not isinstance(entries, list) or not entries:
+        raise Fail(2, "--batch must be a non-empty JSON list")
+    out = []
+    for i, e in enumerate(entries):
+        if not isinstance(e, dict) or not e.get("body_file"):
+            raise Fail(2, f"--batch entry {i} needs body_file")
+        if bool(e.get("path")) != bool(e.get("line")):
+            raise Fail(2, f"--batch entry {i}: path and line go together")
+        if e.get("line"):
+            parse_lines(str(e["line"]))
+        out.append(argparse.Namespace(command="post", body_file=e["body_file"],
+                                      path=e.get("path"), line=e.get("line") and str(e["line"])))
+    return out
+
+
 def cmd_post(args):
-    if bool(args.path) != bool(args.line):
-        raise Fail(2, "--path and --line go together; leave both out for a general comment")
-    body = read_body(args)
+    if args.batch:
+        if args.path or args.line or args.body_file:
+            raise Fail(2, "--batch replaces --body-file, --path, and --line")
+        entries = read_batch(args.batch)
+    else:
+        if bool(args.path) != bool(args.line):
+            raise Fail(2, "--path and --line go together; leave both out for a general comment")
+        entries = [args]
+    bodies = [read_body(e) for e in entries]
 
     c, _ = client(args)
     ctx = open_state(c, args)
@@ -544,39 +655,98 @@ def cmd_post(args):
     if args.head and not head.startswith(args.head):
         raise Fail(3, f"{ctx['ref']} head is {head[:12]}, not {args.head[:12]}; "
                       "re-review the new head before posting")
-    body = f"{MARKER.format(head)}\n{body}"
+    seen = {}
+    plans = [plan(c, seen, e, f"{MARKER.format(head)}\n{b}") for e, b in zip(entries, bodies)]
+    if args.batch:
+        post_batch(c, ctx, entries, plans, args.dry_run)
+    else:
+        print(json.dumps(post_one(c, ctx, plans[0], args.dry_run), indent=1 if args.dry_run else None))
 
+
+def plan(c, seen, e, body):
+    """Where one comment would land, without posting. `seen` caches the diff and existing comments."""
     kind, reason, anchor = "general", None, None
-    if args.path:
-        start, end = parse_lines(args.line)
-        f = c.files().get(args.path)
+    if e.path:
+        start, end = parse_lines(e.line)
+        if "files" not in seen:
+            seen["files"] = c.files()
+        f = seen["files"].get(e.path)
         if f is None:
-            reason = f"{args.path} is not in the diff"
+            reason = f"{e.path} is not in the diff"
         elif end not in f["lines"]:
-            reason = f"{args.path}:{end} is outside the diff hunks"
+            reason = f"{e.path}:{end} is outside the diff hunks"
         else:
             if start != end and not all(n in f["lines"] for n in range(start, end + 1)):
                 start = end
             kind = "inline"
             anchor = (start, end, {"old_path": f["old_path"], "old_line": f["lines"][end]})
+    key = (e.path, anchor[1], norm(body)) if kind == "inline" else (None, None, norm(body))
+    if "existing" not in seen:
+        seen["existing"] = c.existing()
+    if key in seen["existing"]:
+        kind, reason = "skipped", "same comment already on the PR"
+    seen["existing"].add(key)
+    return {"kind": kind, "reason": reason, "anchor": anchor, "path": e.path, "body": body}
 
-    key = (args.path, anchor[1], norm(body)) if kind == "inline" else (None, None, norm(body))
-    if key in c.existing():
-        print(json.dumps({"posted": "skipped", "reason": "same comment already on the PR", "id": None}))
-        return
 
-    if args.dry_run:
-        print(json.dumps({"posted": f"dry-run:{kind}", "reason": reason, "id": None,
-                          "path": args.path, "line": anchor[1] if anchor else None,
-                          "body": body}, indent=1))
-        return
+def dry(p, kind):
+    return {"posted": f"dry-run:{kind}", "reason": p["reason"], "id": None, "path": p["path"],
+            "line": p["anchor"][1] if p["anchor"] else None, "body": p["body"]}
 
-    if kind == "inline":
-        start, end, old = anchor
-        nid = c.post_inline(ctx, args.path, start, end, body, old)
+
+def post_one(c, ctx, p, dry_run):
+    if p["kind"] == "skipped":
+        return {"posted": "skipped", "reason": p["reason"], "id": None}
+    if dry_run:
+        return dry(p, p["kind"])
+    if p["kind"] == "inline":
+        start, end, old = p["anchor"]
+        nid = c.post_inline(ctx, p["path"], start, end, p["body"], old)
     else:
-        nid = c.post_general(ctx, body)
-    print(json.dumps({"posted": kind, "reason": reason, "id": nid}))
+        nid = c.post_general(ctx, p["body"])
+    return {"posted": p["kind"], "reason": p["reason"], "id": nid}
+
+
+def post_batch(c, ctx, entries, plans, dry_run):
+    """Inline comments go out as one review; the rest as general comments, a pause apart."""
+    def emit(i, out):
+        print(json.dumps({"index": i, **out}))
+
+    inline = [i for i, p in enumerate(plans) if p["kind"] == "inline"]
+    no_path = [i for i, e in enumerate(entries) if not e.path]
+    summary = no_path[-1] if no_path and plans[no_path[-1]]["kind"] == "general" else None
+    in_review = summary if inline and c.SUMMARY == "review" else None
+    general = [i for i, p in enumerate(plans) if p["kind"] == "general" and i not in (summary, in_review)]
+    if summary is not None and summary != in_review:
+        general.append(summary)
+
+    for i, p in enumerate(plans):
+        if p["kind"] == "skipped":
+            emit(i, {"posted": "skipped", "reason": p["reason"], "id": None})
+    if dry_run:
+        for i in inline:
+            emit(i, dry(plans[i], "inline"))
+        if in_review is not None:
+            emit(in_review, dry(plans[in_review], "review"))
+        for i in general:
+            emit(i, dry(plans[i], "general"))
+        return
+
+    wrote = False
+    if inline:
+        rid, ids = c.post_review(ctx, [plans[i] for i in inline],
+                                 plans[in_review]["body"] if in_review is not None else None)
+        for i, nid in zip(inline, ids):
+            emit(i, {"posted": "inline", "reason": None, "id": nid})
+        if in_review is not None:
+            emit(in_review, {"posted": "review", "reason": None, "id": rid})
+        wrote = True
+    for i in general:
+        if wrote:
+            time.sleep(WRITE_PAUSE)
+        emit(i, {"posted": "general", "reason": plans[i]["reason"],
+                 "id": c.post_general(ctx, plans[i]["body"])})
+        wrote = True
 
 
 def cmd_followup(args):
@@ -585,6 +755,9 @@ def cmd_followup(args):
         raise Fail(2, f"{cmd} needs --comment")
     if args.general and cmd in ("reply", "resolve"):
         raise Fail(2, f"a general comment has no thread to {cmd}; edit it instead")
+    if args.review and (args.general or cmd != "edit"):
+        raise Fail(2, "--review works with edit only: a submitted review can't be deleted, "
+                      "replied to, or resolved")
     body = read_body(args) if cmd in ("edit", "reply") else None
 
     c, _ = client(args)
@@ -594,7 +767,11 @@ def cmd_followup(args):
         print(json.dumps({cmd: "dry-run", "id": args.comment, "body": body}, indent=1))
         return
 
-    if cmd == "edit":
+    if cmd == "edit" and args.review:
+        if not hasattr(c, "edit_review"):
+            raise Fail(2, "--review is GitHub only; a GitLab summary is a general comment")
+        nid = c.edit_review(args.comment, body)
+    elif cmd == "edit":
         nid = c.edit(args.comment, body, args.general)
     elif cmd == "delete":
         nid = c.delete(args.comment, args.general)
@@ -623,6 +800,8 @@ def main(argv):
     p.add_argument("--general", action="store_true")
     p.add_argument("--allow-closed", action="store_true")
     p.add_argument("--dry-run", action="store_true")
+    p.add_argument("--batch")
+    p.add_argument("--review", action="store_true")
     try:
         args = p.parse_args(argv)
     except SystemExit:

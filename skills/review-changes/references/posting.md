@@ -15,24 +15,35 @@ Every command here uses `scripts/pr.py` in this skill's directory. Resolve it to
 
 ## Post each finding
 
-Write each finding's body to its own temp file, then:
+Write each finding's body to its own temp file, and the summary's too (below). List every post in one JSON file, findings in report order and the summary last, and post them in one call. Don't loop over posts in the shell: one call checks every entry and the head before anything posts, and there's no loop variable to collide with one the shell owns (`path` in zsh is tied to `PATH`).
+
+```json
+[
+  {"body_file": "/tmp/rc/1.md", "path": "src/store/tabs.ts", "line": "88"},
+  {"body_file": "/tmp/rc/2.md", "path": "src/store/tabs.ts", "line": "40"},
+  {"body_file": "/tmp/rc/summary.md"}
+]
+```
 
 ```bash
-python3 <skill-dir>/scripts/pr.py post <pr> --head <sha> \
-  --path <file> --line <N or N-M> --body-file <tmp>
+python3 <skill-dir>/scripts/pr.py post <pr> --head <sha> --batch /tmp/rc/posts.json
 ```
+
+The inline findings land the way a human review does, in one request with one notification. On GitHub they post as one review whose body is the summary. On GitLab they post as draft notes and then publish together, and the summary posts after as a general comment. It prints one JSON line per entry with its `index`: `posted` (`inline`, `general`, `review` for a GitHub summary, or `skipped`), `reason`, and the `id` the follow-up commands below take. A single comment (a late fix, one more finding) uses `--path <file> --line <N or N-M> --body-file <tmp>` in place of `--batch`.
+
+On GitLab, exit 7 means the user already has unpublished draft notes on the MR, and publishing would send those too. Nothing posted. Say so and ask them to publish or delete their drafts first; never delete them yourself.
 
 - The body is the full finding: title, label line with its evidence label, `file:line`, prose, the `Evidence:` line, and the fix. The evidence tells the author what was run and what was only read.
 - A question posts as the report shows it: the question title and both `If` lines, so the author picks the side. When the user answered it ("2: code" or "2: source"), post only that side, with a command title like any finding.
 - A finding about a new test, with no line yet, anchors on the nearest sibling test and names it in the body ("sibling of `test_x`").
 - A finding with no file (for example "the description is empty") leaves out `--path` and `--line` and becomes one general comment.
-- A line outside the diff can't take an inline comment. The script posts a general comment instead and says why in `reason`. The body already names the `file:line`, so nothing is lost.
+- A line outside the diff can't take an inline comment. The script posts a general comment instead, outside the review, and says why in `reason`. The body already names the `file:line`, so nothing is lost.
 - A retry is safe: an identical comment at the same spot comes back as `"posted": "skipped"`.
 - `--dry-run` prints what would be posted without posting it. Use it when the user wants to see the comments first.
 - Every post, finding or summary, starts with `<!-- review-changes: <head_sha> -->`. The next preflight reads it to spot "already reviewed at this SHA", so a run that posts findings without a summary still counts.
 - Post the summary comment unless the user said "no summary" (or otherwise declined it) in the §5 ask.
 
-Unless the user declined it, after the findings post one summary comment: the same command without `--path` and `--line`. The body is the `Change:` line, the verdict, recounted over the posted findings, the `Reviewed:` line, the Standards and Spec footer lines if the report has them, and one line per posted finding: number, title, `file:line`. Leave out the `Left out:` line and the agent handoff line.
+Unless the user declined it, the summary is the batch's last entry, with no `path` or `line`. The body is the `Change:` line, the verdict, recounted over the posted findings, the `Reviewed:` line, the Standards and Spec footer lines if the report has them, and one line per posted finding: number, title, `file:line`. Leave out the `Left out:` line and the agent handoff line.
 
 ```text
 Change: Closing a tab now picks a neighbour instead of leaving none active, and each tab remembers its caret so switching back restores it.
@@ -62,12 +73,14 @@ Posted 3 to #285: 3 inline (no summary posted).
 
 ## Fix or remove a posted comment
 
-Pass the `id` from `post` as `--comment`, plus `--general` when `post` made a general comment:
+Pass the `id` from `post` as `--comment`, plus `--general` when `post` said `general`, or `--review` when it said `review`:
 
 ```bash
 python3 <skill-dir>/scripts/pr.py edit <pr> --comment <id> --body-file <tmp>
 python3 <skill-dir>/scripts/pr.py delete <pr> --comment <id>
 ```
+
+A GitHub review's body takes `edit --review` only: GitHub can't delete a submitted review. To retract a summary there, edit it down to a line saying why.
 
 ## Downgrade or dismiss a posted finding
 
@@ -75,4 +88,4 @@ When the user decides a posted finding no longer holds as scored (lower severity
 
 1. Reply on the finding's thread saying so, in a few words: `pr.py reply <pr> --comment <id> --body-file <tmp>`.
 2. Resolve the thread: `pr.py resolve <pr> --comment <id>`.
-3. If a summary was posted, patch it (the general comment that starts with the `<!-- review-changes: <sha> -->` marker and lists the findings) with `pr.py edit <pr> --comment <summary-id> --general --body-file <tmp>`, so it still matches what the threads show: strike through that finding's line and add its new disposition in a few words, e.g. `~~2. Delete the comment that restates the code~~ (downgraded to nice to have, resolved)`. Don't delete the line or leave it stale.
+3. If a summary was posted, patch it (the review body on GitHub, or the general comment on GitLab, that starts with the `<!-- review-changes: <sha> -->` marker and lists the findings) with `pr.py edit <pr> --comment <summary-id> --review --body-file <tmp>` (`--general` in place of `--review` when `post` said `general`), so it still matches what the threads show: strike through that finding's line and add its new disposition in a few words, e.g. `~~2. Delete the comment that restates the code~~ (downgraded to nice to have, resolved)`. Don't delete the line or leave it stale.

@@ -13,6 +13,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 
 SCRIPT = os.path.join(os.path.dirname(__file__), "..", "scripts", "pr.py")
@@ -52,6 +53,16 @@ elif ep == "graphql":
 elif ep.endswith("/files"):
     print(json.dumps([[{"filename": "src/tabs.ts", "patch": os.environ["FAKE_PATCH"],
                         "additions": 2, "deletions": 1}]]))
+elif ep.endswith("/reviews") and post:
+    print(json.dumps({"id": 7001}))
+elif ep.endswith("/reviews"):
+    print(json.dumps([[{"id": 1, "body": ""}]]))
+elif "/reviews/" in ep and ep.endswith("/comments"):
+    sent = [json.loads(json.loads(l)["body"]) for l in open(os.environ["FAKE_LOG"])
+            if "/reviews" in l and '"POST"' in l]
+    made = sent[-1]["comments"] if sent else []
+    print(json.dumps([[{"id": 800 + i, "path": c["path"], "body": c["body"]}
+                       for i, c in enumerate(made)]]))
 elif ep.endswith("/comments") and not post and "/pulls/" in ep:
     print(json.dumps([[{"path": "src/tabs.ts", "line": 83, "body": "same body"}]]))
 elif ep.endswith("/comments") and not post:
@@ -60,6 +71,49 @@ elif "DELETE" in a:
     pass
 else:
     print(json.dumps({"id": 991}))
+'''
+
+
+FAKE_GLAB = r'''#!/usr/bin/env python3
+import json, os, sys
+a = sys.argv[1:]
+body = sys.stdin.read() if "--input" in a else None
+with open(os.environ["FAKE_LOG"], "a") as fh:
+    fh.write(json.dumps({"argv": a, "body": body}) + "\n")
+ep = next(x for x in a if x.startswith("projects/"))
+post = "POST" in a
+def log():
+    return [json.loads(l) for l in open(os.environ["FAKE_LOG"])]
+if ep.endswith("/draft_notes") and post:
+    print(json.dumps({"id": 600 + sum(1 for l in log() if l["argv"][-1:] != ["--paginate"]
+                                      and "/draft_notes" in " ".join(l["argv"]) and "POST" in l["argv"])}))
+elif ep.endswith("/draft_notes"):
+    if os.environ.get("FAKE_PENDING_DRAFT"):
+        print(json.dumps({"id": 1, "note": "half-written"}))
+elif ep.endswith("/bulk_publish"):
+    if os.environ.get("FAKE_PUBLISH_FAILS"):
+        sys.stderr.write("500 boom\n")
+        sys.exit(1)
+elif ep.endswith("/discussions"):
+    published = any(l["argv"][-1:] != ["--paginate"] and "bulk_publish" in " ".join(l["argv"])
+                    for l in log()[:-1])
+    if published:
+        for l in log():
+            if "/draft_notes" in " ".join(l["argv"]) and "POST" in l["argv"] and l["body"]:
+                d = json.loads(l["body"])
+                print(json.dumps({"id": "disc-" + d["note"][-3:], "notes": [
+                    {"body": d["note"], "position": d["position"]}]}))
+elif ep.endswith("/diffs"):
+    print(json.dumps({"new_path": "src/tabs.ts", "old_path": "src/tabs.ts",
+                      "diff": os.environ["FAKE_PATCH"]}))
+elif ep.endswith("/notes") and post:
+    print(json.dumps({"id": 9100}))
+elif "DELETE" in a:
+    pass
+else:
+    print(json.dumps({"state": "opened", "sha": "1a2b3c4d5e6f", "target_branch": "main",
+                      "title": "Tabs", "description": "", "author": {"username": "sam"},
+                      "diff_refs": {"base_sha": "b", "start_sha": "s", "head_sha": "1a2b3c4d5e6f"}}))
 '''
 
 
@@ -115,6 +169,7 @@ class FakeGh(unittest.TestCase):
         os.chmod(gh, os.stat(gh).st_mode | stat.S_IEXEC)
         self.log = os.path.join(self.tmp.name, "log")
         self.env = {**os.environ, "PATH": bindir + os.pathsep + os.environ["PATH"],
+                    "REVIEW_PR_WRITE_PAUSE": "0",
                     "FAKE_LOG": self.log, "FAKE_PATCH": PATCH}
         self.body = os.path.join(self.tmp.name, "body.md")
         self.write_body("Fix it")
@@ -202,6 +257,163 @@ class EndToEndGitHub(FakeGh):
                                    "--body-file", self.body, "--dry-run")
         self.assertEqual((code, out["posted"]), (0, "dry-run:inline"))
         self.assertEqual(self.posted(), [])
+
+
+    def batch(self, entries):
+        path = os.path.join(self.tmp.name, "batch.json")
+        bodies = []
+        for i, (text, loc) in enumerate(entries):
+            f = os.path.join(self.tmp.name, f"b{i}.md")
+            with open(f, "w") as fh:
+                fh.write(text)
+            bodies.append({"body_file": f, **loc})
+        with open(path, "w") as fh:
+            json.dump(bodies, fh)
+        return path
+
+    def run_batch(self, path, *args):
+        p = subprocess.run([sys.executable, "-I", SCRIPT, "post", "285", "--batch", path, *args,
+                            "--provider", "github"],
+                           env=self.env, capture_output=True, text=True, cwd=self.tmp.name)
+        return p.returncode, [json.loads(l) for l in p.stdout.splitlines() if l.strip()], p.stderr
+
+    def test_batch_posts_inline_general_and_skips_duplicate(self):
+        path = self.batch([
+            ("finding one", {"path": "src/tabs.ts", "line": "82"}),
+            ("same body", {"path": "src/tabs.ts", "line": "83"}),
+            ("outside", {"path": "src/tabs.ts", "line": "52"}),
+            ("summary", {}),
+        ])
+        code, out, err = self.run_batch(path, "--head", "1a2b3c4")
+        self.assertEqual(code, 0, err)
+        by = {o["index"]: o for o in out}
+        self.assertEqual([by[i]["posted"] for i in range(4)], ["inline", "skipped", "general", "review"])
+        self.assertEqual((by[0]["id"], by[3]["id"]), (800, 7001))
+        reviews = [p for p in self.posted() if p["argv"][-3].endswith("/reviews")]
+        self.assertEqual(len(reviews), 1)
+        sent = json.loads(reviews[0]["body"])
+        self.assertEqual((sent["event"], sent["commit_id"]), ("COMMENT", "1a2b3c4d5e6f"))
+        self.assertEqual([(c["path"], c["line"]) for c in sent["comments"]], [("src/tabs.ts", 82)])
+        self.assertTrue(sent["body"].startswith("<!-- review-changes: 1a2b3c4d5e6f -->\nsummary"))
+        self.assertEqual(len(self.posted()), 2)  # the review, plus the outside-diff general comment
+
+    def test_batch_dry_run_posts_nothing(self):
+        path = self.batch([("finding one", {"path": "src/tabs.ts", "line": "82"}), ("summary", {})])
+        code, out, err = self.run_batch(path, "--dry-run")
+        self.assertEqual(code, 0, err)
+        self.assertEqual([o["posted"] for o in out], ["dry-run:inline", "dry-run:review"])
+        self.assertEqual(self.posted(), [])
+
+    def test_edit_review_updates_its_body(self):
+        code, out, err = self.run_pr("edit", "285", "--comment", "7001", "--review",
+                                     "--body-file", self.body)
+        self.assertEqual((code, out["edit"]), (0, True), err)
+        puts = [json.loads(l) for l in open(self.log) if '"PUT"' in l]
+        self.assertTrue(puts[0]["argv"][-3].endswith("/reviews/7001"))
+
+    def test_review_flag_refuses_delete(self):
+        code, _, err = self.run_pr("delete", "285", "--comment", "7001", "--review")
+        self.assertEqual(code, 2)
+        self.assertIn("can't be deleted", err)
+
+    def test_batch_head_moved_posts_nothing(self):
+        path = self.batch([("a", {}), ("b", {})])
+        code, _, _ = self.run_batch(path, "--head", "deadbeef")
+        self.assertEqual(code, 3)
+        self.assertEqual(self.posted(), [])
+
+    def test_batch_bad_entry_posts_nothing(self):
+        path = self.batch([("a", {}), ("b", {"path": "src/tabs.ts"})])
+        code, _, err = self.run_batch(path)
+        self.assertEqual(code, 2)
+        self.assertIn("entry 1", err)
+        self.assertFalse(os.path.exists(self.log))  # rejected before any gh call
+
+    def test_batch_pauses_between_general_comments(self):
+        path = self.batch([("outside", {"path": "src/tabs.ts", "line": "52"}), ("summary", {})])
+        self.env["REVIEW_PR_WRITE_PAUSE"] = "0.3"
+        start = time.monotonic()
+        code, out, err = self.run_batch(path)
+        self.assertEqual(code, 0, err)
+        self.assertEqual([o["posted"] for o in out], ["general", "general"])
+        self.assertGreaterEqual(time.monotonic() - start, 0.3)
+
+    def test_batch_review_needs_no_pause(self):
+        path = self.batch([
+            ("finding one", {"path": "src/tabs.ts", "line": "82"}),
+            ("same body", {"path": "src/tabs.ts", "line": "83"}),
+            ("summary", {}),
+        ])
+        self.env["REVIEW_PR_WRITE_PAUSE"] = "0.3"
+        start = time.monotonic()
+        code, out, err = self.run_batch(path)
+        took = time.monotonic() - start
+        self.assertEqual(code, 0, err)
+        self.assertEqual(sorted(o["posted"] for o in out), ["inline", "review", "skipped"])
+        self.assertLess(took, 3)  # review + summary are one request: no pause
+
+
+class BatchGitLab(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        bindir = os.path.join(self.tmp.name, "bin")
+        os.makedirs(bindir)
+        glab = os.path.join(bindir, "glab")
+        with open(glab, "w") as fh:
+            fh.write(FAKE_GLAB)
+        os.chmod(glab, os.stat(glab).st_mode | stat.S_IEXEC)
+        self.log = os.path.join(self.tmp.name, "log")
+        self.env = {**os.environ, "PATH": bindir + os.pathsep + os.environ["PATH"],
+                    "REVIEW_PR_WRITE_PAUSE": "0", "FAKE_LOG": self.log, "FAKE_PATCH": PATCH}
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def run_batch(self, entries, **env):
+        rows = []
+        for i, (text, loc) in enumerate(entries):
+            f = os.path.join(self.tmp.name, f"b{i}.md")
+            with open(f, "w") as fh:
+                fh.write(text)
+            rows.append({"body_file": f, **loc})
+        path = os.path.join(self.tmp.name, "batch.json")
+        with open(path, "w") as fh:
+            json.dump(rows, fh)
+        p = subprocess.run([sys.executable, "-I", SCRIPT, "post", "482", "--batch", path,
+                            "--provider", "gitlab"],
+                           env={**self.env, **env}, capture_output=True, text=True, cwd=self.tmp.name)
+        return p.returncode, [json.loads(l) for l in p.stdout.splitlines() if l.strip()], p.stderr
+
+    def writes(self):
+        return [json.loads(l) for l in open(self.log)
+                if any(m in l for m in ('"POST"', '"DELETE"'))]
+
+    def test_drafts_then_one_publish_then_summary(self):
+        code, out, err = self.run_batch([
+            ("finding 001", {"path": "src/tabs.ts", "line": "82"}),
+            ("finding 002", {"path": "src/tabs.ts", "line": "84"}),
+            ("summary", {}),
+        ])
+        self.assertEqual(code, 0, err)
+        by = {o["index"]: o for o in out}
+        self.assertEqual([by[i]["posted"] for i in range(3)], ["inline", "inline", "general"])
+        self.assertEqual((by[0]["id"], by[1]["id"]), ("disc-001", "disc-002"))
+        kinds = [next(x for x in w["argv"] if x.startswith("projects/")).rsplit("/", 1)[-1]
+                 for w in self.writes()]
+        self.assertEqual(kinds, ["draft_notes", "draft_notes", "bulk_publish", "notes"])
+
+    def test_pending_drafts_refuse_with_exit_7(self):
+        code, _, err = self.run_batch([("finding 001", {"path": "src/tabs.ts", "line": "82"})],
+                                      FAKE_PENDING_DRAFT="1")
+        self.assertEqual(code, 7)
+        self.assertIn("unpublished draft notes", err)
+        self.assertEqual(self.writes(), [])
+
+    def test_failed_publish_deletes_the_drafts_it_made(self):
+        code, _, _ = self.run_batch([("finding 001", {"path": "src/tabs.ts", "line": "82"})],
+                                    FAKE_PUBLISH_FAILS="1")
+        self.assertEqual(code, 5)
+        self.assertIn("DELETE", self.writes()[-1]["argv"])
 
 
 class FollowUpGitHub(FakeGh):
