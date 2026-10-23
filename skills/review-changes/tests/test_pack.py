@@ -130,6 +130,30 @@ class PackTest(unittest.TestCase):
             self.assertIn("pkg/src/tabs.py:1:", anchors)
             self.assertNotIn("nope, not in the repo", anchors)
 
+    def test_one_line_matching_several_patterns_is_listed_under_each(self):
+        with tempfile.TemporaryDirectory() as repo, tempfile.TemporaryDirectory() as out:
+            git = make_repo(repo)
+            (pathlib.Path(repo) / "both.py").write_text("open_tab(close_tab(1))  # shared line\n")
+            (pathlib.Path(repo) / "pkg" / "src" / "tabs.py").write_text(
+                "def close_tab(n):\n    return n\n\ndef open_tab(i):\n    return i\n")
+            git("add", "-A")
+            git("commit", "-q", "-m", "more")
+            rev = git("rev-parse", "HEAD").decode().strip()
+            diff = git("diff", "HEAD~1", "HEAD")
+            spec = pathlib.Path(repo) / "spec.txt"
+            spec.write_text("Keep `open_tab(close` and `shared line` working.\n")
+            res = run_pack(repo, diff, "--out", out, "--rev", rev, "--spec", str(spec))
+            self.assertEqual(res.returncode, 0, res.stderr)
+            o = pathlib.Path(out)
+            callers = (o / "callers.txt").read_text()
+            for sym in ("close_tab", "open_tab"):
+                chunk = callers.split(f"## {sym}\n", 1)[1].split("## ", 1)[0]
+                self.assertIn("both.py:1:open_tab(close_tab(1))", chunk)
+            self.assertNotIn(rev, callers)
+            anchors = (o / "anchors.txt").read_text()
+            self.assertIn("## open_tab(close\nboth.py:1:", anchors)
+            self.assertIn("## shared line\nboth.py:1:", anchors)
+
     def test_no_spec_writes_empty_anchors(self):
         with tempfile.TemporaryDirectory() as repo, tempfile.TemporaryDirectory() as out:
             git = make_repo(repo)

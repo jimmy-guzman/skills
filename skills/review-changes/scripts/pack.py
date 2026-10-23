@@ -129,22 +129,16 @@ def main():
                 paths.append(p)
                 break
 
-    # ponytail: word-boundary grep over the whole tree, no language awareness.
+    # ponytail: one word-boundary grep over the whole tree for all symbols, no language awareness.
     # Upgrade to an LSP/ctags pass if reviewers report the list is too noisy.
     rev_arg = [a.rev] if a.rev else ["--untracked"]
     strip = (lambda h: h.split(":", 1)[-1]) if a.rev else (lambda h: h)
-    chunks = []
-    for s in symbols(diff):
-        hits = [strip(h) for h in (git("grep", "-n", "-w", "-I", "-e", s, *rev_arg) or "").splitlines()]
-        if hits:
-            chunks.append(f"## {s}\n" + "\n".join(hits[:MAX_HITS]) + "\n")
+    words = re.compile(r"\w+", re.ASCII)
+    chunks = grouped_grep(symbols(diff), ["-w"], rev_arg, a.rev, lambda syms, text: syms & set(words.findall(text)))
     (out / "callers.txt").write_text("".join(chunks))
 
-    anchor_chunks = []
-    for s in quoted_strings(spec_text):
-        hits = [strip(h) for h in (git("grep", "-n", "-F", "-I", "-e", s, *rev_arg) or "").splitlines()]
-        if hits:
-            anchor_chunks.append(f"## {s}\n" + "\n".join(hits[:MAX_HITS]) + "\n")
+    anchor_chunks = grouped_grep(quoted_strings(spec_text), ["-F"], rev_arg, a.rev,
+                                 lambda strs, text: {q for q in strs if q in text})
     (out / "anchors.txt").write_text("".join(anchor_chunks))
 
     stems = {pathlib.Path(p).stem for p in paths if pathlib.Path(p).stem not in ("index", "__init__", "mod")}
@@ -157,6 +151,27 @@ def main():
         "pack": str(out), "files": len(paths), "symbols": len(chunks),
         "tests": len(tests), "anchors": len(anchor_chunks),
     }))
+
+
+def grouped_grep(patterns, flags, rev_arg, rev, matched):
+    """One git grep for every pattern, then hits grouped under each pattern they match, in input order.
+
+    One call costs about what one pattern does, where a call per pattern rescans the tree each time.
+    `matched(set_of_patterns, line_text)` returns the patterns a hit line belongs to."""
+    if not patterns:
+        return []
+    args = [x for p in patterns for x in ("-e", p)]
+    groups = {p: [] for p in patterns}
+    for line in (git("grep", "-n", "-z", "-I", *flags, *args, *rev_arg) or "").split("\n"):
+        if not line:
+            continue
+        path, num, text = line.split("\0", 2)
+        if rev:
+            path = path.removeprefix(f"{rev}:")
+        for p in matched(set(patterns), text):
+            if len(groups[p]) < MAX_HITS:
+                groups[p].append(f"{path}:{num}:{text}")
+    return [f"## {p}\n" + "\n".join(hits) + "\n" for p, hits in groups.items() if hits]
 
 
 def _contained(path, root):
