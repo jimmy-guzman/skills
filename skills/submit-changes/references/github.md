@@ -24,7 +24,7 @@ Host commands for `submit-changes`. Read Gotchas before running anything.
 - **`gh pr edit` never changes draft state.** Only `gh pr ready` (and `--undo`) does. Don't run either unless the user asked.
 - **`--draft` rejected.** Some private repos don't support draft PRs. Ask before creating it as ready.
 - **Some sessions block GitHub GraphQL.** Hosted agent sessions (Claude Code in the cloud, for one) answer `gh pr view`, `gh pr list`, `gh pr diff`, `gh pr create`, `gh pr edit`, and `gh repo view` with HTTP 403 "GitHub GraphQL is not available". _Lookups_ already use REST. For the rest, use `gh api`:
-  - Create: `gh api -X POST "repos/{owner}/{repo}/pulls" -f title="<title>" -f head=<branch> -f base=<base> -F draft=true -F body=@"$body" --jq .number`. Then labels with `gh api -X POST "repos/{owner}/{repo}/issues/<n>/labels" -f 'labels[]=<a>'` and the assignee with `gh api -X POST "repos/{owner}/{repo}/issues/<n>/assignees" -f 'assignees[]=<login>'`.
+  - Create: `gh api -X POST "repos/{owner}/{repo}/pulls" -f title="<title>" -f head=<branch> -f base=<base> -F draft=true -F body=@<tmp>/PR_BODY.md --jq .number`. Then labels with `gh api -X POST "repos/{owner}/{repo}/issues/<n>/labels" -f 'labels[]=<a>'` and the assignee with `gh api -X POST "repos/{owner}/{repo}/issues/<n>/assignees" -f 'assignees[]=<login>'`.
   - Update: the PATCH fallback below, after the bot-span append from _Update_.
   - Diff and commits: `gh api -H 'Accept: application/vnd.github.diff' "repos/{owner}/{repo}/pulls/<n>"` and `gh api "repos/{owner}/{repo}/pulls/<n>/commits" --jq '.[] | "\(.sha[:7]) \(.commit.message)"'`.
   - Verify: `gh api "repos/{owner}/{repo}/pulls/<n>" --jq '{number, title, draft, base: .base.ref, url: .html_url}'`.
@@ -32,8 +32,7 @@ Host commands for `submit-changes`. Read Gotchas before running anything.
 - **`gh pr edit` fails with a Projects (classic) GraphQL error** on older gh. Fall back to:
 
   ```bash
-  body="$(git rev-parse --git-dir)/PR_BODY.md"
-  gh api -X PATCH "repos/{owner}/{repo}/pulls/<number>" -F body=@"$body"
+  gh api -X PATCH "repos/{owner}/{repo}/pulls/<number>" -F body=@<tmp>/PR_BODY.md
   ```
 
 ## Lookups
@@ -124,19 +123,18 @@ On squash-merge repos the PR title becomes the commit subject, so the title shap
 gh pr diff <number-or-url>
 gh pr view <number-or-url> --json commits \
   --jq '.commits[] | "\(.oid[:7]) \(.messageHeadline)\n\(.messageBody)"'
-gh pr view <number-or-url> --json files --jq '.files[].path' > <temp>/PR_FILES.txt
+gh pr view <number-or-url> --json files --jq '.files[].path' > <tmp>/PR_FILES.txt
 ```
 
 ## Create
 
 ```bash
-body="$(git rev-parse --git-dir)/PR_BODY.md"
 gh pr create \
   --draft \
   --head <branch> \
   --base <base> \
   --title "<title>" \
-  --body-file "$body" \
+  --body-file <tmp>/PR_BODY.md \
   --assignee @me \
   --label "<a>,<b>"
 ```
@@ -148,11 +146,10 @@ Fork workflow: push to the fork, then create with `--repo <upstream>` and `--hea
 ## Update
 
 ```bash
-body="$(git rev-parse --git-dir)/PR_BODY.md"
-echo >> "$body"
+echo >> <tmp>/PR_BODY.md
 gh pr view <number-or-url> --json body --jq .body \
-  | awk '/^<!-- This is an auto-generated comment/,/^<!-- end of auto-generated comment/' >> "$body"
-gh pr edit <number-or-url> --body-file "$body"
+  | awk '/^<!-- This is an auto-generated comment/,/^<!-- end of auto-generated comment/' >> <tmp>/PR_BODY.md
+gh pr edit <number-or-url> --body-file <tmp>/PR_BODY.md
 ```
 
 The fetch and awk carry every bot span from the live body; skip neither, even for a one-line touch-up. Add `--title` or `--add-label` only if the user approved changing them. Pass `--attach <file>` once per screenshot the same way as on create (gh 2.99.0+, see Gotchas).

@@ -290,10 +290,36 @@ class DiffConsistency(unittest.TestCase):
         body = shaped(approach="The listener test covers the press.")
         self.assertEqual(run(body, ["src/a.ts"]), (0, []))
 
+    def test_base_lists_files_from_git(self):
+        with tempfile.TemporaryDirectory() as repo:
+            def git(*args):
+                subprocess.run(["git", "-C", repo, *args], capture_output=True, check=True)
+
+            git("init", "-q", "-b", "main")
+            git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "base")
+            with open(os.path.join(repo, "a.py"), "w", encoding="utf-8") as fh:
+                fh.write("x = 1\n")
+            git("add", "a.py")
+            git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "add a")
+
+            def lint(text):
+                p = subprocess.run(
+                    [sys.executable, "-I", SCRIPT, write(text, ".md"), "--base", "HEAD~1"],
+                    capture_output=True, text=True, check=False, cwd=repo,
+                )
+                return p.returncode, p.stdout
+
+            self.assertEqual(lint("- `a.py`: one\n"), (0, ""))
+            code, out = lint("- `b.py`: two\n")
+            self.assertEqual(code, 1)
+            self.assertIn("`b.py` is not in the diff", out)
+
 
 class Usage(unittest.TestCase):
     def test_bad_usage(self):
-        for args in ([], ["/no/such/file.md"], [write("x\n", ".md"), "--files"], [write("x\n", ".md"), "--nope", "y"]):
+        for args in ([], ["/no/such/file.md"], [write("x\n", ".md"), "--files"], [write("x\n", ".md"), "--nope", "y"],
+                     [write("x\n", ".md"), "--files", "a.txt", "--base", "main"],
+                     [write("x\n", ".md"), "--base", "no-such-ref-xyz"]):
             p = subprocess.run([sys.executable, "-I", SCRIPT, *args], capture_output=True, text=True, check=False)
             self.assertEqual(p.returncode, 2, args)
 

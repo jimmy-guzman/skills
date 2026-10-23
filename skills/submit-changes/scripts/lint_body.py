@@ -5,15 +5,17 @@ Stdlib only.
 """
 
 import re
+import subprocess
 import sys
 
 USAGE = """\
 Usage:
-  lint_body.py BODY.md [--files CHANGED.txt]
+  lint_body.py BODY.md [--files CHANGED.txt | --base REF]
 
 Prints one line per problem: BODY.md:LINE: message
 A warning is prefixed "warning: "; it asks a question, it does not fail.
 CHANGED.txt holds one changed path per line (git diff --name-only).
+--base REF lists them itself with git diff --name-only REF...HEAD.
 
 Errors, anywhere:
   em dash, en dash, middle dot, curly quotes or apostrophes
@@ -26,7 +28,7 @@ or "### Review" heading):
   a section heading with nothing under it, or one that appears twice
   Why first (only a ticket line may precede it), Review last
   Why opening with "This PR", "This change", "Adds", and the like
-Errors with --files:
+Errors with --files or --base:
   a backticked path that is not in the diff
   a claim of a new or added test when no test file changed
 Warnings:
@@ -38,7 +40,7 @@ Warnings:
 Exit codes:
   0 clean, or warnings only
   1 errors found; fix every error before showing the body
-  2 bad arguments or unreadable file
+  2 bad arguments, unreadable file, or failed git diff
 """
 
 CHARS = {
@@ -242,13 +244,21 @@ def main(argv):
         return 0 if argv else 2
     path, files = argv[0], None
     rest = argv[1:]
-    if rest == ["--files"] or len(rest) not in (0, 2) or (rest and rest[0] != "--files"):
+    if len(rest) not in (0, 2) or (rest and rest[0] not in ("--files", "--base")):
         print(USAGE)
         return 2
     try:
         lines = read_lines(path)
-        if rest:
+        if rest and rest[0] == "--files":
             files = [f.strip() for f in read_lines(rest[1]) if f.strip()]
+        elif rest:
+            out = subprocess.run(
+                ["git", "diff", "--name-only", f"{rest[1]}...HEAD"], capture_output=True, text=True, check=True
+            ).stdout
+            files = [f.strip() for f in out.splitlines() if f.strip()]
+    except subprocess.CalledProcessError as e:
+        print(f"error: git diff failed: {e.stderr.strip()}", file=sys.stderr)
+        return 2
     except (OSError, UnicodeDecodeError) as e:
         print(f"error: can't read: {e}", file=sys.stderr)
         return 2

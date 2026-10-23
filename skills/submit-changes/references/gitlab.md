@@ -120,19 +120,18 @@ glab mr diff <iid>
 glab api "projects/:id/merge_requests/<iid>/commits" \
   | jq -r '.[] | "\(.short_id) \(.title)\n\(.message)"'
 glab api "projects/:id/merge_requests/<iid>/diffs?per_page=100" \
-  | jq -r '.[].new_path' > <temp>/PR_FILES.txt
+  | jq -r '.[].new_path' > <tmp>/PR_FILES.txt
 ```
 
 ## Create
 
 ```bash
-body="$(git rev-parse --git-dir)/PR_BODY.md"
 glab mr create --yes \
   --draft \
   --source-branch <branch> \
   --target-branch <target> \
   --title "<title>" \
-  --description-file "$body" \
+  --description-file <tmp>/PR_BODY.md \
   --assignee @me \
   --label "<a>,<b>"
 ```
@@ -144,11 +143,10 @@ Fork workflow: push to the fork, then create with `-R <upstream>`, `--head <fork
 ## Update
 
 ```bash
-body="$(git rev-parse --git-dir)/PR_BODY.md"
-echo >> "$body"
+echo >> <tmp>/PR_BODY.md
 glab mr view <iid> -F json | jq -r '.description // empty' \
-  | awk '/^<!-- This is an auto-generated comment/,/^<!-- end of auto-generated comment/' >> "$body"
-glab mr update <iid> --yes --description-file "$body"
+  | awk '/^<!-- This is an auto-generated comment/,/^<!-- end of auto-generated comment/' >> <tmp>/PR_BODY.md
+glab mr update <iid> --yes --description-file <tmp>/PR_BODY.md
 ```
 
 The fetch and awk carry every bot span from the live body; skip neither, even for a one-line touch-up. Add `--title` or `--label` only if the user approved changing them. Changing the title on a draft MR: pass `--draft` alongside it (see Gotchas) so it stays draft.

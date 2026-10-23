@@ -36,6 +36,7 @@ When a source has a convention, follow it. When none does, use the fallback and 
 ## In any agent
 
 - To ask the user something, use the agent's question tool if it has one. Otherwise ask in plain text with numbered choices, and wait for the answer.
+- Scratch files (body, file list) go in a temp dir, never under `.git`: in a linked worktree `git rev-parse --git-dir` points into the main checkout, and some hosts refuse writes there (Claude Code inside a worktree does). Run `mktemp -d` once as its own command and reuse the printed path as a literal, written `<tmp>` below. Never rebuild it with `$(...)`.
 
 ## Process
 
@@ -176,7 +177,6 @@ Show the count and ask whether to update now (merge or rebase) or continue as is
 git diff --stat <remote>/<base>...HEAD
 git log <remote>/<base>..HEAD --format='%h %s%n%b'
 git diff <remote>/<base>...HEAD -- . ':(exclude,glob)**/*.lock' ':(exclude,glob)**/*-lock.*' ':(exclude,glob)**/go.sum'
-git diff --name-only <remote>/<base>...HEAD > "$(git rev-parse --git-dir)/PR_FILES.txt"   # for the §5 lint
 ```
 
 Skip generated code, snapshots, and vendored files when reading. When the stat runs past about 1,500 lines, drop the last line and read the diff per file group instead.
@@ -218,16 +218,14 @@ Never state a before you didn't observe. A test that is new in this diff and was
 
 ### 5. Confirm inline
 
-Write the drafted body to a file, then lint it. Fix every error and rerun until it exits 0, before showing the user. A `warning:` line flags length or shape: reread the span, cut what the diff already says, keep what the reviewer needs. Keeping one is fine; say so in the chat summary.
+Write the drafted body to `<tmp>/PR_BODY.md`, then lint it. Fix every error and rerun until it exits 0, before showing the user. A `warning:` line flags length or shape: reread the span, cut what the diff already says, keep what the reviewer needs. Keeping one is fine; say so in the chat summary.
 
 ```bash
-body="$(git rev-parse --git-dir)/PR_BODY.md"
-files="$(git rev-parse --git-dir)/PR_FILES.txt"
-# Write the drafted body to $body here. $files was written in §2.
-python3 <skill-dir>/scripts/lint_body.py "$body" --files "$files"
+python3 <skill-dir>/scripts/lint_body.py <tmp>/PR_BODY.md --base <remote>/<base>   # create, update
+python3 <skill-dir>/scripts/lint_body.py <tmp>/PR_BODY.md --files <tmp>/PR_FILES.txt   # describe
 ```
 
-Each shell command may start a fresh shell, so a variable or `trap` from one command is gone in the next: recompute `body` and `files` with the same lines in every command that uses them. Inside `.git` they are never committed. Outside a git repo (describe mode from anywhere), use the agent's temp directory and reuse the literal paths.
+`--base` lists the changed files itself. Describe takes them from the host instead, saved in §2.
 
 Before printing, apply the attribution rule from Principle.
 
@@ -256,7 +254,7 @@ The body is already on disk from §5. Run _Create_ (create mode) or _Update_ (de
 
 ### 7. Verify
 
-Run _Verify_ from the reference file. Confirm draft state and base match what §5 showed. Delete the body and file-list files. Report the PR URL.
+Run _Verify_ from the reference file. Confirm draft state and base match what §5 showed. Delete `<tmp>`. Report the PR URL.
 
 ## Voice
 

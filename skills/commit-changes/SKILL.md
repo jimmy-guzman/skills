@@ -108,14 +108,16 @@ If the user corrects a convention and it sounds durable ("we never use scopes"),
 
 ### 5. Commit and verify
 
-One chained call. Drop `git add -u` when the user already staged; use `git add <paths>` for untracked files they approved:
+Run these as separate plain commands, with `<path>` being the literal path step 4 printed. Stop at the first failure. Never rebuild the path with `$(...)` or join the commands with `&&`, because some hosts refuse those (Claude Code inside a worktree does). Drop `git add -u` when the user already staged; use `git add <paths>` for untracked files they approved:
 
 ```bash
-f="$(git rev-parse --git-dir)/COMMIT_BODY.md"
-git add -u && git commit -F "$f" && git log -1 --format='%H%n%s%n%b' && rm "$f"
+git add -u
+git commit -F <path>
+git log -1 --format='%H%n%s%n%b'
+rm <path>
 ```
 
-Amend: `git commit --amend -F "$f"`.
+Amend: `git commit --amend -F <path>`.
 
 If a hook rejects or rewrites the message, show its output verbatim and stop.
 
