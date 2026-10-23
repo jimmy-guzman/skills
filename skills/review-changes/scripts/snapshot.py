@@ -45,7 +45,10 @@ def snapshot():
         if real.exists():
             shutil.copyfile(real, idx)
         env = {**os.environ, "GIT_INDEX_FILE": str(idx)}
-        git("add", "-A", "--", ":/", ":!/.claude/worktrees", env=env)
+        # git add refuses any pathspec naming an ignored path, exclusions included,
+        # and an ignored '.claude/worktrees' is skipped without one.
+        ignored = subprocess.run(["git", "check-ignore", "-q", ".claude/worktrees"]).returncode == 0
+        git("add", "-A", "--", ":/", *([] if ignored else [":!/.claude/worktrees"]), env=env)
         tree = git("write-tree", env=env).decode().strip()
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
