@@ -163,6 +163,16 @@ class PackTest(unittest.TestCase):
             self.assertEqual(res.returncode, 0, res.stderr)
             self.assertEqual((pathlib.Path(out) / "anchors.txt").read_text(), "")
 
+    def test_diff_from_file_matches_stdin(self):
+        with tempfile.TemporaryDirectory() as repo, tempfile.TemporaryDirectory() as out:
+            git = make_repo(repo)
+            rev = git("rev-parse", "HEAD").decode().strip()
+            patch = pathlib.Path(out) / "in.patch"
+            patch.write_bytes(git("diff", "HEAD~1", "HEAD"))
+            res = run_pack(repo, b"", "--diff", str(patch), "--out", str(pathlib.Path(out) / "pack"), "--rev", rev)
+            self.assertEqual(res.returncode, 0, res.stderr)
+            self.assertIn("def close_tab", (pathlib.Path(out) / "pack" / "files" / "pkg" / "src" / "tabs.py").read_text())
+
     def test_empty_diff_fails(self):
         res = run_pack(None, b"", "--out", tempfile.mkdtemp())
         self.assertEqual(res.returncode, 1)

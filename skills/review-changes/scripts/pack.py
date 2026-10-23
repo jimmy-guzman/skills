@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build the review pack: the diff, the changed files, and a head start on discovery.
 
-Reads a unified diff on stdin and writes, under --out:
+Reads a unified diff on stdin (or from --diff FILE) and writes, under --out:
   diff.patch     the diff as given
   files/<path>   each changed file at --rev (or from the working tree)
   callers.txt    git grep hits for symbols the diff defines or touches
@@ -11,6 +11,7 @@ Stdlib only. Runs from the repo root whatever the working directory.
 
 Usage:
   <diff command> | pack.py --out DIR [--rev REV] [--extra PATH ...] [--spec PATH]
+  pack.py --diff FILE --out DIR ...   (for hosts that refuse shell pipes)
 
 --extra copies untracked working-tree files into files/ (read-only mode, where
 the diff can't show them). --spec is a text file holding the spec source (a
@@ -101,11 +102,13 @@ def main():
     ap.add_argument("--rev")
     ap.add_argument("--extra", nargs="*", default=[])
     ap.add_argument("--spec")
+    ap.add_argument("--diff")
     a = ap.parse_args()
     out = pathlib.Path(a.out).resolve()
-    diff = sys.stdin.buffer.read().decode("utf-8", "replace")
+    raw = pathlib.Path(a.diff).read_bytes() if a.diff else sys.stdin.buffer.read()
+    diff = raw.decode("utf-8", "replace")
     if not diff.strip():
-        sys.exit("pack.py: empty diff on stdin")
+        sys.exit("pack.py: empty diff")
     spec_text = pathlib.Path(a.spec).read_text(errors="replace") if a.spec else ""
     top = git("rev-parse", "--show-toplevel")
     if top is None:

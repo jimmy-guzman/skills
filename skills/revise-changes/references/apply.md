@@ -3,16 +3,7 @@
 Read this once §3 has labeled every finding. Section numbers point to SKILL.md. The "concern" here is already given by the thread, so there's no picking step, but the fix discipline is the same as a fresh review's.
 
 - Re-resolve the PR now: re-run `pr.py state`. If the head moved since §1's fetch (a rebase, a force-push, new commits landed), say so and ask whether to re-run §1-3 against the new diff before continuing. The pre-apply/post-apply diff below only catches regressions from the fix itself.
-- Before editing, take a snapshot. It saves the working tree, untracked files included, as a commit, and leaves the user's index and files alone. It covers the whole repo from any working directory, and skips `.claude/worktrees`, where Claude Code puts subagent worktrees:
-
-  ```sh
-  idx=$(mktemp) && cp "$(git rev-parse --git-path index)" "$idx" \
-    && GIT_INDEX_FILE=$idx git add -A -- ':/' ':!/.claude/worktrees' \
-    && git commit-tree "$(GIT_INDEX_FILE=$idx git write-tree)" -p HEAD -m revise-snapshot
-  rm -f "$idx"
-  ```
-
-  The SHA it prints is the pre-apply snapshot.
+- Before editing, take a snapshot: `python3 scripts/snapshot.py`. It saves the working tree, untracked files included, as a commit, and leaves the user's index and files alone. It covers the current worktree from any working directory, and skips `.claude/worktrees`, where Claude Code puts subagent worktrees. One plain command, so hosts that refuse `$(...)`, chains, or pipes still run it. The SHA it prints is the pre-apply snapshot.
 - Fix only Reproduced and Traced findings. Refuted and Unverified ones are explained, not fixed, in §5's reply.
 - Keep each change minimal. A bug fix gets a test that fails without it, when the repo has tests; for a fix that scopes or filters data per key, that test needs two keys whose correct values differ, not one shared fixture both paths would satisfy. If §3 reproduced the claim with a new test, bring that test over.
 - Run the repo's own checks afterward. Find them in agent docs first, then in the scripts of `package.json`, `Makefile`, `justfile`, or the equivalent.
