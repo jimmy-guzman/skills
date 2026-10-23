@@ -43,20 +43,11 @@ On GitLab, exit 7 means the user already has unpublished draft notes on the MR, 
 - `pr.py post` starts every post, finding or summary, with `<!-- review-changes: <head_sha> -->`; don't write it in the body. The next preflight reads it to spot "already reviewed at this SHA", so a run that posts findings without a summary still counts.
 - Post the summary comment unless the user said "no summary" (or otherwise declined it) in the §5 ask.
 
-Unless the user declined it, the summary is the batch's last entry, with no `path` or `line`. The body is the `Change:` line, the verdict, recounted over the posted findings, the `Reviewed:` line, the Standards and Spec footer lines if the report has them, and one line per posted finding: number, title, `file:line`. Leave out the `Left out:` line and the agent handoff line.
+Unless the user declined it, the summary is the batch's last entry, with no `path` or `line`. The body is two lines: the verdict, recounted over the posted findings, then `Reviewed at <short sha> against <sources>.` Nothing else: the threads already carry the findings, so leave out the `Change:` line, the Standards and Spec footer, any list of findings, the `Left out:` line, and the agent handoff line. A post-merge batch (`--allow-closed`) adds a third line saying these are post-merge follow-ups.
 
 ```text
-Change: Closing a tab now picks a neighbour instead of leaving none active, and each tab remembers its caret so switching back restores it.
-
 Not ready: 1 Major (1). 1 question (2).
 Reviewed at 1a2b3c4 against AGENTS.md and issue #41.
-
-Standards (AGENTS.md): 3. Walked 12 rules against 6 changed files.
-Spec (issue #41): Completeness 2.
-
-1. Fall back to the previous tab when the last one closes, `src/store/tabs.ts:88`
-2. Should a tab keep its scroll position, as issue #41 asks?, `src/store/tabs.ts:40`
-3. Delete the comment that restates the code, `src/store/tabs.ts:70-74`
 ```
 
 Then report what landed in one block:
@@ -88,4 +79,4 @@ When the user decides a posted finding no longer holds as scored (lower severity
 
 1. Reply on the finding's thread saying so, in a few words: `pr.py reply <pr> --comment <id> --body-file <tmp>`.
 2. Resolve the thread: `pr.py resolve <pr> --comment <id>`.
-3. If a summary was posted, patch it (the review body on GitHub, or the general comment on GitLab, that starts with the `<!-- review-changes: <sha> -->` marker and lists the findings) with `pr.py edit <pr> --comment <summary-id> --review --body-file <tmp>` (`--general` in place of `--review` when `post` said `general`), so it still matches what the threads show: strike through that finding's line and add its new disposition in a few words, e.g. `~~2. Delete the comment that restates the code~~ (downgraded to nice to have, resolved)`. Don't delete the line or leave it stale.
+3. If a summary was posted, patch it (the review body on GitHub, or the general comment on GitLab, that starts with the `<!-- review-changes: <sha> -->` marker) with `pr.py edit <pr> --comment <summary-id> --review --body-file <tmp>` (`--general` in place of `--review` when `post` said `general`), so its verdict still matches what the threads show: recount it and note the change in a few words, e.g. `Ready. 3 findings. 1 question (2). (1 downgraded to nice to have, resolved.)` Don't leave it stale.
