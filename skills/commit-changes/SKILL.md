@@ -93,16 +93,18 @@ Reverts skewed the dominant shape.
 EOF
 ```
 
-Fix every flagged line and rerun until it exits 0. Then print one block:
+Fix every flagged line and rerun until it exits 0. Then print a short list, one fact per line, in plain words, with the message first and the actions last. Style is one of: the repo's commit history, the repo's commit config, or Conventional Commits (no style found). When amending, say so on the Message line:
 
-```
-mode: create | branch: feat/x | convention: repo history | repo config | conventional (fallback)
-type: fix (corrects recent-commit filter) | scope: commit-changes
-message: fix(commit-changes): 🐛 skip reverts in the sample
-stage: 3 files via git add -u | hooks: commit-msg (commitlint)
+```markdown
+- Message: `fix(commit-changes): 🐛 skip reverts in the sample`
+- Branch: `feat/x`
+- Type: `fix`, since it corrects the recent-commit filter
+- Scope: `commit-changes`
+- Style: the repo's commit history
+- Will stage 3 files with `git add -u`, then run the `commit-msg` hook (commitlint)
 ```
 
-With candidates, list them numbered instead of `message:`. If the user's message already said to commit, continue to step 5; otherwise ask: `Commit this? Say "commit", or name a different message.`
+With candidates, list them numbered in place of the Message line. If the user's message already said to commit, continue to step 5; otherwise ask: `Commit this? Say "commit", or name a different message.`
 
 If the user corrects a convention and it sounds durable ("we never use scopes"), offer once to add it to `AGENTS.md` (team) or the user's personal agent instructions (personal). Don't write either without a yes.
 

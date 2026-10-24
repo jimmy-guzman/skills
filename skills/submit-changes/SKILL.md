@@ -231,13 +231,18 @@ Before printing, apply the attribution rule from Principle.
 
 If §2 found no why, or nothing was said for Review, ask with the draft, in the same message: "What prompted this?" and "Anything the reviewer should focus on, challenge, or know wasn't exercised?" The user corrects a body, not a form. A "just open it" skips the Review question, never the Why one: a body with no why doesn't ship, so lint again once the answer is in.
 
-Print a one-block conventions summary, then the title and body:
+Before the title and body, print a short list of the conventions you found. One fact per line, in plain words. Give a source only where the user might disagree. Put all the empty fields on one "Not set" line. Put the actions last:
 
-```
-host: GitLab | mode: create | base: develop (AGENTS.md)
-title: `TICKET: desc` (7/10 recent MRs) | template: Default.md
-ticket: PROJ-123 via recent MR descriptions | closing: Closes (6/10)
-labels: frontend (8/10 of yours) | assignee: @me | draft: yes
+```markdown
+- Opening a merge request on GitLab into `develop` (from AGENTS.md)
+- Title: `PROJ-123: desc`, like 7 of the last 10 MRs
+- Body: the `Default.md` template
+- Ticket: PROJ-123, closed with `Closes`
+- Labels: `frontend`, like 8 of your last 10
+- Assignee: you
+- Draft: yes
+- Not set: attribution footer (recent MRs have none)
+- Will push `feat-x` to origin first
 ```
 
 For describe and update, also show what changed against the current description.
