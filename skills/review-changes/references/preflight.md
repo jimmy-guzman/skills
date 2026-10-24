@@ -33,8 +33,8 @@ The report is only the PR's state, from `scripts/pr.py state`:
 
 ```text
 Context-only: <state> PR <ref>, head <short_sha>
-Title: <title>
-Author: <author>
+Title: `<title>`
+Author: `<author>`
 Threads: <open> open, <resolved> resolved. Last review: <short sha from reviewed_shas, or "none">.
 
 No review run.

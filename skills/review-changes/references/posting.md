@@ -61,10 +61,11 @@ On GitLab, exit 7 means the user already has unpublished draft notes on the MR, 
 - `pr.py post` starts every post, finding or summary, with `<!-- review-changes: <head_sha> -->`; don't write it in the body. The next preflight reads it to spot "already reviewed at this SHA", so a run that posts findings without a summary still counts.
 - Post the summary comment unless the user said "no summary" (or otherwise declined it) in the §5 ask.
 
-Unless the user declined it, the summary is the batch's last entry, with no `path` or `line`. The body is two lines: the verdict, recounted over the posted findings, then `Reviewed at <short sha> against <sources>.` Nothing else: the threads already carry the findings, so leave out the `Change:` line, the Standards and Spec footer, any list of findings, the `Left out:` line, and the agent handoff line. A post-merge batch (`--allow-closed`) adds a third line saying these are post-merge follow-ups.
+Unless the user declined it, the summary is the batch's last entry, with no `path` or `line`. The body is two lines: the verdict, recounted over the posted findings, then `Reviewed at <short sha> against <sources>.` Nothing else: the threads already carry the findings, so leave out the `Change:` line, the Standards and Spec footer, any list of findings, the `Left out:` line, and the agent handoff line. A post-merge batch (`--allow-closed`) adds a third line saying these are post-merge follow-ups. Put a blank line between lines, as in the findings, and keep it when patching the summary later.
 
 ```text
 Not ready: 1 Major (1). 1 question (2).
+
 Reviewed at 1a2b3c4 against AGENTS.md and issue #41.
 ```
 
