@@ -1,0 +1,67 @@
+{
+  "skill_name": "retro-changes",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "retro PR 285, it got reverted two days after we merged it",
+      "expected_output": "Reads the PR with gh pr view, the inline threads with gh api .../pulls/285/comments, and failed runs with gh run list -L 200. Fetches the base, lists commits after the merge oldest first, and finds the revert. Prints the verdict line naming the state as merged then reverted, one block per lesson with Cost, Side, and Fix, where the revert's root cause is routed to a code fix (a test or a type) rather than a doc rule. Ends with one multi-select question. Nothing written, applied, or posted.",
+      "files": [],
+      "assertions": [
+        "Inline review comments were read with gh api repos/{owner}/{repo}/pulls/285/comments, not only gh pr view --json comments",
+        "git fetch ran on the base before the post-merge git log, and that log used --reverse and head -50",
+        "The verdict line names the state as merged then reverted and gives the lesson count by fix kind",
+        "Every lesson's Cost line cites a comment URL, a short SHA, or quoted user words",
+        "The lesson behind the revert is routed to a code fix, not to a doc or memory line",
+        "No comment was posted on the PR, nothing was edited, and the run ends with one multi-select question"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "retro this session. for context, earlier I had to tell you twice: \"no Co-Authored-By line, I said that already\"",
+      "expected_output": "No PR or forge call. Treats the conversation as the record, quotes the user's correction as written, and routes the lesson to the user's memory or personal agent instructions, since it is about how this user works, not about the repo. Prints the proposal and asks before writing.",
+      "files": [],
+      "assertions": [
+        "No gh or glab command ran",
+        "The Cost line quotes the user's own words without making them stronger",
+        "The fix target is the user's memory or personal agent instructions, not AGENTS.md",
+        "Nothing was written before the user picked the lesson in the question"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "retro what we just did. the pnpm skill told you to run pnpm install --frozen-lockfile in a repo with no lockfile, and review-changes posted its summary comment twice",
+      "expected_output": "Reads ~/.agents/.skill-lock.json and the user's login. pnpm's source is antfu/skills, so it gets no feedback. review-changes' source is the user's own repo, so the lesson is a SKILL.md diff at skills/review-changes/ in the source checkout (this repo), never under ~/.agents/skills or ~/.claude/skills.",
+      "files": [],
+      "assertions": [
+        "~/.agents/.skill-lock.json was read and the user's login was looked up with gh api user",
+        "No lesson or proposed edit targets the pnpm skill",
+        "The review-changes lesson proposes a diff to skills/review-changes/SKILL.md or its references in the source checkout",
+        "No file under ~/.agents/skills or ~/.claude/skills was edited or proposed for editing"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "what can we learn from !482? we closed it last week without merging",
+      "expected_output": "Reads the MR with glab mr view -F json and the threads with glab api projects/:id/merge_requests/482/discussions --paginate. Settles the state as closed unmerged, looks for an MR that replaced it, and gives the reason it died as a cost. Posts nothing on either MR.",
+      "files": [],
+      "assertions": [
+        "Threads were read with glab api projects/:id/merge_requests/482/discussions",
+        "The verdict line names the state as closed unmerged",
+        "The report says whether another MR replaced it",
+        "No note or comment was posted on any MR"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "retro my branch, it was just the typo fix in the README",
+      "expected_output": "No PR on the branch, so it reads git log against the base. The only cost is a one-off typo with no repeatable cause, so it is dropped. Prints No lessons worth a fix, lists what was dropped and why, and stops without a question.",
+      "files": [],
+      "assertions": [
+        "The branch was read with git log <base>..<branch> after the PR lookup found none",
+        "The report says No lessons worth a fix",
+        "The typo appears under Dropped with a one-off reason",
+        "No apply question was asked and nothing was written"
+      ]
+    }
+  ]
+}

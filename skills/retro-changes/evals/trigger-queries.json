@@ -1,0 +1,22 @@
+[
+  { "query": "retro PR 285", "should_trigger": true },
+  { "query": "what can we learn from !482", "should_trigger": true },
+  { "query": "why did https://github.com/acme/app/pull/77 take five review rounds", "should_trigger": true },
+  { "query": "this got reverted the day after it merged, what should change so it doesn't happen again", "should_trigger": true },
+  { "query": "retro this session", "should_trigger": true },
+  { "query": "look back on what we just built and tell me what to fix in the repo or my skills", "should_trigger": true },
+  { "query": "we closed #310 without merging, anything worth learning from it?", "should_trigger": true },
+  { "query": "run retro-changes on my branch", "should_trigger": true },
+  { "query": "the reviewer kept catching the same thing on my last PR, how do we stop that", "should_trigger": true },
+  { "query": "that went badly, what should we add to AGENTS.md or the lint config from it", "should_trigger": true },
+  { "query": "review PR 285", "should_trigger": false },
+  { "query": "address the comments on !482", "should_trigger": false },
+  { "query": "write a postmortem for last night's outage", "should_trigger": false },
+  { "query": "what did we ship this sprint, give me a retro across all merged PRs", "should_trigger": false },
+  { "query": "plan #41 before I start", "should_trigger": false },
+  { "query": "revert PR 285", "should_trigger": false },
+  { "query": "summarize what PR 285 changed", "should_trigger": false },
+  { "query": "commit this", "should_trigger": false },
+  { "query": "audit this repo for over-engineering", "should_trigger": false },
+  { "query": "open a PR for this branch", "should_trigger": false }
+]
