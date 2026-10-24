@@ -152,7 +152,7 @@ Each finding has:
 - `file:line`.
 - Up to three plain sentences: what triggers it, what the code does, what the user ends up seeing. Then the fix.
 - An `Evidence:` line: the command and the failing output for Reproduced, or the file:line steps for Traced. Leave it out when the prose already shows the whole path. When §4 changed the severity, say why here.
-- A diff of the fix when it is a few lines. A heavy lift gets the approach in a sentence. In Suggest mode, name the file, the symbol, and the change precisely enough that someone without this conversation can make it.
+- A diff of the fix when it is a few lines, in a ```` ```diff ```` fence so the `-` and `+` lines don't render as a list. A heavy lift gets the approach in a sentence. In Suggest mode, name the file, the symbol, and the change precisely enough that someone without this conversation can make it.
 
 A question differs in two places. Its title asks which side is right and names the source. In place of the fix, two lines: `If <source> holds:` and the code fix, then `If <source> is out of date:` and the `source_fix`.
 
@@ -165,7 +165,7 @@ Labels:
 
 The footer is one line per source, written after §4 from what survived. `Standards (<source>): <finding numbers, or none>. Walked N rules against M changed files.` Then `Spec (<source>):` with only the verdicts that name a finding, as `Completeness 2. Scope 5.`; when none does, `Spec (<source>): none.` The reviewer's sentence on what it checked for a none verdict stays out of the report; "show left out" prints it. Under §3's rule 4, Spec didn't run: leave its line out, and a Consistency finding rides on the Standards line.
 
-```text
+````text
 Change: Closing a tab now picks a neighbour instead of leaving none active, and each tab remembers its caret so switching back restores it. A retry wrapper is added around the note read.
 
 Not ready: 1 Major (1). 1 question (2).
@@ -178,8 +178,10 @@ Must fix
    Closing the last tab reads `next[index]`, which is past the end after the removal. The app is left with tabs open and none active.
    Evidence: `pnpm test tabs -t "closes last tab"` fails: expected "t2", received null.
 
+   ```diff
    -  const active = next[index] ?? null;
    +  const active = next[Math.min(index, next.length - 1)] ?? null;
+   ```
 
 Questions
 2. Should a tab keep its scroll position, as issue #41 asks?
@@ -207,7 +209,7 @@ Worth an issue
 
 Left out: 1 judgment call, 2 unverified, 1 refuted. Say "show left out" to see them.
 Say "apply", or name the numbers. Answer questions as "2: code" or "2: source".
-```
+````
 
 With nothing to report:
 
