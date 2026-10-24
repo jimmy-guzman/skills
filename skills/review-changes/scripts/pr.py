@@ -356,7 +356,7 @@ class GitHub:
         return cid
 
     def reply(self, cid, body):
-        return self.api("-X", "POST", f"repos/{{owner}}/{{repo}}/pulls/comments/{cid}/replies",
+        return self.api("-X", "POST", f"repos/{{owner}}/{{repo}}/pulls/{self.number}/comments/{cid}/replies",
                         body={"body": body})["id"]
 
     def resolve(self, cid):

@@ -458,7 +458,7 @@ class FollowUpGitHub(FakeGh):
         code, out, _ = self.run_pr("reply", "285", "--comment", "991", "--body-file", self.body)
         self.assertEqual((code, out["reply"]), (0, True))
         (w,) = self.writes()
-        self.assertIn("repos/{owner}/{repo}/pulls/comments/991/replies", w["argv"])
+        self.assertIn("repos/{owner}/{repo}/pulls/285/comments/991/replies", w["argv"])
 
     def test_resolve_matches_thread_by_first_comment(self):
         code, out, _ = self.run_pr("resolve", "285", "--comment", "991")

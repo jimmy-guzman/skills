@@ -166,7 +166,7 @@ class EndToEndGitHub(unittest.TestCase):
     def test_reply_posts_to_first_comment(self):
         code, out, _ = self.run_pr("reply", "285", "--thread", "PRRT_1", "--body-file", self.body)
         self.assertEqual((code, out["replied"], out["resolved"]), (0, True, False))
-        self.assertIn("501/replies", " ".join(self.posted()[0]["argv"]))
+        self.assertIn("repos/{owner}/{repo}/pulls/285/comments/501/replies", self.posted()[0]["argv"])
 
     def test_reply_with_resolve_calls_mutation(self):
         code, out, _ = self.run_pr("reply", "285", "--thread", "PRRT_1", "--body-file", self.body,

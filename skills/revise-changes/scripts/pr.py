@@ -271,7 +271,7 @@ class GitHub:
         if not cid:
             raise Fail(6, f"thread {thread['id']} has no comment to reply to")
         res = self.api("-X", "POST",
-                       f"repos/{{owner}}/{{repo}}/pulls/comments/{cid}/replies",
+                       f"repos/{{owner}}/{{repo}}/pulls/{self.number}/comments/{cid}/replies",
                        body={"body": body})
         return res["id"]
 
