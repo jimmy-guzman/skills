@@ -12,6 +12,7 @@ Read by every reviewer in SKILL.md §3, alongside its own role file.
 - Never suggest a fix that needs a lint rule disabled, a shorter form that reads worse, or deleting a test because it is small.
 - The fix is the smallest change that works. Prefer one that deletes code. Never add a layer, option, or config the problem doesn't need.
 - A choice the spec made on purpose, which causes no wrong behavior and breaks no rule, is a judgment call, not a finding. A comment calling something deliberate, or older code doing the same, excuses neither wrong behavior nor a broken rule. The one exception is a `shortcut:` (or `ponytail:`) comment that names its limit and when to upgrade: that is a decision, not a finding, unless the load the repo expects already crosses the limit.
+- Wrong behavior that only outside input reaches (a paste, a file another app wrote, a URL) is a finding, not a judgment call: that input is the trust boundary. Rare is not hypothetical.
 - When existing thread anchors are passed in (file:line and first line), drop any finding that matches one on file:line and subject, unless you materially extend it.
 - Anything you haven't settled after three tries, a finding or not (a claim, a source conflict, a trace), stops there. Return it in `probe` if there's something to run or trace, otherwise as one `left_out` line saying what would settle it.
 - Return every finding, worst first, as in "Reviewer output".
