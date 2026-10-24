@@ -134,6 +134,7 @@ def lint(lines, files=None):
     review_done = False  # the Review paragraph has ended
     review_end = None  # line of the first text after the Review paragraph
     test_claims = []
+    run_in = []  # an error only beside ### headings: a repo's docs may prescribe them
 
     for n, line in enumerate(lines, 1):
         for ch, message in CHARS.items():
@@ -171,7 +172,7 @@ def lint(lines, files=None):
             continue
         m = LABEL.match(stripped)
         if m:
-            problems.append((n, f"run-in label **{m.group(1)}.**: use a ### heading"))
+            run_in.append((n, f"run-in label **{m.group(1)}.**: use a ### heading"))
         if not TICKET.match(stripped):
             preceded = True
         if label and label[0] not in filled:
@@ -211,6 +212,7 @@ def lint(lines, files=None):
     if not seen:
         return sorted(problems)
 
+    problems += run_in
     for name, at in seen:
         if name not in filled:
             problems.append((at, f"### {name} has nothing under it: write it or drop the heading"))

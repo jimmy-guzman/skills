@@ -202,9 +202,12 @@ class DefaultShape(unittest.TestCase):
         self.assertEqual(run(shaped(why="The thing was missing, so adds failed.")), (0, []))
 
     def test_run_in_labels_are_errors(self):
-        code, out = run("**Why.** Nothing closed the last tab.\n")
+        code, out = run(shaped() + "\n**Testing.** ran it\n")
         self.assertEqual(code, 1)
-        self.assertIn("run-in label **Why.**: use a ### heading", out[0])
+        self.assertIn("run-in label **Testing.**: use a ### heading", out[0])
+
+    def test_run_in_body_without_headings_passes(self):
+        self.assertEqual(run("**Why.** Nothing closed the last tab.\n"), (0, []))
 
     def test_label_limits(self):
         self.assertEqual(run(shaped(why=words(80), approach=words(100))), (0, []))
