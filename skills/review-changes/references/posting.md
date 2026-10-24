@@ -34,6 +34,24 @@ The inline findings land the way a human review does, in one request with one no
 On GitLab, exit 7 means the user already has unpublished draft notes on the MR, and publishing would send those too. Nothing posted. Say so and ask them to publish or delete their drafts first; never delete them yourself.
 
 - The body is the full finding: title, label line with its evidence label, `file:line`, prose, the `Evidence:` line, and the fix. The evidence tells the author what was run and what was only read.
+- Shape it for the host's markdown, not the report's. The title is `**3. Title**`, keeping the report number the summary points to. Nothing is indented. Put a blank line between parts: GitLab joins lines split by a single newline into one paragraph.
+
+  ````markdown
+  **1. Fall back to the previous tab when the last one closes**
+
+  Major | Quick win | Reproduced
+
+  `src/store/tabs.ts:88`
+
+  Closing the last tab reads `next[index]`, which is past the end after the removal. The app is left with tabs open and none active.
+
+  Evidence: `pnpm test tabs -t "closes last tab"` fails: expected "t2", received null.
+
+  ```diff
+  -  const active = next[index] ?? null;
+  +  const active = next[Math.min(index, next.length - 1)] ?? null;
+  ```
+  ````
 - A question posts as the report shows it: the question title and both `If` lines, so the author picks the side. When the user answered it ("2: code" or "2: source"), post only that side, with a command title like any finding.
 - A finding about a new test, with no line yet, anchors on the nearest sibling test and names it in the body ("sibling of `test_x`").
 - A finding with no file (for example "the description is empty") leaves out `--path` and `--line` and becomes one general comment.

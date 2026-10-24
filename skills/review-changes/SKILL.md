@@ -143,7 +143,7 @@ Group the findings by what to do, and number straight through so "apply 1-4" spa
 - **Nice to have**: Minor findings whose `sees` (or `does`, if `sees` is empty) names no effect a user hits today: a cosmetic fix (naming, comment-only, typo) or a trigger only reachable in a hypothetical or future config.
 - **Should fix**: every other finding, and all cuts.
 
-Inside a group, worst first, cuts last. Leave out an empty group.
+Inside a group, worst first, cuts last. Leave out an empty group. Put a blank line after each group label, so a list that starts past 1 still renders as a list.
 
 Each finding has:
 
@@ -172,6 +172,7 @@ Not ready: 1 Major (1). 1 question (2).
 Reviewed: uncommitted changes (6 files, lockfile left out) against AGENTS.md and issue #41. Load assumed: one user, desktop app. Ran the tab tests.
 
 Must fix
+
 1. Fall back to the previous tab when the last one closes
    Major | Quick win | Reproduced
    `src/store/tabs.ts:88`
@@ -184,6 +185,7 @@ Must fix
    ```
 
 Questions
+
 2. Should a tab keep its scroll position, as issue #41 asks?
    Minor | Heavy lift | Traced | issue #41
    `src/store/tabs.ts:40`
@@ -193,9 +195,11 @@ Questions
    If issue #41 is out of date: drop scroll from its acceptance list.
 
 Should fix
+
 3. `src/lib/retry.ts:1-40` yagni: retry wrapper around a local, idempotent call with one caller. Call `readNote` directly.
 
 Nice to have
+
 4. Delete the comment that restates the code
    Minor | Quick win | Traced | AGENTS.md
    `src/store/tabs.ts:70-74`
