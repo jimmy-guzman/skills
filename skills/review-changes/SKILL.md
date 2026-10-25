@@ -84,7 +84,7 @@ Their briefs are one file each: [references/reviewer-bugs.md](references/reviewe
 ```text
 Read <abs path>/references/reviewer-common.md and <abs path>/references/reviewer-<role>.md.
 Briefs you cover: <roles>.
-Pack: <dir>. Revision: <sha>. Mode: <Apply or Suggest>. Running code allowed: <yes or no>.
+Pack: <dir>. Revision: <sha>. Checkout: <the session's working tree>. Mode: <Apply or Suggest>. Running code allowed: <yes or no>.
 Sources: <paths or URLs>. Thread anchors: <list or none>.
 ```
 
@@ -118,7 +118,7 @@ Each reviewer's findings are one batch. Run steps 1 and 2 on a batch as soon as 
    ```text
    New task, replacing your reviewer brief. Read <abs path>/references/reviewer-verifier.md and follow it.
    Findings: <JSON list>.
-   Revision: <sha>. Pack: <dir>. Mode: <Apply or Suggest>. Running code allowed: <yes or no>.
+   Revision: <sha>. Pack: <dir>. Checkout: <the session's working tree>. Mode: <Apply or Suggest>. Running code allowed: <yes or no>.
    ```
 
    Send this and nothing else; a fresh verifier gets it without the first clause. No reasoning, no conversation: the verifier judges each finding on its own evidence.
