@@ -35,6 +35,7 @@ compatibility: >
 - `CODEOWNERS` names who reviews code, not who decides product questions. Those go to the ticket's reporter unless the ticket says otherwise.
 - In a host plan mode every write outside the host's own plan file is blocked. The §5 question still gets asked, with the question tool, before calling the host's own plan-approval action: that action approves building from the plan, it never answers where the plan document goes, and finishing it is not a reason to skip the question. Record the answer now; carry it out once the host leaves plan mode and the write is no longer blocked.
 - With a subagent in §2, don't pull the repo's files into your own context as well. The memo is the read surface; it keeps the planner's context for the plan.
+- When the Build in answer is a worktree and the host can switch the session into one (Claude Code's EnterWorktree), create it and enter it before the host's plan-approval action, so approval lands in the worktree and the first edit cannot touch the user's tree. The user asked for the worktree, so the plan-mode write block does not cover it.
 
 ## Process
 
@@ -62,6 +63,7 @@ Every run reads:
 
 Only when it applies:
 
+- A dependency the change adds or swaps: install it in a scratch dir outside the repo and run one script to settle what the plan needs (a timing, an output shape, what an option does). That is not the repo's code, so the In any agent rule against running it does not apply. The result goes in Decided.
 - The host already loads `AGENTS.md` and `CLAUDE.md`. Read the rest (`CONTRIBUTING.md`, `GEMINI.md`, `.github/copilot-instructions.md`, ADRs, design and decision docs under `docs/`) only when one exists in or names the area; one `ls` of `docs/` settles that. The plan uses the repo's own words for things.
 - Owners (`CODEOWNERS`, recent authors in `git log`): only when §3 puts a question in the someone-else's bin and needs a name.
 
@@ -71,7 +73,7 @@ Three judgments come out of this pass and go on the plan's Risk line:
 
 - **Zone.** Red when the area touches auth, billing, permissions, data migrations, or anything the repo's docs mark sensitive: a human reviews every step. Yellow when tests are thin or missing: the first step pins today's behavior before anything changes. Green otherwise.
 - **Reversal.** How the change comes back out if it's wrong: a revert, a flag, a migration down. No clean way: the plan says so.
-- **Build in.** Ask every time, with the question tool, in the §3 batch: a worktree off the base branch as the recommended answer, the current tree as the other. Recommend the worktree for every plan, small or green-zone included, and even when the user is already on a feature branch: it keeps the build off the tree the user is working in, and a stray edit lands somewhere disposable. The answer goes on the Risk line; never decide it without asking.
+- **Build in.** Ask every time, with the question tool, in the §3 batch: a worktree off the default branch as the recommended answer, the current tree as the other. Recommend the worktree for every plan, small or green-zone included, and even when the user is already on a feature branch: it keeps the build off the tree the user is working in, and a stray edit lands somewhere disposable. The answer goes on the Risk line; never decide it without asking.
 
 ### 3. Sort every open point into a bin
 
@@ -93,7 +95,7 @@ Change: two or three sentences. What changes and why, in the ticket's or the use
 
 Kind: <feat | fix | perf | spike | docs | chore>, from <the ticket's type, a label, or the user>
 
-Risk: <zone> | reverse by <revert, flag, migration down> | in flight: <PR or none> | build in: <worktree off <base> or current tree, as the user answered>
+Risk: <zone> | reverse by <revert, flag, migration down> | in flight: <PR or none> | build in: <worktree off the default branch or current tree, as the user answered>
 
 Decided
 - <fact>, from <file:line, doc, or commit>
@@ -166,7 +168,7 @@ Kind, the Decided citations, the Steps list, Don't touch, Not doing, Done means,
 
 Before writing to a file that already exists: if it holds a plan with unfinished steps for different work, stop and ask. Someone may be mid-build from it in another session. Same on a tracker: never close or edit another plan's items to make room.
 
-Then stop. Building from the plan is a separate ask; say so in one line, and name where it starts from the Risk line (`Build in a worktree off <base>.` or `Build in the current tree.`). If building later shows a Decided line doesn't hold, the move is to stop and re-plan, not patch around it; say that too.
+Then stop. Building from the plan is a separate ask; say so in one line, and name where it starts from the Risk line (`Build in a worktree off the default branch.` or `Build in the current tree.`). If building later shows a Decided line doesn't hold, the move is to stop and re-plan, not patch around it; say that too.
 
 ## Voice
 
