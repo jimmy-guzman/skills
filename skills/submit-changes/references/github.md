@@ -27,7 +27,7 @@ Host commands for `submit-changes`. Read Gotchas before running anything.
   - Create: `gh api -X POST "repos/{owner}/{repo}/pulls" -f title="<title>" -f head=<branch> -f base=<base> -F draft=true -F body=@<tmp>/PR_BODY.md --jq .number`. Then labels with `gh api -X POST "repos/{owner}/{repo}/issues/<n>/labels" -f 'labels[]=<a>'` and the assignee with `gh api -X POST "repos/{owner}/{repo}/issues/<n>/assignees" -f 'assignees[]=<login>'`.
   - Update: the PATCH fallback below, after the bot-span append from _Update_.
   - Diff and commits: `gh api -H 'Accept: application/vnd.github.diff' "repos/{owner}/{repo}/pulls/<n>"` and `gh api "repos/{owner}/{repo}/pulls/<n>/commits" --jq '.[] | "\(.sha[:7]) \(.commit.message)"'`.
-  - Verify: `gh api "repos/{owner}/{repo}/pulls/<n>" --jq '{number, title, draft, base: .base.ref, url: .html_url}'`.
+  - Verify: `gh api "repos/{owner}/{repo}/pulls/<n>" --jq '{number, title, draft, base: .base.ref, head: .head.sha, url: .html_url}'`.
   - `--attach` has no REST form. Leave the image placeholders and say so.
 - **`gh pr edit` fails with a Projects (classic) GraphQL error** on older gh. Fall back to:
 
@@ -157,5 +157,7 @@ The fetch and awk carry every bot span from the live body; skip neither, even fo
 ## Verify
 
 ```bash
-gh pr view <number-or-url> --json number,title,isDraft,baseRefName,url
+gh pr view <number-or-url> --json number,title,isDraft,baseRefName,headRefOid,url
 ```
+
+`headRefOid` is the PR's head sha; it must equal `git rev-parse HEAD` on create and update. REST fallback: `.head.sha`.

@@ -154,5 +154,7 @@ The fetch and awk carry every bot span from the live body; skip neither, even fo
 ## Verify
 
 ```bash
-glab mr view <iid> -F json | jq '{iid, title, draft, target_branch, web_url}'
+glab mr view <iid> -F json | jq '{iid, title, draft, target_branch, sha, web_url}'
 ```
+
+`sha` is the MR's head commit; it must equal `git rev-parse HEAD` on create and update.

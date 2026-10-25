@@ -83,8 +83,9 @@ Stop and ask if:
 
 - The current branch is the default branch.
 - The working tree is dirty. List files; ask whether to commit, stash, or stop.
-- The branch is not on the remote (`ls-remote` prints nothing). Show the branch and remote; ask before `git push -u <remote> <branch>`. Never auto-push.
-- The remote branch's commit differs from `HEAD`. Fetch it (`git fetch <remote> <branch>`) and check `git merge-base --is-ancestor <remote>/<branch> HEAD`. Success means `HEAD` is ahead: ask before pushing, because the PR shows the remote, not your local branch. Failure means the remote is ahead or the two diverged: stop and say so. Never force push.
+- The remote branch's commit differs from `HEAD` and the remote is ahead or the two diverged. Fetch it (`git fetch <remote> <branch>`) and check `git merge-base --is-ancestor <remote>/<branch> HEAD`. Failure means the remote has commits you don't: stop and say so. Never force over commits you did not just rebase yourself in §2.
+
+Not a stop, but record it for §5 and §6: the branch is not on the remote (`ls-remote` prints nothing), or `HEAD` is ahead of it (the ancestor check passes). The PR shows the remote, not your local branch, so a push is needed. It is listed as an action in §5 and runs in §6, after the user says go. Never push before then.
 
 ### 1. Detect conventions
 
@@ -159,17 +160,19 @@ No match means no ticket. Only ask if agent docs require one or nearly every rec
 git merge-base --is-ancestor <remote>/<base> HEAD
 ```
 
-Success means the base is already merged into `HEAD`: skip ahead, nothing to do. Failure means the base has commits `HEAD` lacks:
+Success means the base is already merged into `HEAD`: skip ahead, nothing to do. Failure means the base has commits `HEAD` lacks, and the PR would open out of date:
 
 ```bash
 git rev-list --count HEAD..<remote>/<base>
 ```
 
-Show the count and ask whether to update now (merge or rebase) or continue as is. Never update without asking. On conflicts from either, stop and hand control back; never auto-resolve, never force anything.
+Show the count and ask, with the question tool, in this order: "Rebase onto `<remote>/<base>` (Recommended)", "Merge `<remote>/<base>` in", "Leave it behind". Rebase is the default: "yes", "sync", or "go" means rebase. Never update without asking, and never leave it behind without the user choosing that.
 
-- Rebase: `git rebase <remote>/<base>`.
-- Merge: `git merge <remote>/<base>`.
-- Continue as is: proceed, and say so in the §5 summary.
+- Rebase: `git rebase <remote>/<base>`. `HEAD` now differs from the remote branch, so §6 pushes with `--force-with-lease`.
+- Merge: `git merge <remote>/<base>`. §6 pushes normally.
+- Leave it behind: proceed.
+
+On conflicts from either, stop and hand control back; never auto-resolve. Record the outcome for the §5 summary, one line whichever it was: "Rebased onto `origin/main` (was 3 behind)", "Merged `origin/main` (was 3 behind)", or "3 behind `origin/main`, left as is (your call)".
 
 **Create and update.** The base fetch ran in §1. One command:
 
@@ -242,8 +245,11 @@ Before the title and body, print a short list of the conventions you found. One 
 - Assignee: you
 - Draft: yes
 - Not set: attribution footer (recent MRs have none)
-- Will push `feat-x` to origin first
+- Rebased onto `origin/develop` (was 3 behind)
+- Will force-with-lease push `feat-x` to origin first
 ```
+
+The sync line from §2 is always present when the branch was behind. The push line is required whenever §0 or §2 left `HEAD` off the remote: a plain push for a new branch, new commits, or a merge; a force-with-lease push after a rebase. Without it the PR shows the old remote.
 
 For describe and update, also show what changed against the current description.
 
@@ -253,13 +259,33 @@ If the user corrects a detected convention, apply it to this PR. If it sounds du
 
 ### 6. Create or update
 
+**Push first** (create and update). Re-check here, not from the §0 result: §0 or §2 may have moved `HEAD` since.
+
+```bash
+git rev-parse HEAD
+git ls-remote <remote> refs/heads/<branch>
+```
+
+- Same sha: nothing to push.
+- Empty: `git push -u <remote> <branch>`.
+- Different, `git merge-base --is-ancestor <remote>/<branch> HEAD` passes: `git push <remote> <branch>`.
+- Different because §2 rebased: `git push --force-with-lease <remote> <branch>`. This is the only force push this skill makes. A refused lease means someone else pushed meanwhile: stop and say so.
+- Anything else: stop and say so.
+
 The body is already on disk from §5. Run _Create_ (create mode) or _Update_ (describe and update) from the reference file. Change the title, labels, or draft state of an existing PR only if the user approved it.
 
 **Every body write is a full replacement.** Bots append to the body after §0 reads it (CodeRabbit lands within minutes). Right before the write, re-fetch the live body and append every bot span to the draft; the _Update_ snippet in the reference file does both. This holds for any later edit of the body, inside this skill or a one-line touch-up after it.
 
 ### 7. Verify
 
-Run _Verify_ from the reference file. Confirm draft state and base match what §5 showed. Delete `<tmp>`. Report the PR URL.
+Run _Verify_ from the reference file. Confirm draft state and base match what §5 showed. Then, for create and update, confirm the PR's head sha equals `git rev-parse HEAD` and that the branch is current with the base:
+
+```bash
+git fetch <remote> <base>
+git merge-base --is-ancestor <remote>/<base> HEAD
+```
+
+Failure means the PR is out of date. Report it; the one accepted case is "left as is" chosen in §2, and the report says so. Delete `<tmp>`. Report the PR URL.
 
 ## Voice
 
