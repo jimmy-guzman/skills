@@ -36,6 +36,7 @@ compatibility: >
 - In a host plan mode every write outside the host's own plan file is blocked. The §5 question still gets asked, with the question tool, before calling the host's own plan-approval action: that action approves building from the plan, it never answers where the plan document goes, and finishing it is not a reason to skip the question. Record the answer now; carry it out once the host leaves plan mode and the write is no longer blocked.
 - With a subagent in §2, don't pull the repo's files into your own context as well. The memo is the read surface; it keeps the planner's context for the plan.
 - When the Build in answer is a worktree and the host can switch the session into one (Claude Code's EnterWorktree), create it and enter it before the host's plan-approval action, so approval lands in the worktree and the first edit cannot touch the user's tree. The user asked for the worktree, so the plan-mode write block does not cover it.
+- A behavior is often stated in more than one doc: a spec claim, an architecture paragraph, a doc comment. When the change alters one, grep the repo (README, `docs/`, code comments) for its key words, and name each hit's file in the step that changes the behavior. One updated claim beside a stale twin costs a review round.
 
 ## Process
 
@@ -78,6 +79,8 @@ Three judgments come out of this pass and go on the plan's Risk line:
 ### 3. Sort every open point into a bin
 
 Settle the kind first, because it changes step 1 and Done means: feat, fix, perf, spike, docs, or chore. Take it from the ticket's type field, labels, or title verb. When none says, or the label looks wrong (a "story" that is really a spike, a "bug" that is really a feature request), it's a question for the user with a recommended answer, not a guess: the human and the agent plan the same kind of change or the plan is wrong from line one.
+
+Write any behavior question, to the user or to an owner, as what someone using the product will see ("the title comes from the next line"), never as which file, layer, or library changes.
 
 - **Settled by the repo.** The code or a doc answers it. Record the answer and where it came from (`file:line`, doc, commit).
 - **The user's to decide.** An engineering choice with no owner outside this conversation: which helper, which layer, keep or drop a flag. Ask now, with the question tool. Each question carries a recommended answer, so the user reacts instead of composing, but a recommended answer is a draft to react to, not a decision already made: don't treat the question as settled until the user actually answers. Before presenting options, check they're not a false binary, the real answer may be both or neither, and that the wording is plain enough to act on without a follow-up (the same bar Voice sets for the plan itself; no jargon the user has to ask to be restated). One batch when the questions are independent; one at a time when an answer changes the next question. "Whatever you think" is not an answer: re-ask as two concrete options. Don't ask what §2 could have answered.
