@@ -82,7 +82,7 @@ Ask the remote whether the branch exists; don't infer it from `@{u}`. A branch c
 Stop and ask if:
 
 - The current branch is the default branch.
-- The working tree is dirty. List files; ask whether to commit, stash, or stop.
+- The working tree is dirty. List files and stop. Committing is commit-changes' job: name it, and never draft a commit message here or put a commit and a push in one question.
 - The remote branch's commit differs from `HEAD` and the remote is ahead or the two diverged. Fetch it (`git fetch <remote> <branch>`) and check `git merge-base --is-ancestor <remote>/<branch> HEAD`. Failure means the remote has commits you don't: stop and say so. Never force over commits you did not just rebase yourself in §2.
 
 Not a stop, but record it for §5 and §6: the branch is not on the remote (`ls-remote` prints nothing), or `HEAD` is ahead of it (the ancestor check passes). The PR shows the remote, not your local branch, so a push is needed. It is listed as an action in §5 and runs in §6, after the user says go. Never push before then.
