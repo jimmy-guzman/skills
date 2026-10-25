@@ -165,6 +165,8 @@ Labels:
 
 The footer is one line per source, written after §4 from what survived. `Standards (<source>): <finding numbers, or none>. Walked N rules against M changed files.` Then `Spec (<source>):` with only the verdicts that name a finding, as `Completeness 2. Scope 5.`; when none does, `Spec (<source>): none.` The reviewer's sentence on what it checked for a none verdict stays out of the report; "show left out" prints it. Under §3's rule 4, Spec didn't run: leave its line out, and a Consistency finding rides on the Standards line.
 
+Print the report as plain markdown, never inside a code fence: a fence shows it raw, and the first diff fence closes it early. The fences around the examples below belong to this file only.
+
 ````text
 Change: Closing a tab now picks a neighbour instead of leaving none active, and each tab remembers its caret so switching back restores it. A retry wrapper is added around the note read.
 
