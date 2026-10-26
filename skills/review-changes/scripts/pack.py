@@ -32,7 +32,12 @@ SYMBOL = re.compile(
     r"(?:def|class|function|fn|func|interface|type|struct|enum)"
     r"|(?:\s*export\s+)?(?:const|let|var))\s+([A-Za-z_]\w{2,})"
 )
-HUNK = re.compile(r"^@@ .* @@ .*?\b([A-Za-z_]\w{2,})\s*\(")
+# The hunk header names the enclosing definition; take its name only, so a call in the header
+# (`describe(`, `if (isAdmin(`) never becomes a symbol. `func (recv) Name` is Go's method form.
+HUNK = re.compile(
+    r"^@@ .* @@ .*?\b(?:def|class|function|fn|func|interface|type|struct|enum|const|let|var)\s+"
+    r"(?:\([^)]*\)\s*)?([A-Za-z_]\w{2,})"
+)
 PREFIX = re.compile(r"^[abciwo]/")
 TEST_PATH = re.compile(r"(^|/)(tests?|__tests__|spec)(/|$)|[._-](test|spec)\.\w+$")
 WORD = re.compile(r"\w+", re.ASCII)

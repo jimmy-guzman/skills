@@ -141,6 +141,15 @@ class PackTest(unittest.TestCase):
                 "+const LIMIT = 4\n+  export const nested = 5\n+    def method(self):\n+function load() {}\n")
         self.assertEqual(symbols(diff), ["config", "LIMIT", "nested", "method", "load"])
 
+    def test_hunk_header_yields_only_the_definition_name(self):
+        sys.path.insert(0, str(PACK.parent))
+        from pack import symbols
+        headers = ["func (s *Server) Handle(w http.ResponseWriter) {", "def close_tab(i):",
+                   "export function load() {", "app.get('/', function (req, res) {",
+                   "const run = async (x) => {", "describe('tabs', () => {", "  if (isAdmin(user)) {"]
+        diff = "".join(f"@@ -1,3 +1,4 @@ {h}\n x\n" for h in headers)
+        self.assertEqual(symbols(diff), ["Handle", "close_tab", "load", "run"])
+
     def test_diff_from_file_matches_stdin(self):
         with tempfile.TemporaryDirectory() as repo, tempfile.TemporaryDirectory() as out:
             git = make_repo(repo)
