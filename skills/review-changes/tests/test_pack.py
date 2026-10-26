@@ -116,20 +116,6 @@ class PackTest(unittest.TestCase):
             self.assertIn("force=False", (o / "files" / "pkg" / "src" / "tabs.py").read_text())
             self.assertFalse((o / "files" / "appended").exists())
 
-    def test_spec_anchors_are_grepped_and_grouped(self):
-        with tempfile.TemporaryDirectory() as repo, tempfile.TemporaryDirectory() as out:
-            git = make_repo(repo)
-            rev = git("rev-parse", "HEAD").decode().strip()
-            diff = git("diff", "HEAD~1", "HEAD")
-            spec = pathlib.Path(repo) / "spec.txt"
-            spec.write_text('Ticket says `close_tab` must return "nope, not in the repo" too.\n')
-            res = run_pack(repo, diff, "--out", out, "--rev", rev, "--spec", str(spec))
-            self.assertEqual(res.returncode, 0, res.stderr)
-            anchors = (pathlib.Path(out) / "anchors.txt").read_text()
-            self.assertIn("## close_tab", anchors)
-            self.assertIn("pkg/src/tabs.py:1:", anchors)
-            self.assertNotIn("nope, not in the repo", anchors)
-
     def test_one_line_matching_several_patterns_is_listed_under_each(self):
         with tempfile.TemporaryDirectory() as repo, tempfile.TemporaryDirectory() as out:
             git = make_repo(repo)
@@ -140,28 +126,20 @@ class PackTest(unittest.TestCase):
             git("commit", "-q", "-m", "more")
             rev = git("rev-parse", "HEAD").decode().strip()
             diff = git("diff", "HEAD~1", "HEAD")
-            spec = pathlib.Path(repo) / "spec.txt"
-            spec.write_text("Keep `open_tab(close` and `shared line` working.\n")
-            res = run_pack(repo, diff, "--out", out, "--rev", rev, "--spec", str(spec))
+            res = run_pack(repo, diff, "--out", out, "--rev", rev)
             self.assertEqual(res.returncode, 0, res.stderr)
-            o = pathlib.Path(out)
-            callers = (o / "callers.txt").read_text()
+            callers = (pathlib.Path(out) / "callers.txt").read_text()
             for sym in ("close_tab", "open_tab"):
                 chunk = callers.split(f"## {sym}\n", 1)[1].split("## ", 1)[0]
                 self.assertIn("both.py:1:open_tab(close_tab(1))", chunk)
             self.assertNotIn(rev, callers)
-            anchors = (o / "anchors.txt").read_text()
-            self.assertIn("## open_tab(close\nboth.py:1:", anchors)
-            self.assertIn("## shared line\nboth.py:1:", anchors)
 
-    def test_no_spec_writes_empty_anchors(self):
-        with tempfile.TemporaryDirectory() as repo, tempfile.TemporaryDirectory() as out:
-            git = make_repo(repo)
-            rev = git("rev-parse", "HEAD").decode().strip()
-            diff = git("diff", "HEAD~1", "HEAD")
-            res = run_pack(repo, diff, "--out", out, "--rev", rev)
-            self.assertEqual(res.returncode, 0, res.stderr)
-            self.assertEqual((pathlib.Path(out) / "anchors.txt").read_text(), "")
+    def test_indented_locals_are_not_symbols(self):
+        sys.path.insert(0, str(PACK.parent))
+        from pack import symbols
+        diff = ("@@ -1 +1 @@\n+    const data = 1\n+  let result = 2\n+export const config = 3\n"
+                "+const LIMIT = 4\n+  export const nested = 5\n+    def method(self):\n+function load() {}\n")
+        self.assertEqual(symbols(diff), ["config", "LIMIT", "nested", "method", "load"])
 
     def test_diff_from_file_matches_stdin(self):
         with tempfile.TemporaryDirectory() as repo, tempfile.TemporaryDirectory() as out:

@@ -48,28 +48,21 @@ the diff alone and gets the pack path once it's built.
 ```mermaid
 flowchart LR
     D[diff.patch] --> P[pack.py]
-    S[spec source] --> P
     P --> F["files/&lt;path&gt;<br/>full content at the pinned rev"]
     P --> C["callers.txt<br/>grep hits for touched symbols"]
     P --> T["tests.txt<br/>same-stem test files"]
-    P --> A["anchors.txt<br/>grep hits for strings quoted in the spec"]
     F --> R[reviewers / verifiers]
     C --> R
     T --> R
-    A --> R
 ```
 
 This is also what makes §4's "resume a finished reviewer as a verifier"
 cheap: the reviewer already has the pack loaded, so no re-read is needed.
 
 `callers.txt` is a word-boundary `git grep`, not a language-aware index: a
-head start to confirm, not ground truth. `anchors.txt` is the same idea
-aimed at Spec's own job: when §2 found a spec source (ticket, plan, or PR
-description), `pack.py` greps the tree for every string it quotes, so Spec
-isn't re-deriving where each one landed before it can compare behavior.
-`pack.py` resolves every path it reads or writes against the repo root
-(`_contained()`), so a crafted diff header can't escape it via `../`
-traversal.
+head start to confirm, not ground truth. `pack.py` resolves every path it
+reads or writes against the repo root (`_contained()`), so a crafted diff
+header can't escape it via `../` traversal.
 
 ## Three reviewers, one schema
 
@@ -179,7 +172,7 @@ dismiss a posted finding later.
 | Script | Purpose | Called from |
 |---|---|---|
 | `snapshot.py` | Pin the working tree as a commit; with `--guard`, revert and save any edits since a pin | §1 (pin), §4 (tree guard), §6 (pre/post-apply) |
-| `pack.py` | Build the shared read surface (diff.patch, files/, callers.txt, tests.txt, anchors.txt) from a diff file | §3, once the spec source from §2 is known |
+| `pack.py` | Build the shared read surface (diff.patch, files/, callers.txt, tests.txt) from a diff file | §3, once per revision |
 | `check_quotes.py` | Confirm a finding's quote sits at its claimed file:line | §4, and again before posting (rebase drift) |
 | `pr.py` | Wrap `gh`/`glab` behind one JSON interface: `state` (PR info), `post` (one comment or a `--batch`), and `edit`/`delete`/`reply`/`resolve` for posted ones | §1 (state), §7 (post and follow-ups) |
 

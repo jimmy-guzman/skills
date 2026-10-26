@@ -6,18 +6,14 @@ Reads a unified diff on stdin (or from --diff FILE) and writes, under --out:
   files/<path>   each changed file at --rev (or from the working tree)
   callers.txt    git grep hits for symbols the diff defines or touches
   tests.txt      test files that name a changed file
-  anchors.txt    git grep hits for strings quoted in --spec, when given
 Stdlib only. Runs from the repo root whatever the working directory.
 
 Usage:
-  <diff command> | pack.py --out DIR [--rev REV] [--extra PATH ...] [--spec PATH]
+  <diff command> | pack.py --out DIR [--rev REV] [--extra PATH ...]
   pack.py --diff FILE --out DIR ...   (for hosts that refuse shell pipes)
 
 --extra copies untracked working-tree files into files/ (read-only mode, where
-the diff can't show them). --spec is a text file holding the spec source (a
-ticket, plan, or PR description): strings it quotes are grepped against the
-tree so the Spec reviewer gets a head start on where they landed. Prints a
-one-line JSON summary.
+the diff can't show them). Prints a one-line JSON summary.
 """
 
 import argparse
@@ -29,15 +25,18 @@ import re
 import subprocess
 import sys
 
+# const/let/var count only at top level or exported: an indented local (`data`, `result`) matches
+# nearly every file, so grepping it costs a full-tree scan for hits no reviewer needs.
 SYMBOL = re.compile(
-    r"^[+-]\s*(?:export\s+)?(?:default\s+)?(?:async\s+)?"
-    r"(?:def|class|function|fn|func|interface|type|struct|enum|const|let|var)\s+([A-Za-z_]\w{2,})"
+    r"^[+-](?:\s*(?:export\s+)?(?:default\s+)?(?:async\s+)?"
+    r"(?:def|class|function|fn|func|interface|type|struct|enum)"
+    r"|(?:\s*export\s+)?(?:const|let|var))\s+([A-Za-z_]\w{2,})"
 )
 HUNK = re.compile(r"^@@ .* @@ .*?\b([A-Za-z_]\w{2,})\s*\(")
 PREFIX = re.compile(r"^[abciwo]/")
 TEST_PATH = re.compile(r"(^|/)(tests?|__tests__|spec)(/|$)|[._-](test|spec)\.\w+$")
-QUOTED = re.compile(r"`([^`]{4,120})`|[\"“]([^\"”]{4,120})[\"”]|'([^']{4,120})'")
-MAX_SYMBOLS, MAX_HITS, MAX_ANCHORS = 60, 40, 40
+WORD = re.compile(r"\w+", re.ASCII)
+MAX_SYMBOLS, MAX_HITS = 60, 40
 
 
 def git(*args):
@@ -86,22 +85,11 @@ def symbols(diff):
     return list(seen)[:MAX_SYMBOLS]
 
 
-def quoted_strings(text):
-    """Backtick- or quote-delimited spans in a spec source, e.g. a ticket's exact output strings."""
-    seen = {}
-    for m in QUOTED.finditer(text):
-        s = next(g for g in m.groups() if g is not None).strip()
-        if s:
-            seen.setdefault(s, None)
-    return list(seen)[:MAX_ANCHORS]
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
     ap.add_argument("--rev")
     ap.add_argument("--extra", nargs="*", default=[])
-    ap.add_argument("--spec")
     ap.add_argument("--diff")
     a = ap.parse_args()
     out = pathlib.Path(a.out).resolve()
@@ -109,7 +97,6 @@ def main():
     diff = raw.decode("utf-8", "replace")
     if not diff.strip():
         sys.exit("pack.py: empty diff")
-    spec_text = pathlib.Path(a.spec).read_text(errors="replace") if a.spec else ""
     top = git("rev-parse", "--show-toplevel")
     if top is None:
         sys.exit("pack.py: not inside a git repository")
@@ -136,13 +123,8 @@ def main():
     # Upgrade to an LSP/ctags pass if reviewers report the list is too noisy.
     rev_arg = [a.rev] if a.rev else ["--untracked"]
     strip = (lambda h: h.split(":", 1)[-1]) if a.rev else (lambda h: h)
-    words = re.compile(r"\w+", re.ASCII)
-    chunks = grouped_grep(symbols(diff), ["-w"], rev_arg, a.rev, lambda syms, text: syms & set(words.findall(text)))
+    chunks = grep_callers(symbols(diff), rev_arg, a.rev)
     (out / "callers.txt").write_text("".join(chunks))
-
-    anchor_chunks = grouped_grep(quoted_strings(spec_text), ["-F"], rev_arg, a.rev,
-                                 lambda strs, text: {q for q in strs if q in text})
-    (out / "anchors.txt").write_text("".join(anchor_chunks))
 
     stems = {pathlib.Path(p).stem for p in paths if pathlib.Path(p).stem not in ("index", "__init__", "mod")}
     flags = [f for stem in sorted(stems) for f in ("-e", stem)]
@@ -151,30 +133,29 @@ def main():
     (out / "tests.txt").write_text("\n".join(tests) + ("\n" if tests else ""))
 
     print(json.dumps({
-        "pack": str(out), "files": len(paths), "symbols": len(chunks),
-        "tests": len(tests), "anchors": len(anchor_chunks),
+        "pack": str(out), "files": len(paths), "symbols": len(chunks), "tests": len(tests),
     }))
 
 
-def grouped_grep(patterns, flags, rev_arg, rev, matched):
-    """One git grep for every pattern, then hits grouped under each pattern they match, in input order.
+def grep_callers(syms, rev_arg, rev):
+    """One word-boundary git grep for every symbol, then hits grouped under each symbol they name, in input order.
 
-    One call costs about what one pattern does, where a call per pattern rescans the tree each time.
-    `matched(set_of_patterns, line_text)` returns the patterns a hit line belongs to."""
-    if not patterns:
+    One call costs about what one symbol does, where a call per symbol rescans the tree each time."""
+    if not syms:
         return []
-    args = [x for p in patterns for x in ("-e", p)]
-    groups = {p: [] for p in patterns}
-    for line in (git("grep", "-n", "-z", "-I", *flags, *args, *rev_arg) or "").split("\n"):
+    args = [x for s in syms for x in ("-e", s)]
+    groups = {s: [] for s in syms}
+    wanted = set(syms)
+    for line in (git("grep", "-n", "-z", "-I", "-w", *args, *rev_arg) or "").split("\n"):
         if not line:
             continue
         path, num, text = line.split("\0", 2)
         if rev:
             path = path.removeprefix(f"{rev}:")
-        for p in matched(set(patterns), text):
-            if len(groups[p]) < MAX_HITS:
-                groups[p].append(f"{path}:{num}:{text}")
-    return [f"## {p}\n" + "\n".join(hits) + "\n" for p, hits in groups.items() if hits]
+        for s in wanted & set(WORD.findall(text)):
+            if len(groups[s]) < MAX_HITS:
+                groups[s].append(f"{path}:{num}:{text}")
+    return [f"## {s}\n" + "\n".join(hits) + "\n" for s, hits in groups.items() if hits]
 
 
 def _contained(path, root):
