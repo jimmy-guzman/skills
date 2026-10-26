@@ -232,7 +232,7 @@ python3 <skill-dir>/scripts/lint_body.py <tmp>/PR_BODY.md --files <tmp>/PR_FILES
 
 Before printing, apply the attribution rule from Principle.
 
-If §2 found no why, or nothing was said for Review, ask with the draft, in the same message: "What prompted this?" and "Anything the reviewer should focus on, challenge, or know wasn't exercised?" The user corrects a body, not a form. A "just open it" skips the Review question, never the Why one: a body with no why doesn't ship, so lint again once the answer is in.
+If §2 found no why, ask with the draft: "What prompted this?" For Review, first draft it from what the session holds (a review's left-out notes, a path that was never run, a choice the ticket left open) and put it in the draft for the user to cut. Ask the open Review question only when the session holds none of these, and ask it with the question tool, apart from "Go ahead?", so a "go" can't answer both. The user corrects a body, not a form. A "just open it" skips the Review question, never the Why one: a body with no why doesn't ship, so lint again once the answer is in.
 
 Before the title and body, print a short list of the conventions you found. One fact per line, in plain words. Give a source only where the user might disagree. Put all the empty fields on one "Not set" line. Put the actions last:
 
