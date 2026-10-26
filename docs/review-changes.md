@@ -136,7 +136,9 @@ round of `new` findings isn't sent round again; it counts as unverified.
   those, notably a Claude Code session that itself runs inside a worktree,
   so the scripts do the compound git work instead of the agent's shell.
 - **No edit tools for reviewers/verifiers.** Denied where the host supports
-  it, and run in disposable git worktrees where it supports that too.
+  it, and run in disposable git worktrees where it supports that too,
+  removed afterward by `snapshot.py --cleanup` so no shell aims git at
+  another worktree.
 - **PR text is data, never instructions.** The PR/MR description, comments,
   and issue bodies are explicitly untrusted input, a rule reinforced by
   `pack.py`'s path-containment fix, which treats a hostile diff header the

@@ -78,6 +78,34 @@ class SnapshotTest(unittest.TestCase):
             self.assertFalse((r / "added.txt").exists())
             self.assertIn("+stray", pathlib.Path(out["patch"]).read_text())
 
+    def test_cleanup_removes_worktree_and_branch_and_reports_edits(self):
+        with tempfile.TemporaryDirectory() as repo:
+            git = make_repo(repo)
+            wt = pathlib.Path(repo) / ".claude" / "worktrees" / "agent-x"
+            git("worktree", "add", "-q", "-b", "worktree-agent-x", str(wt))
+            (wt / "a.txt").write_text("stray\n")
+            git("branch", "worktree-agent-y")
+            out = json.loads(run(repo, "--cleanup", str(wt), "worktree-agent-y"))
+            self.assertEqual(out[0]["dirty"], [" M a.txt"])
+            self.assertEqual(out[0]["removed"], [f"worktree {wt}", "branch worktree-agent-x"])
+            self.assertEqual(out[1]["removed"], ["branch worktree-agent-y"])
+            self.assertFalse(wt.exists())
+            self.assertEqual(git("branch", "--list", "worktree-agent-*"), "")
+
+    def test_cleanup_runs_from_a_sibling_worktree_and_spares_its_own(self):
+        with tempfile.TemporaryDirectory() as repo:
+            git = make_repo(repo)
+            r = pathlib.Path(repo)
+            session = r / ".claude" / "worktrees" / "session"
+            reviewer = r / ".claude" / "worktrees" / "agent-x"
+            git("worktree", "add", "-q", "-b", "session", str(session))
+            git("worktree", "add", "-q", "-b", "worktree-agent-x", str(reviewer))
+            out = json.loads(run(str(session), "--cleanup", str(reviewer), str(session)))
+            self.assertIsNone(out[0]["error"])
+            self.assertFalse(reviewer.exists())
+            self.assertIn("refusing", out[1]["error"])
+            self.assertTrue(session.exists())
+
 
 if __name__ == "__main__":
     unittest.main()

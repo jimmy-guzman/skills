@@ -6,8 +6,9 @@ One plain command in place of a shell pipeline, so hosts that refuse $(...),
 Stdlib only. Runs from the repo root whatever the working directory.
 
 Usage:
-  snapshot.py                 print the SHA of a commit holding the working tree
-  snapshot.py --guard BEFORE  undo every change since BEFORE, print JSON
+  snapshot.py                     print the SHA of a commit holding the working tree
+  snapshot.py --guard BEFORE      undo every change since BEFORE, print JSON
+  snapshot.py --cleanup TARGET... remove reviewer worktrees and branches, print JSON
 
 The snapshot includes untracked files and leaves the user's index and files
 alone: it stages into a copy of the index. ':/' is the root of the current
@@ -18,6 +19,13 @@ out because Claude Code nests subagent worktrees there.
 {"changed": false}. Otherwise it saves `git diff-tree -p --binary BEFORE AFTER`
 to a temp file, applies the reverse to the working tree, and prints
 {"changed": true, "files": [...], "patch": "<path>"}.
+
+--cleanup takes worktree paths or branch names. For a worktree it records
+`git status --porcelain` there, removes it with --force, and deletes the
+branch it had checked out. A branch name alone is deleted, for hosts that
+remove the worktree but leave its branch. It never touches the worktree it runs
+from, and git itself refuses the main worktree and any branch still checked
+out. Prints one {"target", "dirty", "removed", "error"} object per target.
 """
 
 import argparse
@@ -69,15 +77,51 @@ def guard(before):
     return {"changed": True, "files": files, "patch": patch}
 
 
+def cleanup_one(t, here):
+    res = {"target": t, "dirty": [], "removed": [], "error": None}
+
+    def run(*args):
+        r = subprocess.run(["git", *args], capture_output=True, text=True)
+        if r.returncode != 0 and res["error"] is None:
+            res["error"] = f"git {args[0]}: {r.stderr.strip()}"
+        return r
+
+    path = pathlib.Path(t).expanduser()
+    if not path.is_dir():
+        if run("branch", "-D", t).returncode == 0:
+            res["removed"].append(f"branch {t}")
+        return res
+    if path.resolve() == here:
+        res["error"] = "refusing to remove the worktree this runs from"
+        return res
+    res["dirty"] = run("-C", str(path), "status", "--porcelain").stdout.splitlines()
+    branch = run("-C", str(path), "branch", "--show-current").stdout.strip()
+    if run("worktree", "remove", "--force", str(path)).returncode != 0:
+        return res
+    res["removed"].append(f"worktree {t}")
+    if branch and run("branch", "-D", branch).returncode == 0:
+        res["removed"].append(f"branch {branch}")
+    return res
+
+
+def cleanup(targets):
+    here = pathlib.Path.cwd().resolve()
+    return [cleanup_one(t, here) for t in targets]
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--guard", metavar="BEFORE")
+    ap.add_argument("--cleanup", metavar="TARGET", nargs="+")
     a = ap.parse_args()
     top = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True)
     if top.returncode != 0:
         sys.exit("snapshot.py: not inside a git repository")
     os.chdir(top.stdout.strip())
-    print(json.dumps(guard(a.guard)) if a.guard else snapshot())
+    if a.cleanup:
+        print(json.dumps(cleanup(a.cleanup)))
+    else:
+        print(json.dumps(guard(a.guard)) if a.guard else snapshot())
 
 
 if __name__ == "__main__":
