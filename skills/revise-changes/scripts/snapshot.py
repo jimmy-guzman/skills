@@ -43,7 +43,7 @@ def snapshot():
         idx = pathlib.Path(tmp) / "index"
         real = pathlib.Path(git("rev-parse", "--git-path", "index").decode().strip())
         if real.exists():
-            shutil.copyfile(real, idx)
+            shutil.copy2(real, idx)  # keep mtime so git still rechecks racily-clean files
         env = {**os.environ, "GIT_INDEX_FILE": str(idx)}
         git("add", "-A", "--", ":/", ":!/.claude/worktrees", env=env)
         tree = git("write-tree", env=env).decode().strip()
