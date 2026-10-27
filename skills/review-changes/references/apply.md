@@ -4,7 +4,7 @@ Read this when the user says "apply" or names numbers after a report in Apply mo
 
 "apply" means every numbered item still on the list; "apply 1-4" or "all except 3" means those. Left-out items and "Worth an issue" lines are acted on only when named, as in "apply 2, L1".
 
-Questions are acted on only when answered. "2: code" applies the code fix like any item. "2: source" edits the source instead when it's a file in the repo; for an issue or PR description, print the new text and change it only after a yes. A bare "apply" or a named number skips an unanswered question; list it as `Unanswered: 2.` in the report.
+Questions are acted on only when answered. "2a" applies the code fix like any item. "2b" edits the source instead when it's a file in the repo; for an issue or PR description, print the new text and change it only after a yes. A bare "apply" or a named number skips an unanswered question; list it as `Unanswered: 2.` in the report.
 
 - When §1 pinned a PR or branch base, re-resolve it now: re-run `pr.py state` for a PR, or re-fetch the base ref for a branch. If the base or head moved since the pin (a rebase, a force-push, new commits landed upstream), say so and ask whether to re-run §1-5 against the new diff before continuing. The pre-apply/post-apply diff below only catches regressions from the fix itself; it can't be assumed to still be reviewing what the original report was about.
 - Before editing, take a snapshot as in §1. Call it the pre-apply snapshot.

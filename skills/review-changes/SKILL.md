@@ -155,7 +155,7 @@ Each finding has:
 - An `Evidence:` line: the command and the failing output for Reproduced, or the file:line steps for Traced. Leave it out when the prose already shows the whole path. When §4 changed the severity, say why here.
 - A diff of the fix when it is a few lines, in a ```` ```diff ```` fence so the `-` and `+` lines don't render as a list. A heavy lift gets the approach in a sentence. In Suggest mode, name the file, the symbol, and the change precisely enough that someone without this conversation can make it.
 
-A question differs in two places. Its title asks which side is right and names the source. In place of the fix, two lines: `If <source> holds:` and the code fix, then `If <source> is out of date:` and the `source_fix`.
+A question differs in two places. Its title asks which side is right and names the source. In place of the fix, two lines lettered after its number, so the user answers with the label they see: `2a. If <source> holds:` and the code fix, then `2b. If <source> is out of date:` and the `source_fix`.
 
 A cut is one line: `file:line`, tag, what it is, what replaces it.
 
@@ -194,8 +194,8 @@ Questions
    `src/store/tabs.ts:40`
    Issue #41 asks for scroll and caret to survive a tab switch. The change saves the caret only, so switching back lands at the top.
    Evidence: `activate` (`tabs.ts:52`) restores the caret only, and `TabState` (`types.ts:12`) has no scroll field.
-   If issue #41 holds: store `scrollTop` beside the caret in `TabState` and restore both in `activate`.
-   If issue #41 is out of date: drop scroll from its acceptance list.
+   2a. If issue #41 holds: store `scrollTop` beside the caret in `TabState` and restore both in `activate`.
+   2b. If issue #41 is out of date: drop scroll from its acceptance list.
 
 Should fix
 
@@ -215,7 +215,7 @@ Worth an issue
 - `src/editor/find.ts:52`: hidden matches show "0 / 0" in source mode. Not from this change.
 
 Left out: 1 judgment call, 2 unverified, 1 refuted. Say "show left out" to see them.
-Say "apply", or name the numbers. Answer questions as "2: code" or "2: source".
+Say "apply", or name the numbers. For a question, pick a side: "2a" or "2b".
 ````
 
 With nothing to report:
@@ -232,7 +232,7 @@ Spec (issue #52): none.
 
 Before writing the last line, say the mode out loud: Apply or Suggest. Then close with:
 
-- **Apply**: `Say "apply", or name the numbers.` With questions, add `Answer questions as "2: code" or "2: source".`
+- **Apply**: `Say "apply", or name the numbers.` With questions, add `For a question, pick a side: "2a" or "2b".`
 - **Suggest**: `Nothing applied. For an agent: verify each item against the current code, fix the ones that still hold, and skip the rest with a one-line reason.` With questions, add `Ask the author each question before acting on it.` The report must stand alone here, because it gets handed to the author or pasted to their agent: don't refer to the conversation, and reprint it in full after any cut.
 
 The report holds only what to act on. Judgment calls, unverified, refuted, and quote-not-found findings only get counted in the `Left out:` line, by kind. "Worth an issue" lists at most three; the rest count there as "N more worth an issue". Leave out the `Left out:` line when it has nothing. On "show left out", print one line each, numbered `L1`, `L2`: `file:line`, kind, and why, with what would settle an unverified one and the proof for a refuted one, then one line per none Spec verdict with what the reviewer checked.
@@ -243,7 +243,7 @@ Don't trim the report. When it runs past eight numbered items, add this above th
 This is long. Anything to cut? For example "drop nice to have", "must fix only", or numbers.
 ```
 
-For a PR, rerun `scripts/pr.py state`, then add one line after the report, outside it, so the report still hands off clean: `Post these to <ref>, plus a summary comment? Say "post", or name the numbers. Say "no summary" to post only the findings.` With questions, add `Questions post as questions for the author; answer one first ("2: code") to post only that side.` Say if the PR merged or closed during the review, and if a read-only or planning mode must be turned off first. Then wait.
+For a PR, rerun `scripts/pr.py state`, then add one line after the report, outside it, so the report still hands off clean: `Post these to <ref>, plus a summary comment? Say "post", or name the numbers. Say "no summary" to post only the findings.` With questions, add `Questions post as questions for the author; answer one first ("2a") to post only that side.` Say if the PR merged or closed during the review, and if a read-only or planning mode must be turned off first. Then wait.
 
 Then stop. Don't edit anything yet.
 
