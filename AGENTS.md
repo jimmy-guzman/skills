@@ -26,3 +26,7 @@ description: { what it does and when to use it }
 - Skip what LLMs already know from training data.
 - Be concise. Prefer one `SKILL.md`; fewer references is better.
 - Include working examples.
+
+## Checks
+
+Run `mise run check` (validate, lint, test) after every change and before calling it done. CI runs the same task.
