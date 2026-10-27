@@ -37,15 +37,21 @@ threads prints one JSON object:
   threads [{id, node_id, resolvable, resolved, outdated, path, line,
             notes: [{author, body, created_at}]}]
   Resolved threads are left out unless --include-resolved is passed.
-  outdated is GitHub's own flag; on GitLab it's true when the thread's
-  diff position was taken at a head other than the MR's current one.
-  node_id is the GitHub review-thread node id (PRRT_...), needed by resolve;
-  null on GitLab, where id itself is the discussion id resolve needs.
+  On GitHub, id is the thread's first comment id (its oldest reply's, once
+  the first comment is deleted), and outdated is true when a line comment
+  has lost its line (file comments never are). GitHub's REST API has no
+  resolved flag, so resolved and node_id (the PRRT_... thread id resolve
+  needs) come from GraphQL. Where GraphQL is blocked, threads still works:
+  resolved and node_id are null, and those threads are listed, since they
+  may be open.
+  On GitLab, outdated is true when the thread's diff position was taken at a
+  head other than the MR's current one; node_id is null and id is the
+  discussion id resolve needs.
 
 reply prints one JSON object:
   replied (true|false|dry-run), resolved (true|false), id
 
-reply always replies on the thread's first comment. A body identical to a
+reply always replies on the existing thread, never a new one. A body identical to a
 note the current user already left on the thread is not posted again
 (replied: "skipped"). Pass --resolve to also resolve the thread after a
 successful reply; without it, the thread stays open. --resolve never
@@ -60,6 +66,9 @@ one per line, in the single-reply shape plus "index" and "thread".
 
 resolve prints one JSON object:
   resolved (true), id
+resolve (and reply --resolve) needs GraphQL on GitHub and fails with exit 5
+where it's blocked. So does reply on a thread whose first comment was
+deleted, since GitHub's REST reply endpoint takes only a top-level comment.
 
 Exit codes:
   0 ok
@@ -74,7 +83,7 @@ Exit codes:
 Examples:
   pr.py threads 285
   pr.py threads !482 --include-resolved
-  pr.py reply 285 --thread PRRT_abc123 --body-file /tmp/r.md
+  pr.py reply 285 --thread 501 --body-file /tmp/r.md
   pr.py reply !482 --thread 9988 --body-file /tmp/r.md --resolve
   pr.py reply 285 --batch /tmp/replies.json
   pr.py resolve 285 --thread PRRT_abc123
@@ -145,42 +154,35 @@ def detect_provider():
 
 # GitHub -----------------------------------------------------------------
 
-GH_STATE_QUERY = """
-query($owner: String!, $name: String!, $number: Int!) {
-  repository(owner: $owner, name: $name) {
-    pullRequest(number: $number) {
-      state isDraft headRefOid baseRefName title body author { login }
-    }
-  }
-}
-"""
+def group_threads(comments):
+    """Review comments as threads, oldest first. GitHub points every reply at the thread's
+    first comment, so that id keys the thread even after the first comment is deleted."""
+    threads = {}
+    for c in sorted(comments, key=lambda c: c["id"]):
+        threads.setdefault(c.get("in_reply_to_id") or c["id"], []).append(c)
+    return list(threads.values())
 
+
+def match(known, notes):
+    """The GraphQL thread whose first comment is any of these notes, or {}."""
+    return next((known[n["id"]] for n in notes if n["id"] in known), {})
+
+
+def rest_outdated(c):
+    """REST drops line from a line comment the diff moved past; file comments never have one."""
+    return c.get("subject_type", "line") == "line" and c.get("line") is None
+
+
+# REST has no resolved flag and no way to resolve a thread, so those two come from
+# GraphQL; everything else is REST, so state and threads still work where GraphQL
+# is blocked.
 GH_THREADS_QUERY = """
 query($owner: String!, $name: String!, $number: Int!, $after: String) {
   repository(owner: $owner, name: $name) {
     pullRequest(number: $number) {
-      reviewThreads(first: 50, after: $after) {
+      reviewThreads(first: 100, after: $after) {
         pageInfo { hasNextPage endCursor }
-        nodes {
-          id isResolved isOutdated isCollapsed path line originalLine
-          comments(first: 100) {
-            pageInfo { hasNextPage endCursor }
-            nodes { databaseId body author { login } createdAt }
-          }
-        }
-      }
-    }
-  }
-}
-"""
-
-GH_THREAD_COMMENTS_QUERY = """
-query($id: ID!, $after: String) {
-  node(id: $id) {
-    ... on PullRequestReviewThread {
-      comments(first: 100, after: $after) {
-        pageInfo { hasNextPage endCursor }
-        nodes { databaseId body author { login } createdAt }
+        nodes { id isResolved comments(first: 1) { nodes { databaseId } } }
       }
     }
   }
@@ -203,80 +205,91 @@ class GitHub:
         out = run(cmd, stdin=json.dumps(body) if body is not None else None, env=self.env)
         return json.loads(out) if out.strip() else None
 
-    def graphql(self, query, pr_scoped=True, **variables):
-        args = ["graphql"]
-        if pr_scoped:
-            args += ["-F", "owner={owner}", "-F", "name={repo}", "-F", f"number={self.number}"]
-        args += ["-f", f"query={query}"]
-        for k, v in variables.items():
-            args += ["-f" if isinstance(v, str) else "-F", f"{k}={v}"]
-        return self.api(*args)
+    def pages(self, endpoint):
+        pages = self.api(endpoint, "--paginate", "--slurp")
+        return [item for page in pages for item in page]
 
     def me(self):
         return self.api("user")["login"]
 
-    def comments(self, thread):
-        page = thread["comments"]
-        notes = list(page["nodes"])
-        while page["pageInfo"]["hasNextPage"]:
-            data = self.graphql(GH_THREAD_COMMENTS_QUERY, pr_scoped=False,
-                                id=thread["id"], after=page["pageInfo"]["endCursor"])
-            page = data["data"]["node"]["comments"]
-            notes += page["nodes"]
-        return notes
+    def thread_map(self):
+        """Thread node id and resolved, keyed by the thread's first comment id."""
+        out, after = {}, []
+        while True:
+            data = self.api("graphql", "-F", "owner={owner}", "-F", "name={repo}",
+                            "-F", f"number={self.number}", *after,
+                            "-f", f"query={GH_THREADS_QUERY}")
+            page = data["data"]["repository"]["pullRequest"]["reviewThreads"]
+            for t in page["nodes"]:
+                first = t["comments"]["nodes"]
+                if first:
+                    out[first[0]["databaseId"]] = {"id": t["id"], "resolved": t["isResolved"]}
+            if not page["pageInfo"]["hasNextPage"]:
+                return out
+            after = ["-f", f"after={page['pageInfo']['endCursor']}"]
 
     def state(self):
-        data = self.graphql(GH_STATE_QUERY)
-        pr = data["data"]["repository"]["pullRequest"]
+        pr = self.api(f"repos/{{owner}}/{{repo}}/pulls/{self.number}")
         return {
-            "state": {"OPEN": "open", "CLOSED": "closed", "MERGED": "merged"}[pr["state"]],
-            "draft": pr["isDraft"],
-            "head_sha": pr["headRefOid"],
-            "base_ref": pr["baseRefName"],
+            "state": "merged" if pr.get("merged_at") else pr["state"],
+            "draft": bool(pr.get("draft")),
+            "head_sha": pr["head"]["sha"],
+            "base_ref": pr["base"]["ref"],
             "title": pr["title"],
-            "body": pr["body"] or "",
-            "author": (pr["author"] or {}).get("login"),
+            "body": pr.get("body") or "",
+            "author": (pr.get("user") or {}).get("login"),
             "ref": f"#{self.number}",
         }
 
     def threads(self):
-        out, after = [], None
-        while True:
-            data = self.graphql(GH_THREADS_QUERY, after=after or "")
-            page = data["data"]["repository"]["pullRequest"]["reviewThreads"]
-            for t in page["nodes"]:
-                notes = self.comments(t)
-                out.append({
-                    "id": t["id"],
-                    "node_id": t["id"],
-                    "first_comment_id": notes[0]["databaseId"] if notes else None,
-                    "resolvable": True,
-                    "resolved": t["isResolved"],
-                    "outdated": t["isOutdated"],
-                    "path": t["path"],
-                    "line": t["line"] or t["originalLine"],
-                    "notes": [
-                        {"author": (n["author"] or {}).get("login"),
-                         "body": n["body"], "created_at": n["createdAt"]}
-                        for n in notes
-                    ],
-                })
-            if not page["pageInfo"]["hasNextPage"]:
-                break
-            after = page["pageInfo"]["endCursor"]
+        try:
+            known = self.thread_map()
+        except Fail:
+            known = {}
+        out = []
+        for notes in group_threads(self.pages(f"repos/{{owner}}/{{repo}}/pulls/{self.number}/comments")):
+            root, t = notes[0], match(known, notes)
+            out.append({
+                "id": str(root["id"]),
+                "node_id": t.get("id"),
+                "first_comment_id": root["id"],
+                # REST replies only to a top-level comment; once that's deleted,
+                # the surviving root is itself a reply.
+                "root_deleted": bool(root.get("in_reply_to_id")),
+                "resolvable": True,
+                # None when GraphQL is unavailable: unknown, not open.
+                "resolved": t.get("resolved"),
+                "outdated": rest_outdated(root),
+                "path": root["path"],
+                "line": root.get("line") or root.get("original_line"),
+                "notes": [
+                    {"author": (n.get("user") or {}).get("login"),
+                     "body": n["body"], "created_at": n["created_at"]}
+                    for n in notes
+                ],
+            })
         return out
 
     def reply(self, thread, body):
         cid = thread.get("first_comment_id")
         if not cid:
             raise Fail(6, f"thread {thread['id']} has no comment to reply to")
+        if thread.get("root_deleted"):
+            data = self.api("graphql", "-f", f"id={thread['node_id']}", "-f", f"body={body}",
+                            "-f", "query=mutation($id: ID!, $body: String!) { "
+                            "addPullRequestReviewThreadReply(input: {pullRequestReviewThreadId: $id, "
+                            "body: $body}) { comment { databaseId } } }")
+            return data["data"]["addPullRequestReviewThreadReply"]["comment"]["databaseId"]
         res = self.api("-X", "POST",
                        f"repos/{{owner}}/{{repo}}/pulls/{self.number}/comments/{cid}/replies",
                        body={"body": body})
         return res["id"]
 
     def resolve(self, thread):
-        node_id = thread.get("node_id") or thread["id"]
+        node_id = thread.get("node_id")
+        if not node_id:
+            raise Fail(5, f"can't resolve thread {thread['id']}: resolving needs GitHub "
+                          "GraphQL, which isn't reachable here")
         self.api("graphql", "-f",
                  f'query=mutation {{ resolveReviewThread(input: {{threadId: "{node_id}"}}) '
                  '{ thread { isResolved } } }')
@@ -390,6 +403,7 @@ def cmd_threads(args):
         threads = [t for t in threads if not t["resolved"]]
     for t in threads:
         t.pop("first_comment_id", None)
+        t.pop("root_deleted", None)
     print(json.dumps({"threads": threads}, indent=1))
 
 
@@ -442,6 +456,12 @@ def cmd_reply(args):
                       "reply on it anyway")
     all_threads = c.threads()
     threads = [find_thread(all_threads, t) for t, _, _ in entries]
+    for (tid, _, resolve), t in zip(entries, threads):
+        # A GitHub thread with no node_id came from REST alone; refuse now rather than
+        # fail mid-batch on a write that needs GraphQL.
+        if t.get("first_comment_id") and not t.get("node_id") and (resolve or t.get("root_deleted")):
+            raise Fail(5, f"can't {'resolve' if resolve else 'reply to'} thread {tid}: that needs "
+                          "GitHub GraphQL, which isn't reachable here; nothing replied")
     me = None if args.dry_run else c.me()
     wrote = False
 

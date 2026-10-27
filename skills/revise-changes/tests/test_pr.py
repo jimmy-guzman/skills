@@ -30,29 +30,51 @@ with open(os.environ["FAKE_LOG"], "a") as fh:
 state = os.environ.get("FAKE_STATE", "OPEN")
 if a == ["api", "user"]:
     print(json.dumps({"login": "me"}))
-elif "graphql" in a and any(x.startswith("query=") and "reviewThreads(first: 50" in x for x in a):
-    print(json.dumps({"data": {"repository": {"pullRequest": {"reviewThreads": {
-        "pageInfo": {"hasNextPage": False, "endCursor": None},
-        "nodes": [
-            {"id": "PRRT_1", "isResolved": False, "isOutdated": False, "isCollapsed": False,
-             "path": "src/tabs.ts", "line": 83, "originalLine": 83,
-             "comments": {"pageInfo": {"hasNextPage": False, "endCursor": None}, "nodes": [
-                 {"databaseId": 501, "body": "swallowed error here", "author": {"login": "coderabbit"},
-                  "createdAt": "2026-01-01T00:00:00Z"},
-                 {"databaseId": 503, "body": "Rethrown now, see the test.", "author": {"login": "me"},
-                  "createdAt": "2026-01-02T00:00:00Z"}]}},
-            {"id": "PRRT_2", "isResolved": True, "isOutdated": False, "isCollapsed": False,
-             "path": "src/other.ts", "line": 10, "originalLine": 10,
-             "comments": {"pageInfo": {"hasNextPage": False, "endCursor": None}, "nodes": [
-                 {"databaseId": 502, "body": "already resolved", "author": {"login": "sam"},
-                  "createdAt": "2026-01-01T00:00:00Z"}]}},
-        ]}}}}}))
+elif "graphql" in a and os.environ.get("FAKE_NO_GRAPHQL"):
+    sys.stderr.write("HTTP 403: GitHub GraphQL is not available\n")
+    sys.exit(1)
+elif "graphql" in a and any(x.startswith("query=") and "addPullRequestReviewThreadReply" in x for x in a):
+    print(json.dumps({"data": {"addPullRequestReviewThreadReply": {"comment": {"databaseId": 992}}}}))
 elif "graphql" in a and any(x.startswith("query=") and "resolveReviewThread" in x for x in a):
     print(json.dumps({"data": {"resolveReviewThread": {"thread": {"isResolved": True}}}}))
 elif "graphql" in a:
-    print(json.dumps({"data": {"repository": {"pullRequest": {
-        "state": state, "isDraft": False, "headRefOid": "1a2b3c4d5e6f", "baseRefName": "main",
-        "title": "Tabs", "body": "Closes #41", "author": {"login": "sam"}}}}}))
+    print(json.dumps({"data": {"repository": {"pullRequest": {"reviewThreads": {
+        "pageInfo": {"hasNextPage": False, "endCursor": None},
+        "nodes": [
+            {"id": "PRRT_1", "isResolved": False,
+             "comments": {"nodes": [{"databaseId": 501}]}},
+            {"id": "PRRT_2", "isResolved": True,
+             "comments": {"nodes": [{"databaseId": 502}]}},
+            {"id": "PRRT_gone", "isResolved": True,
+             "comments": {"nodes": [{"databaseId": 507}]}},
+        ]}}}}}))
+elif any(x.endswith("/pulls/285/comments") for x in a):
+    print(json.dumps([[
+        {"id": 501, "path": "src/tabs.ts", "line": 83, "body": "swallowed error here",
+         "user": {"login": "coderabbit"}, "created_at": "2026-01-01T00:00:00Z"},
+        {"id": 502, "path": "src/other.ts", "line": 10, "body": "already resolved",
+         "user": {"login": "sam"}, "created_at": "2026-01-01T00:00:00Z"},
+        {"id": 503, "in_reply_to_id": 501, "path": "src/tabs.ts", "line": 83,
+         "body": "Rethrown now, see the test.", "user": {"login": "me"},
+         "created_at": "2026-01-02T00:00:00Z"},
+    ] + ([
+        {"id": 504, "in_reply_to_id": 499, "path": "src/gone.ts", "line": 4,
+         "body": "reply to a deleted comment", "user": {"login": "sam"},
+         "created_at": "2026-01-03T00:00:00Z"},
+        {"id": 507, "in_reply_to_id": 499, "path": "src/gone.ts", "line": 4,
+         "body": "second reply", "user": {"login": "me"},
+         "created_at": "2026-01-04T00:00:00Z"},
+        {"id": 505, "subject_type": "file", "path": "src/file.ts", "line": None,
+         "body": "file-level note", "user": {"login": "sam"}, "created_at": "2026-01-03T00:00:00Z"},
+        {"id": 506, "subject_type": "line", "path": "src/moved.ts", "line": None, "original_line": 9,
+         "body": "the diff moved past me", "user": {"login": "sam"},
+         "created_at": "2026-01-03T00:00:00Z"},
+    ] if os.environ.get("FAKE_EXTRA") else [])]))
+elif any(x.endswith("/pulls/285") for x in a):
+    print(json.dumps({"state": "open" if state == "OPEN" else "closed",
+                      "merged_at": "2026-01-01T00:00:00Z" if state == "MERGED" else None,
+                      "draft": False, "head": {"sha": "1a2b3c4d5e6f"}, "base": {"ref": "main"},
+                      "title": "Tabs", "body": "Closes #41", "user": {"login": "sam"}}))
 elif any(x.endswith("/replies") for x in a):
     print(json.dumps({"id": 991}))
 else:
@@ -155,8 +177,8 @@ class EndToEndGitHub(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(len(out["threads"]), 1)
         t = out["threads"][0]
-        self.assertEqual(t["id"], "PRRT_1")
-        self.assertEqual(t["notes"][0]["author"], "coderabbit")
+        self.assertEqual((t["id"], t["node_id"]), ("501", "PRRT_1"))
+        self.assertEqual([n["author"] for n in t["notes"]], ["coderabbit", "me"])
         self.assertNotIn("first_comment_id", t)
 
     def test_threads_include_resolved(self):
@@ -218,6 +240,69 @@ class EndToEndGitHub(unittest.TestCase):
                                    FAKE_STATE="MERGED")
         self.assertEqual(code, 4)
         self.assertIn("--allow-closed", err)
+
+    def test_threads_without_graphql(self):
+        # Some sessions answer every GraphQL call with 403. threads must still list
+        # every thread, with resolution unknown rather than guessed.
+        code, out, err = self.run_pr("threads", "285", FAKE_NO_GRAPHQL="1")
+        self.assertEqual(code, 0, err)
+        self.assertEqual([(t["id"], t["resolved"], t["node_id"]) for t in out["threads"]],
+                         [("501", None, None), ("502", None, None)])
+
+    def test_reply_without_graphql_by_comment_id(self):
+        code, out, err = self.run_pr("reply", "285", "--thread", "501", "--body-file", self.body,
+                                     FAKE_NO_GRAPHQL="1")
+        self.assertEqual((code, out["replied"]), (0, True), err)
+
+    def test_resolve_without_graphql_fails_clearly(self):
+        code, _, err = self.run_pr("resolve", "285", "--thread", "501", FAKE_NO_GRAPHQL="1")
+        self.assertEqual(code, 5)
+        self.assertIn("GraphQL", err)
+
+    def test_batch_resolve_without_graphql_replies_nothing(self):
+        code, _, err = self.run_batch([("501", "Fixed.", True), ("502", "Also.", False)],
+                                      FAKE_NO_GRAPHQL="1")
+        self.assertEqual(code, 5)
+        self.assertIn("nothing replied", err)
+        self.assertEqual(self.posted(), [])
+
+    def test_threads_rest_edge_cases(self):
+        # Replies to a deleted first comment stay one thread under the oldest reply,
+        # and match GraphQL's thread whichever reply it names; a file-level comment
+        # has no line but isn't outdated; a line comment that lost its line is.
+        code, out, err = self.run_pr("threads", "285", "--include-resolved", FAKE_EXTRA="1")
+        self.assertEqual(code, 0, err)
+        by_id = {t["id"]: t for t in out["threads"]}
+        self.assertNotIn("507", by_id)
+        self.assertEqual([n["body"] for n in by_id["504"]["notes"]],
+                         ["reply to a deleted comment", "second reply"])
+        self.assertEqual((by_id["504"]["node_id"], by_id["504"]["resolved"]), ("PRRT_gone", True))
+        self.assertEqual({i: by_id[i]["outdated"] for i in ("501", "505", "506")},
+                         {"501": False, "505": False, "506": True})
+        self.assertEqual(by_id["506"]["line"], 9)
+
+    def test_reply_on_deleted_root_goes_through_graphql(self):
+        # GitHub's REST reply endpoint takes only a top-level comment, and 504 is a
+        # reply whose first comment was deleted.
+        code, out, err = self.run_pr("reply", "285", "--thread", "504", "--body-file", self.body,
+                                     FAKE_EXTRA="1")
+        self.assertEqual((code, out["replied"], out["id"]), (0, True, 992), err)
+        log = self.log_lines()
+        self.assertFalse(any(x.endswith("/replies") for l in log for x in l["argv"]))
+        sent = next(l["argv"] for l in log if "addPullRequestReviewThreadReply" in str(l["argv"]))
+        self.assertIn("id=PRRT_gone", sent)
+        self.assertIn("body=Guarded the index now, see the test.", sent)
+
+    def test_reply_on_deleted_root_without_graphql_replies_nothing(self):
+        code, _, err = self.run_batch([("501", "ok", False), ("504", "x", False)],
+                                      FAKE_EXTRA="1", FAKE_NO_GRAPHQL="1")
+        self.assertEqual(code, 5)
+        self.assertIn("reply to thread 504", err)
+        self.assertEqual(self.posted(), [])
+
+    def test_merged_state(self):
+        _, out, _ = self.run_pr("state", "285", FAKE_STATE="MERGED")
+        self.assertEqual(out["state"], "merged")
 
     def test_resolve_standalone(self):
         code, out, _ = self.run_pr("resolve", "285", "--thread", "PRRT_1")

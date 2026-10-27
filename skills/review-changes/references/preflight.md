@@ -15,7 +15,7 @@ On a trigger, ask the user to pick one, and name what triggered:
 - **Novel only**: review, and pass the thread anchors to the reviewers so findings already raised drop out. The report takes the Supplemental shape below.
 - **Full review**: review as if there were no threads.
 
-When `truncated` is true, say the thread list may be incomplete. No trigger, no question.
+When `threads.unknown` is above zero, say that many threads may be open or resolved: the host's API didn't say which. Review as if there were no threads unless the user says otherwise. No trigger, no question.
 
 ## Novel only
 
@@ -35,7 +35,7 @@ The report is only the PR's state, from `scripts/pr.py state`:
 Context-only: <state> PR <ref>, head <short_sha>
 Title: `<title>`
 Author: `<author>`
-Threads: <open> open, <resolved> resolved. Last review: <short sha from reviewed_shas, or "none">.
+Threads: <open> open, <resolved> resolved, <unknown> unknown (leave out when 0). Last review: <short sha from reviewed_shas, or "none">.
 
 No review run.
 ```

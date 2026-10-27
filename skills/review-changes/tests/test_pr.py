@@ -32,24 +32,24 @@ with open(os.environ["FAKE_LOG"], "a") as fh:
 ep = next(x for x in a if x.startswith("repos/") or x == "graphql")
 post = "POST" in a
 query = next((x for x in a if x.startswith("query=")), "")
-if ep == "graphql" and "mutation" in query:
+if ep == "graphql" and os.environ.get("FAKE_NO_GRAPHQL"):
+    sys.stderr.write("HTTP 403: GitHub GraphQL is not available\n")
+    sys.exit(1)
+elif ep == "graphql" and "mutation" in query:
     print(json.dumps({"data": {"resolveReviewThread": {"thread": {"isResolved": True}}}}))
-elif ep == "graphql" and "databaseId" in query:
+elif ep == "graphql":
     print(json.dumps({"data": {"repository": {"pullRequest": {"reviewThreads": {
         "pageInfo": {"hasNextPage": False, "endCursor": None},
-        "nodes": [{"id": "PRRT_other", "comments": {"nodes": [{"databaseId": 5}]}},
-                  {"id": "PRRT_991", "comments": {"nodes": [{"databaseId": 991}]}}]}}}}}))
-elif ep == "graphql":
-    print(json.dumps({"data": {"repository": {"pullRequest": {
-        "state": os.environ.get("FAKE_STATE", "OPEN"), "isDraft": False,
-        "headRefOid": "1a2b3c4d5e6f", "baseRefName": "main", "title": "Tabs", "body": "Closes #41",
-        "author": {"login": "sam"},
-        "comments": {"nodes": [], "pageInfo": {"hasPreviousPage": False}},
-        "reviews": {"nodes": [], "pageInfo": {"hasPreviousPage": False}},
-        "reviewThreads": {"pageInfo": {"hasNextPage": False}, "nodes": [
-            {"isResolved": False, "isOutdated": False, "path": "src/tabs.ts", "line": 83,
-             "originalLine": 83, "comments": {"nodes": [
-                 {"body": "<!-- review-changes: 1a2b3c4 -->\nsame body"}]}}]}}}}}))
+        "nodes": [{"id": "PRRT_other", "isResolved": True,
+                   "comments": {"nodes": [{"databaseId": 5}]}},
+                  {"id": "PRRT_991", "isResolved": False,
+                   "comments": {"nodes": [{"databaseId": 991}]}}]}}}}}))
+elif ep.endswith("/pulls/285"):
+    st = os.environ.get("FAKE_STATE", "OPEN")
+    print(json.dumps({"state": "open" if st == "OPEN" else "closed",
+                      "merged_at": "2026-01-01T00:00:00Z" if st == "MERGED" else None,
+                      "draft": False, "head": {"sha": "1a2b3c4d5e6f"}, "base": {"ref": "main"},
+                      "title": "Tabs", "body": "Closes #41", "user": {"login": "sam"}}))
 elif ep.endswith("/files"):
     print(json.dumps([[{"filename": "src/tabs.ts", "patch": os.environ["FAKE_PATCH"],
                         "additions": 2, "deletions": 1}]]))
@@ -64,7 +64,16 @@ elif "/reviews/" in ep and ep.endswith("/comments"):
     print(json.dumps([[{"id": 800 + i, "path": c["path"], "body": c["body"]}
                        for i, c in enumerate(made)]]))
 elif ep.endswith("/comments") and not post and "/pulls/" in ep:
-    print(json.dumps([[{"path": "src/tabs.ts", "line": 83, "body": "same body"}]]))
+    print(json.dumps([[{"id": 991, "path": "src/tabs.ts", "line": 83,
+                        "body": "<!-- review-changes: 1a2b3c4 -->\nsame body"},
+                       {"id": 992, "in_reply_to_id": 991, "path": "src/tabs.ts", "line": 83,
+                        "body": "a reply"}]
+                      + ([{"id": 993, "in_reply_to_id": 990, "path": "src/gone.ts", "line": 4,
+                           "body": "reply to a deleted comment"},
+                          {"id": 995, "in_reply_to_id": 990, "path": "src/gone.ts", "line": 4,
+                           "body": "second reply"},
+                          {"id": 994, "subject_type": "file", "path": "src/file.ts", "line": None,
+                           "body": "file-level note"}] if os.environ.get("FAKE_EXTRA") else [])]))
 elif ep.endswith("/comments") and not post:
     print(json.dumps([[]]))
 elif "DELETE" in a:
@@ -198,6 +207,32 @@ class EndToEndGitHub(FakeGh):
         self.assertEqual((out["state"], out["head_sha"], out["base_ref"], out["body"]),
                          ("open", "1a2b3c4d5e6f", "main", "Closes #41"))
         self.assertEqual(out["threads"]["open"], 1)
+        self.assertTrue(out["reviewed_at_head"])
+
+    def test_state_without_graphql(self):
+        # Some sessions answer every GraphQL call with 403. state must still work,
+        # with thread resolution reported as unknown rather than open.
+        code, out, err = self.run_pr("state", "285", FAKE_NO_GRAPHQL="1")
+        self.assertEqual(code, 0, err)
+        self.assertEqual((out["head_sha"], out["base_ref"]), ("1a2b3c4d5e6f", "main"))
+        self.assertEqual((out["threads"]["open"], out["threads"]["unknown"]), (0, 1))
+        self.assertIsNone(out["threads"]["anchors"][0]["resolved"])
+
+    def test_state_rest_edge_cases(self):
+        code, out, err = self.run_pr("state", "285", FAKE_EXTRA="1")
+        self.assertEqual(code, 0, err)
+        anchors = {a["path"]: a for a in out["threads"]["anchors"]}
+        self.assertEqual(sorted(a["path"] for a in out["threads"]["anchors"]),
+                         ["src/file.ts", "src/gone.ts", "src/tabs.ts"])
+        self.assertFalse(anchors["src/file.ts"]["outdated"])
+
+    def test_resolve_non_numeric_comment_exits_6(self):
+        code, _, err = self.run_pr("resolve", "285", "--comment", "PRRT_991")
+        self.assertEqual(code, 6, err)
+
+    def test_merged_state(self):
+        _, out, _ = self.run_pr("state", "285", FAKE_STATE="MERGED")
+        self.assertEqual(out["state"], "merged")
         self.assertTrue(out["reviewed_at_head"])
         self.assertEqual(out["files"], [{"path": "src/tabs.ts", "additions": 2, "deletions": 1}])
 

@@ -65,7 +65,7 @@ Then pick the mode. The user's words win ("just suggest", "don't apply", "for th
 
 With the mode picked, choose the reviewer count from §3's rules, using the file list. Unless rule 2 or 3 applies, spawn the Bugs reviewer now with `Sources: none`: it needs no sources, and it's usually the slowest, so §2 shouldn't hold it. It needs no pack build to start either; the pack (§3) can still be building while it reads the diff on its own. Spawn the rest after §2.
 
-`pr.py state` takes a number, ref, or URL. It prints JSON with the PR's state, head SHA, base branch, description, thread anchors, file list, and `reviewed_at_head`. If the script fails, say why, read state, description, base branch, and head SHA with `gh pr view` or `glab mr view`, and treat thread state as unknown.
+`pr.py state` takes a number, ref, or URL. It prints JSON with the PR's state, head SHA, base branch, description, thread anchors, file list, and `reviewed_at_head`. If the script fails, say why, read state, description, base branch, and head SHA with `gh api repos/{owner}/{repo}/pulls/<n>` or `glab mr view`, and treat thread state as unknown.
 
 ### 2. Find the sources
 

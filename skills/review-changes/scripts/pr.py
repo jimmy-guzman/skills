@@ -32,8 +32,11 @@ Without --path, post writes one general comment. Every post starts with
 
 state prints one JSON object:
   provider, ref, state (open|closed|merged), draft, head_sha, base_ref, title,
-  author, body (the PR description), threads {open, resolved, anchors[]}, reviewed_shas[],
-  reviewed_at_head, files [{path, additions, deletions}], truncated
+  author, body (the PR description), threads {open, resolved, unknown, anchors[]},
+  reviewed_shas[], reviewed_at_head, files [{path, additions, deletions}]
+GitHub's REST API has no resolved flag, so resolved comes from GraphQL. Where
+GraphQL is blocked, state still works: each anchor's resolved is null and
+threads.unknown counts them. resolve needs GraphQL and fails where it's blocked.
 
 post prints one JSON object:
   posted (inline|general|skipped), reason, id
@@ -197,32 +200,34 @@ def patch_counts(patch):
 
 # GitHub -----------------------------------------------------------------
 
-GH_STATE_QUERY = """
-query($owner: String!, $name: String!, $number: Int!) {
-  repository(owner: $owner, name: $name) {
-    pullRequest(number: $number) {
-      state isDraft headRefOid baseRefName title body author { login }
-      comments(last: 100) { nodes { body } pageInfo { hasPreviousPage } }
-      reviews(last: 100) { nodes { body } pageInfo { hasPreviousPage } }
-      reviewThreads(first: 100) {
-        pageInfo { hasNextPage }
-        nodes {
-          isResolved isOutdated path line originalLine
-          comments(first: 1) { nodes { body } }
-        }
-      }
-    }
-  }
-}
-"""
+def group_threads(comments):
+    """Review comments as threads, oldest first. GitHub points every reply at the thread's
+    first comment, so that id keys the thread even after the first comment is deleted."""
+    threads = {}
+    for c in sorted(comments, key=lambda c: c["id"]):
+        threads.setdefault(c.get("in_reply_to_id") or c["id"], []).append(c)
+    return list(threads.values())
 
-GH_THREAD_IDS_QUERY = """
+
+def match(known, notes):
+    """The GraphQL thread whose first comment is any of these notes, or {}."""
+    return next((known[n["id"]] for n in notes if n["id"] in known), {})
+
+
+def rest_outdated(c):
+    """REST drops line from a line comment the diff moved past; file comments never have one."""
+    return c.get("subject_type", "line") == "line" and c.get("line") is None
+
+
+# REST has no resolved flag and no way to resolve a thread, so those two come from
+# GraphQL; everything else is REST, so state still works where GraphQL is blocked.
+GH_THREADS_QUERY = """
 query($owner: String!, $name: String!, $number: Int!, $after: String) {
   repository(owner: $owner, name: $name) {
     pullRequest(number: $number) {
       reviewThreads(first: 100, after: $after) {
         pageInfo { hasNextPage endCursor }
-        nodes { id comments(first: 1) { nodes { databaseId } } }
+        nodes { id isResolved comments(first: 1) { nodes { databaseId } } }
       }
     }
   }
@@ -249,39 +254,55 @@ class GitHub:
         pages = self.api(endpoint, "--paginate", "--slurp")
         return [item for page in pages for item in page]
 
+    def thread_map(self):
+        """Thread node id and resolved, keyed by the thread's first comment id."""
+        out, after = {}, []
+        while True:
+            data = self.api("graphql", "-F", "owner={owner}", "-F", "name={repo}",
+                            "-F", f"number={self.number}", *after,
+                            "-f", f"query={GH_THREADS_QUERY}")
+            page = data["data"]["repository"]["pullRequest"]["reviewThreads"]
+            for t in page["nodes"]:
+                first = t["comments"]["nodes"]
+                if first:
+                    out[first[0]["databaseId"]] = {"id": t["id"], "resolved": t["isResolved"]}
+            if not page["pageInfo"]["hasNextPage"]:
+                return out
+            after = ["-f", f"after={page['pageInfo']['endCursor']}"]
+
     def state(self):
-        data = self.api(
-            "graphql", "-F", "owner={owner}", "-F", "name={repo}",
-            "-F", f"number={self.number}", "-f", f"query={GH_STATE_QUERY}",
-        )
-        pr = data["data"]["repository"]["pullRequest"]
-        threads = pr["reviewThreads"]["nodes"]
-        bodies = [n["body"] for n in pr["comments"]["nodes"] + pr["reviews"]["nodes"]]
+        base = "repos/{owner}/{repo}"
+        pr = self.api(f"{base}/pulls/{self.number}")
+        try:
+            known = self.thread_map()
+        except Fail:
+            known = {}
+        threads = group_threads(self.pages(f"{base}/pulls/{self.number}/comments"))
+        bodies = [t[0]["body"] for t in threads]
+        bodies += [c["body"] for c in self.pages(f"{base}/issues/{self.number}/comments")]
+        bodies += [r.get("body") or "" for r in self.pages(f"{base}/pulls/{self.number}/reviews")]
         anchors = []
-        for t in threads:
-            first = (t["comments"]["nodes"] or [{"body": ""}])[0]["body"]
-            bodies.append(first)
+        for notes in threads:
+            c, t = notes[0], match(known, notes)
             anchors.append({
-                "path": t["path"],
-                "line": t["line"] or t["originalLine"],
-                "resolved": t["isResolved"],
-                "outdated": t["isOutdated"],
-                "first_line": first_line(first),
+                "path": c["path"],
+                "line": c.get("line") or c.get("original_line"),
+                # None when GraphQL is unavailable: unknown, not open.
+                "resolved": t.get("resolved"),
+                "outdated": rest_outdated(c),
+                "first_line": first_line(c["body"]),
             })
         return {
-            "state": {"OPEN": "open", "CLOSED": "closed", "MERGED": "merged"}[pr["state"]],
-            "draft": pr["isDraft"],
-            "head_sha": pr["headRefOid"],
-            "base_ref": pr["baseRefName"],
+            "state": "merged" if pr.get("merged_at") else pr["state"],
+            "draft": bool(pr.get("draft")),
+            "head_sha": pr["head"]["sha"],
+            "base_ref": pr["base"]["ref"],
             "title": pr["title"],
-            "body": pr["body"] or "",
-            "author": (pr["author"] or {}).get("login"),
+            "body": pr.get("body") or "",
+            "author": (pr.get("user") or {}).get("login"),
             "anchors": anchors,
             "bodies": bodies,
             "files": self.file_counts(),
-            "truncated": pr["reviewThreads"]["pageInfo"]["hasNextPage"]
-            or pr["comments"]["pageInfo"]["hasPreviousPage"]
-            or pr["reviews"]["pageInfo"]["hasPreviousPage"],
             "ref": f"#{self.number}",
         }
 
@@ -360,22 +381,13 @@ class GitHub:
                         body={"body": body})["id"]
 
     def resolve(self, cid):
-        after = []
-        while True:
-            data = self.api("graphql", "-F", "owner={owner}", "-F", "name={repo}",
-                            "-F", f"number={self.number}", *after,
-                            "-f", f"query={GH_THREAD_IDS_QUERY}")
-            page = data["data"]["repository"]["pullRequest"]["reviewThreads"]
-            for t in page["nodes"]:
-                first = t["comments"]["nodes"]
-                if first and str(first[0]["databaseId"]) == str(cid):
-                    self.api("graphql", "-f",
-                             f'query=mutation {{ resolveReviewThread(input: {{threadId: "{t["id"]}"}}) '
-                             '{ thread { isResolved } } }')
-                    return t["id"]
-            if not page["pageInfo"]["hasNextPage"]:
-                raise Fail(6, f"no review thread starts with comment {cid}")
-            after = ["-f", f"after={page['pageInfo']['endCursor']}"]
+        t = self.thread_map().get(int(cid)) if str(cid).isdigit() else None
+        if not t:
+            raise Fail(6, f"no review thread starts with comment {cid}")
+        self.api("graphql", "-f",
+                 f'query=mutation {{ resolveReviewThread(input: {{threadId: "{t["id"]}"}}) '
+                 '{ thread { isResolved } } }')
+        return t["id"]
 
 
 # GitLab -----------------------------------------------------------------
@@ -432,7 +444,6 @@ class GitLab:
             "anchors": anchors,
             "bodies": bodies,
             "files": self.file_counts(),
-            "truncated": False,
             "ref": f"!{self.number}",
             "diff_refs": mr.get("diff_refs"),
         }
@@ -573,14 +584,14 @@ def cmd_state(args):
         "author": s["author"],
         "body": s["body"],
         "threads": {
-            "open": sum(1 for a in s["anchors"] if not a["resolved"]),
+            "open": sum(1 for a in s["anchors"] if a["resolved"] is False),
             "resolved": sum(1 for a in s["anchors"] if a["resolved"]),
+            "unknown": sum(1 for a in s["anchors"] if a["resolved"] is None),
             "anchors": s["anchors"],
         },
         "reviewed_shas": reviewed,
         "reviewed_at_head": any(head.startswith(r) or r.startswith(head) for r in reviewed),
         "files": s["files"],
-        "truncated": s["truncated"],
     }, indent=1))
 
 

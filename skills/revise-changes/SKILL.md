@@ -39,7 +39,7 @@ Run `python3 scripts/pr.py state <pr>` for `head_sha`, `base_ref`, and `state`. 
 
 ### 2. Fetch threads
 
-`python3 scripts/pr.py threads <pr>`. Resolved threads are left out by default; pass `--include-resolved` only when the user asks to revisit one. Note each thread's path:line, whether it's `outdated` (the diff moved since the comment), and its full note history (author, body, timestamp) for every reply, not just the first comment.
+`python3 scripts/pr.py threads <pr>`. Resolved threads are left out by default; pass `--include-resolved` only when the user asks to revisit one. A thread whose `resolved` is null is listed because it may be open: the host's API didn't say. If any are null, say so in §6's report. Note each thread's path:line, whether it's `outdated` (the diff moved since the comment), and its full note history (author, body, timestamp) for every reply, not just the first comment.
 
 ### 3. Extract and verify
 
@@ -78,7 +78,7 @@ A Fixed reply describes code the PR doesn't have until it's pushed. Before posti
 
 Rerun the batch without `--dry-run`, keeping only the approved threads. A retry is safe: an identical body the current user already posted on the thread comes back as `"replied": "skipped"`.
 
-Set `"resolve": true` on a thread's entry only when the user said to resolve this round. The default is reply-only; resolving is never implied by applying a fix, writing a reply, or approving a post. Then report what was posted: `Posted 4 replies.` plus anything skipped or refused and why.
+Set `"resolve": true` on a thread's entry only when the user said to resolve this round, and only on a thread with a `node_id` on GitHub: without one, the script can't resolve it, so say so instead. The default is reply-only; resolving is never implied by applying a fix, writing a reply, or approving a post. Then report what was posted: `Posted 4 replies.` plus anything skipped or refused and why.
 
 ## Voice
 
