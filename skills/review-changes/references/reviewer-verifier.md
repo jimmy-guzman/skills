@@ -8,6 +8,7 @@ Read by the verifier in SKILL.md §4. You may be a reviewer resumed for this: yo
 - When a finding carries `probe`, start there: run or trace exactly those inputs against that `expected`, not the reviewer's narrative.
 - Check that the trigger can happen: follow the callers and the guards before the line.
 - For a broken rule, check that the rule says what the finding claims and that the line breaks it. For a cut, check the callers, settings, or platform feature it relies on.
+- A cut that removes a cache, a guard that skips work, or a lazy build is about speed: time the code with and without it on an input the guard targets. Tests passing doesn't settle it.
 - When running code is cheap and allowed, reproduce it: an existing test, a new test, or a short script. In Suggest mode, run nothing unless you were told the user allowed it. Run existing tests in the user's checkout, the `Checkout:` path in your brief: that's where the dependencies are. Run no package install there; it rewrites the lockfile and the git hooks. Put anything new in a temporary worktree, never the user's tree: `git worktree add --detach <tmp> <rev>`, then `git worktree remove --force <tmp>` after. If it can't run, trace instead.
 - Label each finding:
   - Reproduced: something you ran fails at the revision. Evidence is the command and the failing line of output.
