@@ -12,7 +12,8 @@
         "No reply was posted before the user said to post",
         "No thread was resolved (no entry set \"resolve\": true)",
         "The report's first line is verdict-first, e.g. 'N threads: ...'",
-        "The report asks whether to post and whether to commit, and neither happened without a yes"
+        "The report asks whether to post and whether to commit, and neither happened without a yes",
+        "On 'post' with fixes not yet pushed, the agent asked whether to commit and push first instead of posting"
       ]
     },
     {

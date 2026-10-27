@@ -72,6 +72,8 @@ End with two questions, and act on each only on its own explicit yes:
 - `Post these replies? Say "post", or name the threads to post.` Replies go to a shared system, so a bare "fix these" or "address the comments" never posts on its own; the user said address, not publish. If the user asked up front to post without seeing drafts ("reply to the reviewers"), skip the question and post.
 - If anything was applied and nothing has been committed yet: `Commit these fixes? Say "commit", or name a different message.`
 
+A Fixed reply describes code the PR doesn't have until it's pushed. Before posting, if applied fixes aren't on the PR yet (uncommitted, or committed but not pushed), ask whether to commit and push first, even when the user asked up front to post. After the commit, put its short-SHA into the Fixed bodies before §7.
+
 ### 7. Post
 
 Rerun the batch without `--dry-run`, keeping only the approved threads. A retry is safe: an identical body the current user already posted on the thread comes back as `"replied": "skipped"`.
