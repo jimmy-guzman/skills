@@ -1,16 +1,16 @@
 ---
 name: fix-dep-vulns
 description: >
-  Triage and fix security vulnerabilities in pnpm, uv, or pip dependencies
-  without reaching for overrides first. Use this whenever the user shares a
-  vulnerability finding, a GHSA, CVE, PYSEC, or OSV advisory, `pnpm audit`,
-  `uv audit`, or `pip-audit` output, or a security alert or screenshot from
+  Triage and fix security vulnerabilities in pnpm, uv, pip, or Cargo
+  dependencies without reaching for overrides first. Use this whenever the user shares a
+  vulnerability finding, a GHSA, CVE, PYSEC, RUSTSEC, or OSV advisory,
+  `pnpm audit`, `uv audit`, `pip-audit`, or `cargo audit` output, or a security alert or screenshot from
   GitLab, GitHub, Dependabot, Snyk, Renovate, or any other scanner. Also use
   it when they ask to fix, resolve, patch, bump, or clear a vulnerable
   package, even if they only name the package, and when they ask to clean up
   or remove existing overrides, constraints, or patches. Not for routine
   dependency upgrades with no advisory behind them.
-compatibility: Requires pnpm, uv, or pip with pip-audit, matching the repo, plus curl and jq for registry lookups
+compatibility: Requires pnpm, uv, pip with pip-audit, or Cargo with cargo-audit, matching the repo, plus curl and jq for registry lookups
 ---
 
 # Fix dependency vulnerabilities
@@ -25,9 +25,10 @@ An override clears a finding in one line, which is why it's the tempting first m
    - `pnpm-lock.yaml`: pnpm.
    - `uv.lock`: uv.
    - `requirements*.txt` or a `pyproject.toml` with no `uv.lock`: pip.
+   - `Cargo.lock`: Cargo.
    - None of these: tell the user which ecosystems this skill covers and ask whether to adapt the same ladder to theirs.
-2. Read exactly one ecosystem file: [references/pnpm.md](references/pnpm.md) or [references/python.md](references/python.md). It holds every command used below, under the headings named in italics (_Investigating_, _Fixing_, _Overrides_, _Dismissals_, _Release age_). `references/report.md` is used later in steps 3d and 6.
-3. List existing overrides. pnpm: `overrides` in `pnpm-workspace.yaml`. On pnpm 11+, entries under `pnpm.overrides` or `patchedDependencies` in `package.json` are ignored (pnpm warns "The `pnpm` field in package.json is no longer read"); flag them for removal or migration to `pnpm-workspace.yaml`. uv: `override-dependencies` and `constraint-dependencies` under `[tool.uv]`. pip: `constraints.txt`. Existing overrides are a common cause of findings. An exact pin added for an old advisory holds the package below a newer fix.
+2. Read exactly one ecosystem file: [references/pnpm.md](references/pnpm.md), [references/python.md](references/python.md), or [references/cargo.md](references/cargo.md). It holds every command used below, under the headings named in italics (_Investigating_, _Fixing_, _Overrides_, _Dismissals_, _Release age_). `references/report.md` is used later in steps 3d and 6.
+3. List existing overrides. pnpm: `overrides` in `pnpm-workspace.yaml`. On pnpm 11+, entries under `pnpm.overrides` or `patchedDependencies` in `package.json` are ignored (pnpm warns "The `pnpm` field in package.json is no longer read"); flag them for removal or migration to `pnpm-workspace.yaml`. uv: `override-dependencies` and `constraint-dependencies` under `[tool.uv]`. pip: `constraints.txt`. Cargo: `[patch]` and `[replace]` in the root `Cargo.toml` and `.cargo/config.toml`, plus exact `=` pins on direct dependencies. Existing overrides are a common cause of findings. An exact pin added for an old advisory holds the package below a newer fix.
 
 ## Workflow
 
@@ -74,8 +75,8 @@ When you do dismiss (_Dismissals_):
 
 - Every dismissal gets a note in the scanner and the comment on the config entry, using the dismissal template in [references/report.md](references/report.md).
 - If the dismissal is because the fix needs a major bump, also open a ticket for the upgrade and reference it in the note. The note explains "why not now"; the ticket is how it comes back.
-- Record it where the repo can see it, not only in the scanner: `pnpm-workspace.yaml`, `[tool.uv]`, or the CI invocation.
-- Prefer the auto-expiring form where the ecosystem has one: uv's `ignore-until-fixed` clears itself once a patched version ships. Where there isn't one (pnpm `audit.ignore`, pip `--ignore-vuln`), write the removal condition into the comment: what has to be true for this entry to come out.
+- Record it where the repo can see it, not only in the scanner: `pnpm-workspace.yaml`, `[tool.uv]`, `.cargo/audit.toml`, or the CI invocation.
+- Prefer the auto-expiring form where the ecosystem has one: uv's `ignore-until-fixed` clears itself once a patched version ships. Where there isn't one (pnpm `audit.ignore`, pip `--ignore-vuln`, cargo-audit `ignore`), write the removal condition into the comment: what has to be true for this entry to come out.
 - Tell the user explicitly that you dismissed and why a code fix wasn't available.
 
 **e. Override, as a last resort.** Only when one of these is true:
@@ -87,13 +88,13 @@ When you do dismiss (_Dismissals_):
 
 When you do add one (_Overrides_):
 
-- Prefer the form that only narrows within ranges parents already declare: a pnpm convergence override, uv `constraint-dependencies`, a pip constraints file.
-- Otherwise scope it to the parent: pnpm `parent>pkg`, a uv scoped override. pip has no scoped form; say so.
+- Prefer the form that only narrows within ranges parents already declare: a pnpm convergence override, uv `constraint-dependencies`, a pip constraints file. Cargo has none; its lockfile already holds the floor.
+- Otherwise scope it to the parent: pnpm `parent>pkg`, a uv scoped override. pip and Cargo `[patch]` have no scoped form; say so.
 - Never cross a major the parent declared.
 - Add a comment with the reason and the condition for removing it.
 - Tell the user explicitly that you added an override and why the earlier steps didn't work.
 
-Never run the auditor's auto-fix (`pnpm audit --fix`, `pip-audit --fix`). pnpm writes an override for every finding, which is the exact pattern this skill exists to avoid. pip-audit rewrites `requirements.txt` but bumps every vulnerable pin without regard to the ladder, and on pip-tools projects it edits the compiled file instead of `requirements.in`, so the next recompile reverts the fix.
+Never run the auditor's auto-fix (`pnpm audit --fix`, `pip-audit --fix`, `cargo audit fix`). pnpm writes an override for every finding, which is the exact pattern this skill exists to avoid. pip-audit rewrites `requirements.txt` but bumps every vulnerable pin without regard to the ladder, and on pip-tools projects it edits the compiled file instead of `requirements.in`, so the next recompile reverts the fix. `cargo audit fix` rewrites `Cargo.toml` requirements for every finding the same way.
 
 ### 4. Clean up existing overrides
 
@@ -123,8 +124,8 @@ If the user wants a merge request or pull request, hand off to the `submit-chang
 
 ## Things to watch
 
-- **Release age.** pnpm's `minimumReleaseAge` (default one day since pnpm 11) and uv's `exclude-newer` keep fresh releases out of the tree. A fix published inside that window won't install yet. Tell the user instead of working around it (_Release age_). The delay protects against malicious releases.
+- **Release age.** pnpm's `minimumReleaseAge` (default one day since pnpm 11) and uv's `exclude-newer` keep fresh releases out of the tree. A fix published inside that window won't install yet. Cargo has no delay, but its MSRV-aware resolver skips a fix that needs a newer Rust. Tell the user instead of working around it (_Release age_). The delay protects against malicious releases.
 - **Registry mirrors.** Company mirrors can lag the public registry. If the registry lookup doesn't show a version the advisory mentions, say so. It's an infrastructure question, not a tree problem.
-- **Targeted updates.** Re-resolve one package (`pnpm update <pkg>`, `uv lock --upgrade-package <pkg>`) rather than everything. A bare update bumps every package within range and turns a security fix into a large, hard-to-review diff.
-- **Prod vs dev.** `pnpm why` labels dev paths. `uv audit --no-dev` drops the `dev` group, but other groups and extras still count; check `uv tree --invert` for the real path. pip repos usually split `requirements.txt` from `requirements-dev.txt`; a finding only in the dev file is dev-only.
+- **Targeted updates.** Re-resolve one package (`pnpm update <pkg>`, `uv lock --upgrade-package <pkg>`, `cargo update -p <pkg>`) rather than everything. A bare update bumps every package within range and turns a security fix into a large, hard-to-review diff.
+- **Prod vs dev.** `pnpm why` labels dev paths. `uv audit --no-dev` drops the `dev` group, but other groups and extras still count; check `uv tree --invert` for the real path. pip repos usually split `requirements.txt` from `requirements-dev.txt`; a finding only in the dev file is dev-only. `cargo audit` can't filter; use `cargo tree -i <pkg> -e no-dev --target all`, since a path may exist only on another platform or behind a feature.
 - **Peer warnings.** After removing an umbrella package, pnpm may warn about missing peers the umbrella used to satisfy. Add them as direct dependencies.

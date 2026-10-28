@@ -27,7 +27,7 @@ They cover both sides of a change. As the author: plan it, commit it, submit it 
 
 ### Other
 
-- [`fix-dep-vulns`](skills/fix-dep-vulns/SKILL.md): triage and fix dependency vulnerabilities in pnpm, uv, and pip projects, preferring lockfile refreshes and parent upgrades over overrides.
+- [`fix-dep-vulns`](skills/fix-dep-vulns/SKILL.md): triage and fix dependency vulnerabilities in pnpm, uv, pip, and Cargo projects, preferring lockfile refreshes and parent upgrades over overrides.
 - [`talk-plainly`](skills/talk-plainly/SKILL.md): reply like a direct, busy peer, answer first, with no filler or generated-sounding patterns.
 
 ## Adding a skill
