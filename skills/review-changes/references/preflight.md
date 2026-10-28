@@ -25,7 +25,7 @@ Use the mode's report from SKILL.md §5, titled `Supplemental review (<N> existi
 Existing threads cover prior rounds; the findings above are novel only.
 ```
 
-Open threads block too. Add them to the verdict line, as in `Not ready: 1 Major (2), 2 open threads.`
+Before the verdict, check each open thread against the new head. A thread blocks only when the head still has the problem it names and it was raised against this change. Add the blocking ones to the verdict line, as in `Not ready: 1 Major (2), 2 open threads.` The rest don't count toward the verdict. List each one under the verdict, one line per thread: `fixed at <short sha>: <file:line>, can be resolved` or `not from this change`.
 
 ## Skip
 
