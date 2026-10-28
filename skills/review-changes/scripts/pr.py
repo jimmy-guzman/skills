@@ -23,8 +23,8 @@ Usage:
   pr.py post  <pr> --batch FILE [--head SHA] [--allow-closed] [--dry-run]
   pr.py edit    <pr> --comment ID --body-file F [--general | --review] [--allow-closed] [--dry-run]
   pr.py delete  <pr> --comment ID [--general] [--allow-closed] [--dry-run]
-  pr.py reply   <pr> --comment ID --body-file F [--allow-closed] [--dry-run]
-  pr.py resolve <pr> --comment ID [--dry-run]
+  pr.py reply   <pr> --comment ID --body-file F [--general] [--allow-closed] [--dry-run]
+  pr.py resolve <pr> --comment ID [--general] [--dry-run]
 
 <pr> is a number (285), a ref (#285, !482), or a PR/MR URL.
 Without --path, post writes one general comment. Every post starts with
@@ -57,8 +57,9 @@ line, in the single-post shape plus "index"; lines may come out of order.
 
 edit, delete, reply, and resolve take the id that post returned. Pass
 --general when post said "general", and --review when it said "review"
-(edit only: a submitted GitHub review can't be deleted); reply and resolve
-work on inline comments only. Each prints one JSON object:
+(edit only: a submitted GitHub review can't be deleted). On GitHub, reply
+and resolve work on inline comments only; on GitLab a general comment is a
+resolvable thread too, so they take --general there. Each prints one JSON object:
   <command> (true|dry-run), id
 
 post, edit, delete, and reply refuse a closed or merged PR by default and
@@ -71,7 +72,7 @@ Exit codes:
   3 head moved: the PR head is not --head; re-review before posting
   4 PR is closed or merged and --allow-closed wasn't passed; nothing posted
   5 gh/glab call failed (auth, network, not found); stderr says which
-  6 resolve found no review thread for --comment
+  6 reply or resolve found no thread for --comment
   7 --batch on GitLab found your own unpublished draft notes; nothing posted
 
 Examples:
@@ -376,11 +377,11 @@ class GitHub:
         self.api("-X", "DELETE", self.comment_url(cid, general))
         return cid
 
-    def reply(self, cid, body):
+    def reply(self, cid, body, _general=False):
         return self.api("-X", "POST", f"repos/{{owner}}/{{repo}}/pulls/{self.number}/comments/{cid}/replies",
                         body={"body": body})["id"]
 
-    def resolve(self, cid):
+    def resolve(self, cid, _general=False):
         t = self.thread_map().get(int(cid)) if str(cid).isdigit() else None
         if not t:
             raise Fail(6, f"no review thread starts with comment {cid}")
@@ -543,13 +544,24 @@ class GitLab:
         self.api("-X", "DELETE", f"{self.mr}/notes/{nid}")
         return nid
 
-    def reply(self, cid, body):
-        return self.api("-X", "POST", f"{self.mr}/discussions/{cid}/notes",
+    # A general note is its own resolvable discussion, and state counts it as a thread.
+    def discussion_id(self, cid, general):
+        if not general:
+            return cid
+        for d in self.pages(f"{self.mr}/discussions"):
+            if any(str(n.get("id")) == str(cid) for n in d.get("notes") or []):
+                return d["id"]
+        raise Fail(6, f"no discussion holds note {cid}")
+
+    def reply(self, cid, body, general=False):
+        did = self.discussion_id(cid, general)
+        return self.api("-X", "POST", f"{self.mr}/discussions/{did}/notes",
                         body={"body": body})["id"]
 
-    def resolve(self, cid):
-        self.api("-X", "PUT", f"{self.mr}/discussions/{cid}", body={"resolved": True})
-        return cid
+    def resolve(self, cid, general=False):
+        did = self.discussion_id(cid, general)
+        self.api("-X", "PUT", f"{self.mr}/discussions/{did}", body={"resolved": True})
+        return did
 
 
 def first_line(body):
@@ -764,14 +776,14 @@ def cmd_followup(args):
     cmd = args.command
     if not args.comment:
         raise Fail(2, f"{cmd} needs --comment")
-    if args.general and cmd in ("reply", "resolve"):
-        raise Fail(2, f"a general comment has no thread to {cmd}; edit it instead")
     if args.review and (args.general or cmd != "edit"):
         raise Fail(2, "--review works with edit only: a submitted review can't be deleted, "
                       "replied to, or resolved")
     body = read_body(args) if cmd in ("edit", "reply") else None
 
-    c, _ = client(args)
+    c, provider = client(args)
+    if args.general and cmd in ("reply", "resolve") and provider == "github":
+        raise Fail(2, f"a GitHub general comment has no thread to {cmd}; edit it instead")
     if cmd != "resolve":
         open_state(c, args)
     if args.dry_run:
@@ -787,9 +799,9 @@ def cmd_followup(args):
     elif cmd == "delete":
         nid = c.delete(args.comment, args.general)
     elif cmd == "reply":
-        nid = c.reply(args.comment, body)
+        nid = c.reply(args.comment, body, args.general)
     else:
-        nid = c.resolve(args.comment)
+        nid = c.resolve(args.comment, args.general)
     print(json.dumps({cmd: True, "id": nid}))
 
 

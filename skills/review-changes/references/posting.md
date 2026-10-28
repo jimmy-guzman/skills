@@ -92,6 +92,8 @@ python3 <skill-dir>/scripts/pr.py delete <pr> --comment <id>
 
 A GitHub review's body takes `edit --review` only: GitHub can't delete a submitted review. To retract a summary there, edit it down to a line saying why.
 
+`reply` and `resolve` take `--general` on GitLab, where a general comment is a resolvable thread that `state` counts as open. On GitHub they refuse it, since a general comment there has no thread.
+
 ## Downgrade or dismiss a posted finding
 
 When the user decides a posted finding no longer holds as scored (lower severity, not a real issue, already fixed elsewhere), do these, in order:

@@ -7,6 +7,7 @@ Run from the skill root: python3 -m unittest discover -s tests
 """
 
 import importlib.util
+import io
 import json
 import os
 import stat
@@ -15,6 +16,7 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest import mock
 
 SCRIPT = os.path.join(os.path.dirname(__file__), "..", "scripts", "pr.py")
 spec = importlib.util.spec_from_file_location("pr", SCRIPT)
@@ -455,6 +457,39 @@ class BatchGitLab(unittest.TestCase):
                                     FAKE_PUBLISH_FAILS="1")
         self.assertEqual(code, 5)
         self.assertIn("DELETE", self.writes()[-1]["argv"])
+
+
+class FollowUpGitLabGeneral(unittest.TestCase):
+    def setUp(self):
+        self.c = pr.GitLab(None, None, 482)
+        self.c.pages = lambda ep: [{"id": "disc-1", "notes": [{"id": 9001}]},
+                                   {"id": "disc-2", "notes": [{"id": 9100}, {"id": 9101}]}]
+        self.calls = []
+        self.c.api = lambda *a, body=None: self.calls.append((a, body)) or {"id": 7}
+
+    def test_resolve_general_finds_its_discussion(self):
+        self.assertEqual(self.c.resolve("9100", general=True), "disc-2")
+        self.assertEqual(self.calls, [(("-X", "PUT", f"{self.c.mr}/discussions/disc-2"),
+                                       {"resolved": True})])
+
+    def test_reply_general_posts_to_its_discussion(self):
+        self.c.reply("9100", "Fixed", general=True)
+        self.assertEqual(self.calls[0][0], ("-X", "POST", f"{self.c.mr}/discussions/disc-2/notes"))
+
+    def test_unknown_note_exits_6(self):
+        with self.assertRaises(pr.Fail) as e:
+            self.c.resolve("404", general=True)
+        self.assertEqual(e.exception.code, 6)
+        self.assertEqual(self.calls, [])
+
+    def test_cli_resolve_general_on_gitlab(self):
+        with mock.patch.object(pr.GitLab, "pages", lambda _, ep: self.c.pages(ep)), \
+                mock.patch.object(pr.GitLab, "api", lambda _, *a, **k: self.c.api(*a, **k)), \
+                mock.patch("sys.stdout", new_callable=io.StringIO):
+            code = pr.main(["resolve", "482", "--comment", "9100", "--general",
+                            "--provider", "gitlab"])
+        self.assertEqual(code, 0)
+        self.assertEqual(self.calls[0][0][-1], f"{self.c.mr}/discussions/disc-2")
 
 
 class FollowUpGitHub(FakeGh):
