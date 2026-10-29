@@ -26,8 +26,8 @@ Two design choices drive everything else:
 
 ```mermaid
 flowchart TD
-    A["1. Pin the diff<br/>snapshot.py; Bugs starts here"] --> B["2. Find sources<br/>standards & spec docs"]
-    B --> C["3. Build pack + run reviewers<br/>pack.py; Standards / Spec join Bugs"]
+    A["1. Pin the diff + build pack<br/>snapshot.py, pack.py; Bugs starts here"] --> B["2. Find sources<br/>standards & spec docs"]
+    B --> C["3. Run reviewers<br/>Standards / Spec join Bugs"]
     C --> D["4. Verify findings<br/>warm or fresh verifier"]
     D --> E["5. Report<br/>grouped by action, stop"]
     E -->|"user: apply"| F["6. Apply + re-review<br/>same reviewers, diff of the fix"]
@@ -39,11 +39,11 @@ waits to be told to apply or post.
 
 ## The pack: one read surface, not N
 
-Once §2 has found the sources, `scripts/pack.py` reads the pinned diff once
-and builds a shared directory every reviewer and verifier reads from, instead
-of each one re-running `git`/`grep` itself. The Bugs reviewer doesn't wait for
-it: Bugs needs no sources and is usually the slowest, so it starts in §1 on
-the diff alone and gets the pack path once it's built.
+At the end of §1, `scripts/pack.py` reads the pinned diff once and builds a
+shared directory every reviewer and verifier reads from, instead of each one
+re-running `git`/`grep` itself. It needs only the diff and the revision, so it
+is built before any reviewer spawns: Bugs, which needs no sources and is
+usually the slowest, starts right after with the pack, without waiting for §2.
 
 ```mermaid
 flowchart LR
@@ -174,7 +174,7 @@ dismiss a posted finding later.
 | Script | Purpose | Called from |
 |---|---|---|
 | `snapshot.py` | Pin the working tree as a commit; with `--guard`, revert and save any edits since a pin | §1 (pin), §4 (tree guard), §6 (pre/post-apply) |
-| `pack.py` | Build the shared read surface (diff.patch, files/, callers.txt, tests.txt) from a diff file | §3, once per revision |
+| `pack.py` | Build the shared read surface (diff.patch, files/, callers.txt, tests.txt) from a diff file | §1, once per revision |
 | `check_quotes.py` | Confirm a finding's quote sits at its claimed file:line | §4, and again before posting (rebase drift) |
 | `pr.py` | Wrap `gh`/`glab` behind one JSON interface: `state` (PR info), `post` (one comment or a `--batch`), and `edit`/`delete`/`reply`/`resolve` for posted ones | §1 (state), §7 (post and follow-ups) |
 

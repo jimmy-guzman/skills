@@ -40,7 +40,7 @@ If the user pasted findings from a bot or a person, read [references/pasted-find
 
 ## Process
 
-### 1. Pin the diff, read the PR, and pick the mode
+### 1. Pin the diff, read the PR, pick the mode, and build the pack
 
 First hit wins. The user's words override the order: "this branch" means the branch diff plus anything uncommitted: take the snapshot below and diff `<remote>/<base>...<sha>`.
 
@@ -63,7 +63,9 @@ Then pick the mode. The user's words win ("just suggest", "don't apply", "for th
 - **Apply**: the change is the user's own and sits in the working tree or on the current branch. Report, wait, then §6.
 - **Suggest**: anything else, such as someone else's PR, a branch that isn't checked out, or a merged commit. Read files at the head with `git show <sha>:<path>`, edit nothing, and post nothing unless asked. Run none of their code (tests, scripts, installs) unless the user says it's safe; reviewers and the verifier trace instead.
 
-With the mode picked, choose the reviewer count from §3's rules, using the file list. Unless rule 2 or 3 applies, spawn the Bugs reviewer now with `Sources: none`: it needs no sources, and it's usually the slowest, so §2 shouldn't hold it. It needs no pack build to start either; the pack (§3) can still be building while it reads the diff on its own. Spawn the rest after §2.
+With the mode picked, build the pack, a temp dir reviewers and verifiers read instead of each running git and rediscovering the code: write the diff to a file in a temp dir, then `python3 scripts/pack.py --diff <file> --out <dir> --rev <sha>`. It writes `diff.patch`, `files/<path>` at the revision, `callers.txt` (git grep hits for the symbols the diff defines or touches), and `tests.txt` (test files naming a changed file). In read-only mode, drop `--rev` and pass the untracked files as `--extra <path>...`. Build it once per revision. It prints a one-line summary; hand the pack path to every reviewer and verifier, and never read the pack yourself.
+
+Then choose the reviewer count from §3's rules, using the file list. Unless rule 2 or 3 applies, spawn the Bugs reviewer now with §3's brief and `Sources: none`: it needs no sources, and it's usually the slowest, so §2 shouldn't hold it. Spawn the rest after §2.
 
 `pr.py state` takes a number, ref, or URL. It prints JSON with the PR's state, head SHA, base branch, description, thread anchors, file list, and `reviewed_at_head`. If the script fails, say why, read state, description, base branch, and head SHA with `gh api repos/{owner}/{repo}/pulls/<n>` or `glab mr view`, and treat thread state as unknown.
 
@@ -78,9 +80,7 @@ With the mode picked, choose the reviewer count from §3's rules, using the file
 - **Standards**: the written rules, plus cuts and comments.
 - **Spec**: what was asked for, and docs against code.
 
-Now build the pack, a temp dir reviewers and verifiers read instead of each running git and rediscovering the code: write the diff to a file in a temp dir, then `python3 scripts/pack.py --diff <file> --out <dir> --rev <sha>`. It writes `diff.patch`, `files/<path>` at the revision, `callers.txt` (git grep hits for the symbols the diff defines or touches), and `tests.txt` (test files naming a changed file). In read-only mode, drop `--rev` and pass the untracked files as `--extra <path>...`. Build it once per revision; a Bugs reviewer spawned in §1 gets the same path when it's ready, never a pack of its own. It prints a one-line summary; hand the pack path on below and in §4, and never read the pack yourself.
-
-Their briefs are one file each: [references/reviewer-bugs.md](references/reviewer-bugs.md), [references/reviewer-standards.md](references/reviewer-standards.md), [references/reviewer-spec.md](references/reviewer-spec.md), plus the shared [references/reviewer-common.md](references/reviewer-common.md) every reviewer also reads. Each reviewer starts with fresh context: a subagent where the agent has them, every reviewer you run in parallel where it can, in the background where it can so you act on each as it returns (§4). Give each the common path, its own role path, which briefs it's covering, the pack built above, the revision from §1, the mode, its source files, and any thread anchors. Don't paste the briefs, unless the subagent can't read the path. Don't give it the conversation: a reviewer who didn't write the change catches what the author explains away.
+Their briefs are one file each: [references/reviewer-bugs.md](references/reviewer-bugs.md), [references/reviewer-standards.md](references/reviewer-standards.md), [references/reviewer-spec.md](references/reviewer-spec.md), plus the shared [references/reviewer-common.md](references/reviewer-common.md) every reviewer also reads. Each reviewer starts with fresh context: a subagent where the agent has them, every reviewer you run in parallel where it can, in the background where it can so you act on each as it returns (§4). Give each the common path, its own role path, which briefs it's covering, the §1 pack, the revision from §1, the mode, its source files, and any thread anchors. Don't paste the briefs, unless the subagent can't read the path. Don't give it the conversation: a reviewer who didn't write the change catches what the author explains away.
 
 ```text
 Read <abs path>/references/reviewer-common.md and <abs path>/references/reviewer-<role>.md.
