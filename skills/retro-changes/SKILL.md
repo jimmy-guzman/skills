@@ -32,7 +32,7 @@ compatibility: >
 
 - `gh pr view --json comments` returns only the conversation tab. Inline review comments need `gh api repos/{owner}/{repo}/pulls/<n>/comments --paginate`; review bodies and verdicts come from `--json reviews`. On GitLab, `glab api projects/:id/merge_requests/<n>/discussions --paginate` has both.
 - A squash or rebase merge leaves none of the PR's own SHAs on the base. Find what came after by the merge commit (`mergeCommit` in gh, `merge_commit_sha` or `squash_commit_sha` in glab) and the PR's paths, never by its commit SHAs.
-- Fetch the base before reading what came after the merge (`git fetch origin <base>`). A stale local base hides the revert you're looking for.
+- Fetch the base before reading what came after the merge (`git fetch <remote> +<base>:refs/remotes/<remote>/<base>`). A stale local base hides the revert you're looking for. `<remote>` is the base branch's upstream remote; don't assume `origin`. Name the destination: a bare fetch in a single-branch clone fills only `FETCH_HEAD` and never creates `<remote>/<base>`.
 - After a context compaction, the summary may have dropped the user's corrections. For a session retro, say the record is partial instead of reporting a clean run.
 - A rule that's already written down and still got missed is a lesson too: the doc isn't working. Move it into code, or into a file the agent actually loads (`AGENTS.md` loads, `CONTRIBUTING.md` usually doesn't).
 
@@ -65,7 +65,7 @@ Read only what the state has:
 
 - **Every state with a PR:** the body, every review and its verdict, every inline thread with its replies (see Gotchas), commit times against review times, and failed CI runs across all its commits (`gh run list --branch <headRefName> --status failure -L 200`, `glab ci list -r <headRefName> -s failed -P 100`).
 - **The plan or spec:** a linked ticket and its comments (`gh issue view <n> --comments`), a plan in the ticket or the PR body, or a plan file where the repo keeps them. Anything plan-changes would have written counts.
-- **Merged:** the first 50 commits on the base after the merge commit that touch the PR's paths: `git log --reverse --format='%h %ad %s' --date=short <merge>..origin/<base> -- <paths> | head -50`. Read the ones that revert it, fix it, or reference its number.
+- **Merged:** the first 50 commits on the base after the merge commit that touch the PR's paths: `git log --reverse --format='%h %ad %s' --date=short <merge>..<remote>/<base> -- <paths> | head -50`. Read the ones that revert it, fix it, or reference its number.
 - **Closed unmerged:** the last comments, and the PR that replaced it if one did (`gh pr list --state all --search "<n>"`).
 - **Local branch:** `git log <base>..<branch>` and any plan.
 - **This session:** the conversation. Every user correction ("no", "I said", "that's wrong"), every redo, every tool call the user denied, and every skill that ran.

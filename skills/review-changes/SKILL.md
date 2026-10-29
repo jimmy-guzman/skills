@@ -44,9 +44,9 @@ If the user pasted findings from a bot or a person, read [references/pasted-find
 
 First hit wins. The user's words override the order: "this branch" means the branch diff plus anything uncommitted: take the snapshot below and diff `<remote>/<base>...<sha>`.
 
-1. A PR the user named: run `python3 scripts/pr.py state <pr>` first (below) for `head_sha` and `base_ref`. Fetch both, `git fetch <remote> <base_ref> pull/<n>/head` on GitHub or `git fetch <remote> <base_ref> merge-requests/<n>/head` on GitLab, then `git diff <remote>/<base_ref>...<head_sha>`. A commit or range: `git diff <range>`.
+1. A PR the user named: run `python3 scripts/pr.py state <pr>` first (below) for `head_sha` and `base_ref`. Fetch both, `git fetch <remote> +<base_ref>:refs/remotes/<remote>/<base_ref> pull/<n>/head` on GitHub or `git fetch <remote> +<base_ref>:refs/remotes/<remote>/<base_ref> merge-requests/<n>/head` on GitLab (name the base's destination: a bare fetch in a single-branch clone never creates `<remote>/<base_ref>`), then `git diff <remote>/<base_ref>...<head_sha>`. A commit or range: `git diff <range>`.
 2. Uncommitted changes: take the snapshot below, then `git diff HEAD <sha>`. It shows untracked files as added.
-3. A clean tree: `git diff <remote>/<base>...HEAD` after `git fetch <remote> <base>`, never the local base. The base is the open PR's base if there is one, else the default branch, on the branch's upstream remote. With no remote or a failed fetch, use the local default branch and say so.
+3. A clean tree: `git diff <remote>/<base>...HEAD` after `git fetch <remote> +<base>:refs/remotes/<remote>/<base>`, never the local base. The base is the open PR's base if there is one, else the default branch, on the branch's upstream remote. With no remote or a failed fetch, use the local default branch and say so.
 
 The snapshot is `python3 scripts/snapshot.py`. It saves the working tree, untracked files included, as a commit and prints its SHA, leaving the user's index and files alone. It covers the current worktree from any working directory, and skips `.claude/worktrees`, where Claude Code puts subagent worktrees, so they never trip §4's guard.
 

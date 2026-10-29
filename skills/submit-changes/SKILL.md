@@ -83,7 +83,7 @@ Stop and ask if:
 
 - The current branch is the default branch.
 - The working tree is dirty. List files and stop. Committing is commit-changes' job: name it, and never draft a commit message here or put a commit and a push in one question.
-- The remote branch's commit differs from `HEAD` and the remote is ahead or the two diverged. Fetch it (`git fetch <remote> <branch>`) and check `git merge-base --is-ancestor <remote>/<branch> HEAD`. Failure means the remote has commits you don't: stop and say so. Never force over commits you did not just rebase yourself in §2.
+- The remote branch's commit differs from `HEAD` and the remote is ahead or the two diverged. Fetch it (`git fetch <remote> +<branch>:refs/remotes/<remote>/<branch>`) and check `git merge-base --is-ancestor <remote>/<branch> HEAD`. Failure means the remote has commits you don't: stop and say so. Never force over commits you did not just rebase yourself in §2.
 
 Not a stop, but record it for §5 and §6: the branch is not on the remote (`ls-remote` prints nothing), or `HEAD` is ahead of it (the ancestor check passes). The PR shows the remote, not your local branch, so a push is needed. It is listed as an action in §5 and runs in §6, after the user says go. Never push before then.
 
@@ -92,8 +92,10 @@ Not a stop, but record it for §5 and §6: the branch is not on the remote (`ls-
 Fetch the base first so every ref the parallel runs read actually exists locally:
 
 ```bash
-git fetch <remote> <base>
+git fetch <remote> +<base>:refs/remotes/<remote>/<base>
 ```
+
+Every fetch in this skill names its destination like this. A bare `git fetch <remote> <ref>` in a single-branch clone lands only in `FETCH_HEAD` and never creates `<remote>/<ref>`; the `+` keeps a force-pushed ref from being rejected.
 
 Then run the lookups as parallel calls in one turn. Record each value and its source for §5. Commands are under _Lookups_ in the reference file. An error is a failed lookup: report it, never read it as "none found".
 
@@ -105,7 +107,7 @@ When sampling recent PRs anywhere below, exclude bot authors and reverts. Review
 
 1. The existing PR's base (describe and update).
 2. Agent docs.
-3. Stacked branch. The candidates are the head branches of your open PRs, from the lookup. Fetch them all in one call (`git fetch <remote> <candidate>...`); shallow and single-branch clones have none of these refs otherwise. For each candidate, check `git merge-base --is-ancestor <remote>/<candidate> HEAD`, all in one loop. If one is an ancestor and closer than the default branch (smaller `git rev-list --count <remote>/<candidate>..HEAD`), propose it and ask.
+3. Stacked branch. The candidates are the head branches of your open PRs, from the lookup. Fetch them all in one call, one `+<candidate>:refs/remotes/<remote>/<candidate>` refspec each; shallow and single-branch clones have none of these refs otherwise. For each candidate, check `git merge-base --is-ancestor <remote>/<candidate> HEAD`, all in one loop. If one is an ancestor and closer than the default branch (smaller `git rev-list --count <remote>/<candidate>..HEAD`), propose it and ask.
 4. Default branch.
 
 **Title shape.** Agent docs, then the dominant shape (not the words) of recent merged titles. Match it exactly: ticket prefix and its punctuation, `type(scope):` if used, casing, and whether identifiers are backticked. Fallbacks: the branch's first commit subject (`git log <remote>/<base>..HEAD --format=%s | tail -1`), then plain English.
@@ -281,7 +283,7 @@ The body is already on disk from §5. Run _Create_ (create mode) or _Update_ (de
 Run _Verify_ from the reference file. Confirm draft state and base match what §5 showed. Then, for create and update, confirm the PR's head sha equals `git rev-parse HEAD` and that the branch is current with the base:
 
 ```bash
-git fetch <remote> <base>
+git fetch <remote> +<base>:refs/remotes/<remote>/<base>
 git merge-base --is-ancestor <remote>/<base> HEAD
 ```
 
