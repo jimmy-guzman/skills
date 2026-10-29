@@ -130,15 +130,20 @@ else:
 
 class CommentableLines(unittest.TestCase):
     def test_added_and_context_lines(self):
-        lines = pr.commentable_lines(PATCH)
+        lines, removed = pr.commentable_lines(PATCH)
         self.assertEqual(lines, {80: 80, 81: 81, 82: None, 83: None, 84: 83, 85: 84})
+        self.assertEqual(removed, {82})
 
     def test_two_hunks(self):
         patch = "@@ -1,2 +1,2 @@\n a\n-b\n+B\n@@ -10,1 +10,2 @@\n j\n+k\n"
-        self.assertEqual(pr.commentable_lines(patch), {1: 1, 2: None, 10: 10, 11: None})
+        self.assertEqual(pr.commentable_lines(patch), ({1: 1, 2: None, 10: 10, 11: None}, {2}))
 
     def test_missing_patch(self):
-        self.assertEqual(pr.commentable_lines(None), {})
+        self.assertEqual(pr.commentable_lines(None), ({}, set()))
+
+    def test_deleted_lines_are_old_side(self):
+        patch = "@@ -1,3 +1,2 @@\n a\n-b\n c\n@@ -10,2 +9,1 @@\n-j\n-k\n+K\n"
+        self.assertEqual(pr.commentable_lines(patch)[1], {2, 10, 11})
 
 
 class Targets(unittest.TestCase):
@@ -256,6 +261,19 @@ class EndToEndGitHub(FakeGh):
         self.run_pr("post", "285", "--path", "src/tabs.ts", "--line", "81-84", "--body-file", self.body)
         sent = json.loads(self.posted()[0]["body"])
         self.assertEqual((sent["start_line"], sent["line"]), (81, 84))
+
+    def test_removed_posts_on_the_left_side(self):
+        code, out, err = self.run_pr("post", "285", "--path", "src/tabs.ts", "--line", "82",
+                                     "--removed", "--body-file", self.body)
+        self.assertEqual((code, out["posted"]), (0, "inline"), err)
+        sent = json.loads(self.posted()[0]["body"])
+        self.assertEqual((sent["line"], sent["side"]), (82, "LEFT"))
+
+    def test_removed_on_a_kept_line_falls_back_to_general(self):
+        code, out, _ = self.run_pr("post", "285", "--path", "src/tabs.ts", "--line", "81",
+                                   "--removed", "--body-file", self.body)
+        self.assertEqual((code, out["posted"]), (0, "general"))
+        self.assertIn("not a deleted line", out["reason"])
 
     def test_line_outside_diff_falls_back_to_general(self):
         code, out, _ = self.run_pr("post", "285", "--path", "src/tabs.ts", "--line", "52",
@@ -444,6 +462,14 @@ class BatchGitLab(unittest.TestCase):
         kinds = [next(x for x in w["argv"] if x.startswith("projects/")).rsplit("/", 1)[-1]
                  for w in self.writes()]
         self.assertEqual(kinds, ["draft_notes", "draft_notes", "bulk_publish", "notes"])
+
+    def test_removed_draft_anchors_on_old_line(self):
+        code, out, err = self.run_batch([
+            ("finding 001", {"path": "src/tabs.ts", "line": "82", "removed": True}),
+        ])
+        self.assertEqual((code, out[0]["posted"], out[0]["id"]), (0, "inline", "disc-001"), err)
+        pos = json.loads(self.writes()[0]["body"])["position"]
+        self.assertEqual((pos["old_line"], "new_line" in pos), (82, False))
 
     def test_pending_drafts_refuse_with_exit_7(self):
         code, _, err = self.run_batch([("finding 001", {"path": "src/tabs.ts", "line": "82"})],

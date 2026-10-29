@@ -12,8 +12,8 @@ import sys
 
 USAGE = """\
 Usage:
-  check_quotes.py [--rev REV] FINDINGS.json
-  check_quotes.py [--rev REV] -            (read findings from stdin)
+  check_quotes.py [--rev REV] [--base REV] FINDINGS.json
+  check_quotes.py [--rev REV] [--base REV] -    (read findings from stdin)
 
 FINDINGS.json is a list of objects:
   {"id": 1, "path": "src/tabs.ts", "line": "88", "quote": "const active = next[index] ?? null;"}
@@ -28,6 +28,11 @@ still matters.
 Without it, files are read from the working tree, for read-only mode where
 no snapshot is taken.
 
+--base reads findings with "removed": true at the diff's old side (the
+merge-base for a branch or PR, HEAD for uncommitted changes), since the line
+they quote was deleted. Their "line" is the old file's line number, and an
+"old_path" (for a renamed file) names the file at --base.
+
 Prints a JSON list, one entry per finding:
   {"id": 1, "status": "ok"}
   {"id": 2, "status": "moved", "found_at": [91]}    quote starts elsewhere in
@@ -40,10 +45,12 @@ Prints a JSON list, one entry per finding:
   {"id": 4, "status": "no-file"}                    path doesn't exist at REV
   {"id": 5, "status": "no-quote"}                   the finding has no quote;
                                                     add one and rerun
+  {"id": 6, "status": "no-base"}                    a removed finding with no
+                                                    --base; rerun with it
 
 Exit codes:
   0 every quote is where its finding says
-  1 at least one moved, missing, no-file, or no-quote; fix those findings
+  1 at least one moved, missing, no-file, no-quote, or no-base; fix those
   2 bad arguments or input
 """
 
@@ -83,16 +90,20 @@ def matches_at(qlines, flat, row):
     return all(ql in flat[row - 1 + j] for j, ql in enumerate(qlines))
 
 
-def check(finding, rev, cache):
+def check(finding, rev, base, cache):
     fid = finding.get("id")
     path = finding["path"]
     qlines = [normalize(t) for t in (finding.get("quote") or "").splitlines()]
     if not qlines or not any(qlines):
         return {"id": fid, "status": "no-quote"}
-    if path not in cache:
+    if finding.get("removed"):
+        if not base:
+            return {"id": fid, "status": "no-base"}
+        rev, path = base, finding.get("old_path") or path
+    if (rev, path) not in cache:
         lines = read_file(path, rev)
-        cache[path] = (lines, [normalize(t) for t in lines] if lines is not None else None)
-    lines, flat = cache[path]
+        cache[rev, path] = (lines, [normalize(t) for t in lines] if lines is not None else None)
+    lines, flat = cache[rev, path]
     if lines is None:
         return {"id": fid, "status": "no-file"}
     start, end = span(finding["line"])
@@ -110,18 +121,21 @@ def main(argv):
     if not argv or argv[0] in ("-h", "--help"):
         print(USAGE)
         return 0 if argv else 2
-    rev = None
-    if argv[0] == "--rev":
+    opts = {"--rev": None, "--base": None}
+    while argv and argv[0] in opts:
         if len(argv) < 3:
-            print("error: --rev needs a value and a findings file\n" + USAGE, file=sys.stderr)
+            print(f"error: {argv[0]} needs a value and a findings file\n" + USAGE, file=sys.stderr)
             return 2
-        rev, argv = argv[1], argv[2:]
+        opts[argv[0]], argv = argv[1], argv[2:]
+    if not argv:
+        print("error: no findings file\n" + USAGE, file=sys.stderr)
+        return 2
     src = argv[0]
     try:
         raw = sys.stdin.read() if src == "-" else open(src, encoding="utf-8").read()
         findings = json.loads(raw)
         cache = {}
-        results = [check(f, rev, cache) for f in findings]
+        results = [check(f, opts["--rev"], opts["--base"], cache) for f in findings]
     except (OSError, ValueError, KeyError, TypeError) as e:
         print(f"error: can't read findings ({e}). Each needs path and line.", file=sys.stderr)
         return 2

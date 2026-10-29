@@ -54,7 +54,7 @@ Return one JSON object and nothing else: no preamble, no summary, no code fence.
 - `summary`: two or three sentences on what the change does, for someone who hasn't seen the diff.
 - `id`: B, S, or P (Spec), plus a number. Cuts use C.
 - `path` and `line`: null for a finding with no file, such as an empty description. `line` is N or N-M at the reviewed revision.
-- `quote`: the one line of code the finding rests on, exactly. For removed code, the line at the revision where it used to sit, with `removed` true.
+- `quote`: the one line of code the finding rests on, exactly. For deleted code, the deleted line itself, with `removed` true and `line` its number in the old file (the `-` side of `diff.patch`); `path` is the new path unless the whole file was deleted, and `old_path` the old one when the file was renamed.
 - `severity`: Critical is data loss, a security hole, or a crash on a path users commonly take. Major is wrong behavior a user will hit, or a failure with no way back. Minor is the rest, and most findings.
 - `effort`: Quick win is a contained change of a few lines. Heavy lift needs a design decision.
 - `source`: Standards and Spec only, the rule or spec line in a few words.

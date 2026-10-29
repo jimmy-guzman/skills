@@ -10,7 +10,7 @@ Every command here uses `scripts/pr.py` in this skill's directory. Resolve it to
 - Posting writes to a shared system. If the agent is in a read-only or planning mode, ask the user to leave it first.
 - Use the head SHA from the preflight `state` call. Pass it as `--head` on every post. The script exits 3 when the PR has moved since the review. Then stop, say so, and offer to re-review the new head.
 - The script exits 4 for a closed or merged PR. Offer, in this order: post anyway, which still notifies the author; file an issue with the findings; a follow-up change in Apply mode, if the code is the user's; or drop them. Post anyway only on an explicit yes, by rerunning with `--allow-closed`, and say in the summary comment that these are post-merge follow-ups. File an issue only after a yes. A draft is fine when the user asked.
-- Re-check every `file:line` at the head: write the findings to a temp file and run `python3 <skill-dir>/scripts/check_quotes.py --rev <head> <file>` as in §4, with ids matching the report's numbers. Hunks drift under rebase, and the file at head wins. Fix a `moved` line before posting. Don't post a `missing` one.
+- Re-check every `file:line` at the head: write the findings to a temp file and run `python3 <skill-dir>/scripts/check_quotes.py --rev <head> --base <base> <file>` as in §4, with ids matching the report's numbers. Hunks drift under rebase, and the file at head wins. Fix a `moved` line before posting. Don't post a `missing` one.
 - Post the numbered findings only. Left-out items (judgment calls, unverified, refuted, overflow from "Worth an issue") stay off the PR unless the user names them.
 
 ## Post each finding
@@ -21,15 +21,18 @@ Write each finding's body to its own temp file, and the summary's too (below). L
 [
   {"body_file": "/tmp/rc/1.md", "path": "src/store/tabs.ts", "line": "88"},
   {"body_file": "/tmp/rc/2.md", "path": "src/store/tabs.ts", "line": "40"},
+  {"body_file": "/tmp/rc/3.md", "path": "src/lib/load.ts", "line": "12", "removed": true},
   {"body_file": "/tmp/rc/summary.md"}
 ]
 ```
+
+A finding with `removed` true carries it into its entry, so the comment lands on the deleted line (its `line` is the old file's).
 
 ```bash
 python3 <skill-dir>/scripts/pr.py post <pr> --head <sha> --batch /tmp/rc/posts.json
 ```
 
-The inline findings land the way a human review does, in one request with one notification. On GitHub they post as one review whose body is the summary. On GitLab they post as draft notes and then publish together, and the summary posts after as a general comment. It prints one JSON line per entry with its `index`: `posted` (`inline`, `general`, `review` for a GitHub summary, or `skipped`), `reason`, and the `id` the follow-up commands below take. A single comment (a late fix, one more finding) uses `--path <file> --line <N or N-M> --body-file <tmp>` in place of `--batch`.
+The inline findings land the way a human review does, in one request with one notification. On GitHub they post as one review whose body is the summary. On GitLab they post as draft notes and then publish together, and the summary posts after as a general comment. It prints one JSON line per entry with its `index`: `posted` (`inline`, `general`, `review` for a GitHub summary, or `skipped`), `reason`, and the `id` the follow-up commands below take. A single comment (a late fix, one more finding) uses `--path <file> --line <N or N-M> --body-file <tmp>` (plus `--removed` for a finding with `removed` true) in place of `--batch`.
 
 On GitLab, exit 7 means the user already has unpublished draft notes on the MR, and publishing would send those too. Nothing posted. Say so and ask them to publish or delete their drafts first; never delete them yourself.
 

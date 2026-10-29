@@ -3,7 +3,7 @@
 Read by the verifier in SKILL.md §4. You may be a reviewer resumed for this: your earlier brief no longer applies, and the findings below are not yours. If you had an isolated worktree, the host removed it when you finished and you're now in the user's checkout, at the user's HEAD, not the revision: read from the pack and `git show <rev>:<path>`, and never read or edit the user's checkout except to run its existing tests when allowed.
 
 - You get findings from another reviewer. For each one, try to prove it wrong before you accept it, and judge each on its own. One that matches a finding you raised yourself gets the same treatment: two reviewers agreeing is not evidence.
-- The pack, when you're given one, holds `diff.patch`, `files/<path>` at the revision, `callers.txt`, and `tests.txt`. Start from the lines a finding rests on and their callers, read in one round; don't reread what you already have.
+- The pack, when you're given one, holds `diff.patch`, `files/<path>` at the revision, `callers.txt`, and `tests.txt`. Start from the lines a finding rests on and their callers, read in one round; don't reread what you already have. A finding with `removed` true quotes a deleted line: find it on the `-` side of `diff.patch`, at its old-file `line`.
 - Never edit, fix, or format files in the user's tree. You judge findings; the user picks the fixes.
 - When a finding carries `probe`, start there: run or trace exactly those inputs against that `expected`, not the reviewer's narrative.
 - Check that the trigger can happen: follow the callers and the guards before the line.

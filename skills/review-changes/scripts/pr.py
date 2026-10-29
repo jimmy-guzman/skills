@@ -17,7 +17,7 @@ from urllib.parse import quote, urlparse
 USAGE = """\
 Usage:
   pr.py state <pr> [--provider P] [--repo R] [--host H]
-  pr.py post  <pr> --body-file F [--path P --line N[-M]] [--head SHA]
+  pr.py post  <pr> --body-file F [--path P --line N[-M] [--removed]] [--head SHA]
               [--allow-closed] [--dry-run]
               [--provider P] [--repo R] [--host H]
   pr.py post  <pr> --batch FILE [--head SHA] [--allow-closed] [--dry-run]
@@ -27,7 +27,9 @@ Usage:
   pr.py resolve <pr> --comment ID [--general] [--dry-run]
 
 <pr> is a number (285), a ref (#285, !482), or a PR/MR URL.
-Without --path, post writes one general comment. Every post starts with
+--removed anchors on deleted lines: --line is then the old file's line
+number (GitHub side LEFT, GitLab old_line). Without --path, post writes one
+general comment. Every post starts with
 <!-- review-changes: <head_sha> -->, which state reads into reviewed_shas.
 
 state prints one JSON object:
@@ -42,8 +44,9 @@ post prints one JSON object:
   posted (inline|general|skipped), reason, id
 
 --batch posts a whole review in one call, so no shell loop is needed. FILE is
-a JSON list of {"body_file": F, "path": P, "line": "N[-M]"} objects; leave
-path and line out for a general comment. The last entry with no path is the
+a JSON list of {"body_file": F, "path": P, "line": "N[-M]"} objects, plus
+"removed": true for a deleted line; leave path and line out for a general
+comment. The last entry with no path is the
 summary. Every entry and the head are checked before anything posts.
   GitHub: the inline comments land as one review (one request, one
   notification), with the summary as its body (posted: "review").
@@ -157,12 +160,13 @@ def detect_provider():
 
 
 def commentable_lines(patch):
-    """Map each new-side line inside a hunk to its old-side line.
+    """Map each new-side line inside a hunk to its old-side line, plus the deleted old lines.
 
     Added lines map to None. Context lines map to their old line number,
-    which GitLab needs to anchor a comment on an unchanged line.
+    which GitLab needs to anchor a comment on an unchanged line. Returns
+    (lines, removed), removed being the old-side numbers of deleted lines.
     """
-    lines, old, new = {}, None, None
+    lines, removed, old, new = {}, set(), None, None
     for text in (patch or "").splitlines():
         h = HUNK_RE.match(text)
         if h:
@@ -174,12 +178,13 @@ def commentable_lines(patch):
             lines[new] = None
             new += 1
         elif text.startswith("-"):
+            removed.add(old)
             old += 1
         else:
             lines[new] = old
             old += 1
             new += 1
-    return lines
+    return lines, removed
 
 
 def norm(body):
@@ -313,7 +318,8 @@ class GitHub:
     def files(self):
         out = {}
         for f in self.pr_files():
-            out[f["filename"]] = {"lines": commentable_lines(f.get("patch")),
+            lines, removed = commentable_lines(f.get("patch"))
+            out[f["filename"]] = {"lines": lines, "removed": removed,
                                   "old_path": f.get("previous_filename", f["filename"])}
         return out
 
@@ -335,14 +341,15 @@ class GitHub:
         return seen
 
     @staticmethod
-    def comment_payload(path, start, end, body):
-        payload = {"body": body, "path": path, "line": end, "side": "RIGHT"}
+    def comment_payload(path, start, end, body, old):
+        side = "LEFT" if old.get("removed") else "RIGHT"
+        payload = {"body": body, "path": path, "line": end, "side": side}
         if start != end:
-            payload.update(start_line=start, start_side="RIGHT")
+            payload.update(start_line=start, start_side=side)
         return payload
 
-    def post_inline(self, ctx, path, start, end, body, _old):
-        payload = {**self.comment_payload(path, start, end, body), "commit_id": ctx["head_sha"]}
+    def post_inline(self, ctx, path, start, end, body, old):
+        payload = {**self.comment_payload(path, start, end, body, old), "commit_id": ctx["head_sha"]}
         return self.api("-X", "POST", f"repos/{{owner}}/{{repo}}/pulls/{self.number}/comments",
                         body=payload)["id"]
 
@@ -350,7 +357,7 @@ class GitHub:
         """Every inline comment as one review, summary as its body. Returns (review id, comment ids)."""
         payload = {"commit_id": ctx["head_sha"], "event": "COMMENT",
                    "body": summary or MARKER.format(ctx["head_sha"]),
-                   "comments": [self.comment_payload(c["path"], *c["anchor"][:2], c["body"])
+                   "comments": [self.comment_payload(c["path"], *c["anchor"][:2], c["body"], c["anchor"][2])
                                 for c in comments]}
         base = f"repos/{{owner}}/{{repo}}/pulls/{self.number}/reviews"
         rid = self.api("-X", "POST", base, body=payload)["id"]
@@ -456,9 +463,12 @@ class GitLab:
             return (self.api(f"{self.mr}/changes") or {}).get("changes", [])
 
     def files(self):
-        return {d["new_path"]: {"lines": commentable_lines(d.get("diff")),
-                                "old_path": d.get("old_path", d["new_path"])}
-                for d in self.mr_diffs()}
+        out = {}
+        for d in self.mr_diffs():
+            lines, removed = commentable_lines(d.get("diff"))
+            out[d["new_path"]] = {"lines": lines, "removed": removed,
+                                  "old_path": d.get("old_path", d["new_path"])}
+        return out
 
     def file_counts(self):
         out = []
@@ -472,7 +482,8 @@ class GitLab:
         for d in self.pages(f"{self.mr}/discussions"):
             for n in d.get("notes") or []:
                 pos = n.get("position") or {}
-                seen.add((pos.get("new_path"), pos.get("new_line"), norm(n.get("body"))))
+                seen.add((pos.get("new_path"), pos.get("new_line") or pos.get("old_line"),
+                          norm(n.get("body"))))
         return seen
 
     SUMMARY = "general"
@@ -487,8 +498,11 @@ class GitLab:
             "head_sha": refs.get("head_sha"),
             "old_path": old["old_path"],
             "new_path": path,
-            "new_line": end,
         }
+        if old.get("removed"):
+            position["old_line"] = end
+        else:
+            position["new_line"] = end
         if old["old_line"] is not None:
             position["old_line"] = old["old_line"]
         return position
@@ -524,7 +538,8 @@ class GitLab:
         for d in self.pages(f"{self.mr}/discussions"):
             first = (d.get("notes") or [{}])[0]
             pos = first.get("position") or {}
-            found[(pos.get("new_path"), pos.get("new_line"), norm(first.get("body")))] = d["id"]
+            found[(pos.get("new_path"), pos.get("new_line") or pos.get("old_line"),
+                   norm(first.get("body")))] = d["id"]
         return None, [found.get((c["path"], c["anchor"][1], norm(c["body"]))) for c in comments]
 
     def post_general(self, ctx, body):
@@ -657,7 +672,8 @@ def read_batch(path):
         if e.get("line"):
             parse_lines(str(e["line"]))
         out.append(argparse.Namespace(command="post", body_file=e["body_file"],
-                                      path=e.get("path"), line=e.get("line") and str(e["line"])))
+                                      path=e.get("path"), line=e.get("line") and str(e["line"]),
+                                      removed=bool(e.get("removed"))))
     return out
 
 
@@ -694,15 +710,19 @@ def plan(c, seen, e, body):
         if "files" not in seen:
             seen["files"] = c.files()
         f = seen["files"].get(e.path)
+        removed = e.removed
+        rows = f and (f["removed"] if removed else f["lines"])
         if f is None:
             reason = f"{e.path} is not in the diff"
-        elif end not in f["lines"]:
-            reason = f"{e.path}:{end} is outside the diff hunks"
+        elif end not in rows:
+            reason = (f"{e.path}:{end} is not a deleted line" if removed
+                      else f"{e.path}:{end} is outside the diff hunks")
         else:
-            if start != end and not all(n in f["lines"] for n in range(start, end + 1)):
+            if start != end and not all(n in rows for n in range(start, end + 1)):
                 start = end
             kind = "inline"
-            anchor = (start, end, {"old_path": f["old_path"], "old_line": f["lines"][end]})
+            anchor = (start, end, {"old_path": f["old_path"], "removed": removed,
+                                   "old_line": None if removed else f["lines"][end]})
     key = (e.path, anchor[1], norm(body)) if kind == "inline" else (None, None, norm(body))
     if "existing" not in seen:
         seen["existing"] = c.existing()
@@ -818,6 +838,7 @@ def main(argv):
     p.add_argument("--body-file")
     p.add_argument("--path")
     p.add_argument("--line")
+    p.add_argument("--removed", action="store_true")
     p.add_argument("--head")
     p.add_argument("--comment")
     p.add_argument("--general", action="store_true")

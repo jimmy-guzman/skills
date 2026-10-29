@@ -143,5 +143,62 @@ class CheckQuotes(unittest.TestCase):
         self.assertEqual(code, 2)
 
 
+GUARD = {"id": 1, "path": "load.ts", "line": "2", "quote": "if (x == null) return;", "removed": True}
+KEPT = {"id": 2, "path": "load.ts", "line": "2", "quote": "x.read();"}
+
+
+class RemovedFindings(unittest.TestCase):
+    """A removed finding quotes the deleted line and is read at --base."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        cls.repo = cls.tmp.name
+        git(cls.repo, "init", "-q")
+        git(cls.repo, "config", "user.email", "t@t")
+        git(cls.repo, "config", "user.name", "t")
+        path = os.path.join(cls.repo, "load.ts")
+        with open(path, "w") as fh:
+            fh.write("function load(x) {\n  if (x == null) return;\n  x.read();\n}\n")
+        git(cls.repo, "add", "-A")
+        git(cls.repo, "commit", "-qm", "base")
+        with open(path, "w") as fh:
+            fh.write("function load(x) {\n  x.read();\n}\n")
+        git(cls.repo, "commit", "-qam", "head")
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def run_check(self, findings, *opts):
+        p = subprocess.run([sys.executable, "-I", SCRIPT, *opts, "-"], cwd=self.repo,
+                           input=json.dumps(findings), capture_output=True, text=True)
+        return p.returncode, json.loads(p.stdout)
+
+    def test_removed_reads_base_kept_reads_rev(self):
+        for opts in (["--rev", "HEAD", "--base", "HEAD~1"], ["--base", "HEAD~1", "--rev", "HEAD"]):
+            code, out = self.run_check([GUARD, KEPT], *opts)
+            self.assertEqual((code, [r["status"] for r in out]), (0, ["ok", "ok"]))
+
+    def test_removed_in_renamed_file_reads_old_path(self):
+        git(self.repo, "checkout", "-q", "-b", "rename", "HEAD~1")
+        try:
+            git(self.repo, "mv", "load.ts", "moved.ts")
+            with open(os.path.join(self.repo, "moved.ts"), "w") as fh:
+                fh.write("function load(x) {\n  x.read();\n}\n")
+            git(self.repo, "commit", "-qam", "rename")
+            finding = {**GUARD, "path": "moved.ts", "old_path": "load.ts"}
+            code, out = self.run_check([finding], "--rev", "HEAD", "--base", "HEAD~1")
+            self.assertEqual((code, out[0]["status"]), (0, "ok"))
+            code, out = self.run_check([{**GUARD, "path": "moved.ts"}], "--rev", "HEAD", "--base", "HEAD~1")
+            self.assertEqual(out[0]["status"], "no-file")
+        finally:
+            git(self.repo, "checkout", "-q", "-")
+
+    def test_removed_without_base_is_no_base(self):
+        code, out = self.run_check([GUARD], "--rev", "HEAD")
+        self.assertEqual((code, out), (1, [{"id": 1, "status": "no-base"}]))
+
+
 if __name__ == "__main__":
     unittest.main()

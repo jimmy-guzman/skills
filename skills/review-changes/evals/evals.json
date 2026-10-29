@@ -120,14 +120,14 @@
     {
       "id": 8,
       "prompt": "review my branch, I cleaned up src/lib/load.ts",
-      "expected_output": "The branch deletes a null guard, so a caller that passes null now crashes. The finding quotes the line at the head where the guard used to sit, says the guard was removed, passes the quote check, and reaches the numbered list.",
+      "expected_output": "The branch deletes a null guard, so a caller that passes null now crashes. The finding quotes the deleted guard at its old-file line with removed true, passes the quote check at the base, and reaches the numbered list.",
       "files": [
         "evals/files/removed-guard/"
       ],
       "assertions": [
         "A numbered finding says the null guard in src/lib/load.ts was removed",
-        "Its quote is a line that exists at the head, not the removed guard",
-        "check_quotes.py reported ok for it",
+        "Its quote is the deleted guard line, with removed true and the old file's line number",
+        "check_quotes.py ran with --base and reported ok for it",
         "No finding was dropped without appearing in the 'Left out:' count"
       ]
     },
