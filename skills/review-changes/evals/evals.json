@@ -17,6 +17,7 @@
         "Every evidence label in the numbered list is Reproduced or Traced",
         "The off-by-one in the last-tab close path is a Must fix finding labeled Reproduced, with the failing command",
         "Any finding where the code and issue #41 disagree sits under Questions, titled as a question naming the issue, with an 'If issue #41 holds:' line and an 'If issue #41 is out of date:' line, and is not counted in 'Not ready:'",
+        "Each question ends with a 'Recommended:' line naming its evidence, or a 'No recommendation:' line saying what would settle it",
         "scripts/check_quotes.py ran before the report",
         "Verification of the first reviewer's findings started before the last reviewer returned",
         "Each batch of findings was verified by a resumed reviewer other than the one that raised it, or by a fresh verifier, and no resumed reviewer verified a finding on the same file and line as one of its own",

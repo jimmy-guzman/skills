@@ -55,7 +55,7 @@ On GitLab, exit 7 means the user already has unpublished draft notes on the MR, 
   +  const active = next[Math.min(index, next.length - 1)] ?? null;
   ```
   ````
-- A question posts as the report shows it: the question title and both `If` lines, so the author picks the side. When the user answered it ("2a" or "2b"), post only that side, with a command title like any finding.
+- A question posts as the report shows it: the question title, both `If` lines, and the recommendation line, so the author picks the side. When the user answered it ("2a" or "2b"), post only that side, with a command title like any finding.
 - A finding about a new test, with no line yet, anchors on the nearest sibling test and names it in the body ("sibling of `test_x`").
 - A finding with no file (for example "the description is empty") leaves out `--path` and `--line` and becomes one general comment.
 - A line outside the diff can't take an inline comment. The script posts a general comment instead, outside the review, and says why in `reason`. The body already names the `file:line`, so nothing is lost.
