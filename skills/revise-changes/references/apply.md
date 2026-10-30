@@ -15,4 +15,4 @@ Fixed T1, T3. Refuted: T2. Unverified: T5. Skipped (user excluded): T4.
 Ran `pnpm check` and `pnpm test`: both pass.
 ```
 
-Never commit, push, switch branches, or open a PR on your own. After §5's replies land, ask: `Commit these fixes? Say "commit", or name a different message.` Commit only on an explicit yes.
+Never commit, push, switch branches, or open a PR on your own. §6 asks about the commit; commit only on an explicit yes.
