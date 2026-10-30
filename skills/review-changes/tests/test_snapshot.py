@@ -45,17 +45,20 @@ class SnapshotTest(unittest.TestCase):
             self.assertEqual(git("diff", "--cached", "--name-only"), "")
             self.assertIn("?? new.txt", git("status", "--porcelain"))
 
-    def test_snapshot_skips_claude_worktrees_ignored_or_not(self):
+    def test_snapshot_skips_nested_worktrees_ignored_or_not(self):
         for ignored in (False, True):
             with self.subTest(ignored=ignored), tempfile.TemporaryDirectory() as repo:
                 git = make_repo(repo)
                 r = pathlib.Path(repo)
                 if ignored:
-                    (r / ".gitignore").write_text(".claude/worktrees/\n")
-                (r / ".claude" / "worktrees" / "x").mkdir(parents=True)
-                (r / ".claude" / "worktrees" / "x" / "f.txt").write_text("stray\n")
-                sha = run(repo)
-                self.assertNotIn(".claude", git("ls-tree", "-r", "--name-only", sha))
+                    (r / ".gitignore").write_text(".wt/\n")
+                git("worktree", "add", "-q", "-b", "agent", str(r / ".wt" / "x"))
+                (r / ".wt" / "x" / "f.txt").write_text("stray\n")
+                (r / "plain" / "x").mkdir(parents=True)
+                (r / "plain" / "x" / "f.txt").write_text("kept\n")
+                paths = git("ls-tree", "-r", "--name-only", run(repo))
+                self.assertNotIn(".wt/", paths)
+                self.assertIn("plain/x/f.txt", paths)
 
     def test_guard_without_edits_reports_nothing(self):
         with tempfile.TemporaryDirectory() as repo:

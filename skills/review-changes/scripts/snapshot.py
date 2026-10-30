@@ -12,8 +12,9 @@ Usage:
 
 The snapshot includes untracked files and leaves the user's index and files
 alone: it stages into a copy of the index. ':/' is the root of the current
-worktree, so sibling worktrees never land in it; '.claude/worktrees' is left
-out because Claude Code nests subagent worktrees there.
+worktree, so sibling worktrees never land in it; worktrees nested under it
+(any `git worktree list` reports there, where hosts put subagent worktrees) are
+left out so they never land as gitlinks.
 
 --guard takes a fresh snapshot as AFTER. When the trees match it prints
 {"changed": false}. Otherwise it saves `git diff-tree -p --binary BEFORE AFTER`
@@ -39,10 +40,19 @@ import tempfile
 
 
 def git(*args, env=None, input=None):
-    r = subprocess.run(["git", *args], capture_output=True, env=env, input=input)
+    r = subprocess.run(["git", *args], capture_output=True, env=env, input=input, check=False)
     if r.returncode != 0:
         sys.exit(f"snapshot.py: git {args[0]} failed: {r.stderr.decode(errors='replace').strip()}")
     return r.stdout
+
+
+def nested_worktrees():
+    top = pathlib.Path.cwd().resolve()
+    for line in git("worktree", "list", "--porcelain").decode().splitlines():
+        if line.startswith("worktree "):
+            p = pathlib.Path(line[len("worktree ") :]).resolve()
+            if p != top and p.is_relative_to(top):
+                yield p.relative_to(top).as_posix()
 
 
 def snapshot():
@@ -51,16 +61,18 @@ def snapshot():
         idx = pathlib.Path(tmp) / "index"
         real = pathlib.Path(git("rev-parse", "--git-path", "index").decode().strip())
         if real.exists():
-            shutil.copyfile(real, idx)
+            shutil.copy2(real, idx)  # keep mtime so git still rechecks racily-clean files
         env = {**os.environ, "GIT_INDEX_FILE": str(idx)}
         # git add refuses any pathspec naming an ignored path, exclusions included,
-        # and an ignored '.claude/worktrees' is skipped without one.
-        ignored = subprocess.run(["git", "check-ignore", "-q", ".claude/worktrees"]).returncode == 0
-        git("add", "-A", "--", ":/", *([] if ignored else [":!/.claude/worktrees"]), env=env)
+        # and an ignored worktree is skipped without one.
+        excludes = [
+            f":!/{p}" for p in nested_worktrees() if subprocess.run(["git", "check-ignore", "-q", p], check=False).returncode != 0
+        ]
+        git("add", "-A", "--", ":/", *excludes, env=env)
         tree = git("write-tree", env=env).decode().strip()
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
-    head = subprocess.run(["git", "rev-parse", "-q", "--verify", "HEAD"], capture_output=True, text=True)
+    head = subprocess.run(["git", "rev-parse", "-q", "--verify", "HEAD"], capture_output=True, text=True, check=False)
     parent = ["-p", head.stdout.strip()] if head.returncode == 0 else []
     return git("commit-tree", tree, *parent, "-m", "snapshot").decode().strip()
 
@@ -81,7 +93,7 @@ def cleanup_one(t, here):
     res = {"target": t, "dirty": [], "removed": [], "error": None}
 
     def run(*args):
-        r = subprocess.run(["git", *args], capture_output=True, text=True)
+        r = subprocess.run(["git", *args], capture_output=True, text=True, check=False)
         if r.returncode != 0 and res["error"] is None:
             res["error"] = f"git {args[0]}: {r.stderr.strip()}"
         return r
@@ -114,7 +126,7 @@ def main():
     ap.add_argument("--guard", metavar="BEFORE")
     ap.add_argument("--cleanup", metavar="TARGET", nargs="+")
     a = ap.parse_args()
-    top = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True)
+    top = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, check=False)
     if top.returncode != 0:
         sys.exit("snapshot.py: not inside a git repository")
     os.chdir(top.stdout.strip())
