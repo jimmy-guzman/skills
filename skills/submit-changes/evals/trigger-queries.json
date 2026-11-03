@@ -1,0 +1,15 @@
+[
+  { "query": "create a PR", "should_trigger": true },
+  { "query": "open a merge request for this branch", "should_trigger": true },
+  { "query": "push and MR", "should_trigger": true },
+  { "query": "this PR has no description, add one", "should_trigger": true },
+  { "query": "write a description for !482", "should_trigger": true },
+  { "query": "I pushed feat/tabs, what next?", "should_trigger": true },
+  { "query": "update the PR description, the approach changed", "should_trigger": true },
+  { "query": "commit these changes", "should_trigger": false },
+  { "query": "review PR 285", "should_trigger": false },
+  { "query": "address the comments on !482", "should_trigger": false },
+  { "query": "merge PR 77, CI is green", "should_trigger": false },
+  { "query": "plan how to build issue #41", "should_trigger": false },
+  { "query": "what's the difference between a draft PR and a ready one?", "should_trigger": false }
+]

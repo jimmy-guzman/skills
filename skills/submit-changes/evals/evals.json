@@ -1,0 +1,79 @@
+{
+  "skill_name": "submit-changes",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "open a PR for this branch",
+      "expected_output": "Detects the host from the upstream remote's URL, reads exactly one reference file, and checks with ls-remote that the branch was never pushed (not inferred from @{u}). Fetches the base with a named destination, detects title shape, template, ticket, and attribution from agent docs and recent merged PRs, drafts the body into a temp dir, lints it with lint_body.py --base until it exits 0, and prints the conventions list with a push line. Waits for 'go' before pushing or creating; then pushes with -u, creates a draft PR, and verifies head sha and base.",
+      "files": [],
+      "assertions": [
+        "Only one of references/github.md or references/gitlab.md was read, before any other host command",
+        "The branch's existence on the remote was checked with git ls-remote, not inferred from @{u}",
+        "Every git fetch named its destination (<ref>:refs/remotes/<remote>/<ref>)",
+        "The body was written under a temp dir from mktemp -d, never under .git",
+        "lint_body.py ran and exited 0 before the draft was shown",
+        "The summary listed a push action, and no push or host write happened before the user said go",
+        "The PR was created as a draft unless agent docs say otherwise"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "create a merge request",
+      "expected_output": "The working tree has uncommitted changes. The skill lists the dirty files and stops, naming commit-changes as the way to commit. It never drafts a commit message or offers a commit and a push in one question.",
+      "files": [],
+      "assertions": [
+        "The skill stopped before drafting the MR",
+        "The dirty files were listed",
+        "commit-changes was named for committing",
+        "No commit message was drafted and no commit ran"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "push and PR this, I'm 3 commits behind main",
+      "expected_output": "Branch freshness finds the branch behind the base. The skill asks with the question tool, rebase first and recommended, then merge, then leave behind. After a rebase it records the sync line and pushes with --force-with-lease, the only force push it makes. On conflicts it stops and hands control back.",
+      "files": [],
+      "assertions": [
+        "The update choice went through the question tool with rebase listed first and marked recommended",
+        "Nothing was rebased or merged before the user chose",
+        "After a rebase the push used --force-with-lease, never --force",
+        "The §5 summary carried a sync line such as 'Rebased onto origin/main (was 3 behind)'"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "add a description to https://github.com/acme/api/pull/77",
+      "expected_output": "Describe mode: the PR is in another repo, so every lookup uses acme/api, templates come from the host, and no local branch is touched. The draft keeps uploaded images, ticked checkboxes, and sections the agent didn't write, drops bot spans from the merge, and re-adds the live bot spans right before the full-body write. Shows what changed against the current description and waits for 'go'.",
+      "files": [],
+      "assertions": [
+        "No branch checks, fetch of the local branch, or push ran",
+        "Lookups and the template came from acme/api, not the local repo",
+        "The live body was re-fetched right before the write and its bot spans appended",
+        "Content the agent did not write (images, ticked checkboxes, other sections) survived in the new body",
+        "The summary showed what changed against the current description before any write"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "just open it",
+      "expected_output": "The request is the approval: the skill prints the summary and continues to create without asking 'Go ahead?'. If §2 found no why, it still asks 'What prompted this?', because a body with no why doesn't ship; it skips only the open Review question.",
+      "files": [],
+      "assertions": [
+        "The skill did not ask 'Go ahead with this?'",
+        "The conventions summary was still printed before the push",
+        "When no why was found, the skill asked what prompted the change before creating the PR"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "update the PR description, CodeRabbit already commented on it",
+      "expected_output": "Update mode on the current branch's PR. The redraft merges with the current description, keeping the user's sections and dropping CodeRabbit's auto-generated span from the merge; right before the write it re-fetches the live body and appends every bot span, so a summary that landed after §0 survives. Title, labels, and draft state stay unless the user approved a change.",
+      "files": [],
+      "assertions": [
+        "The text between the auto-generated comment markers was not rewritten by the agent",
+        "The bot span present in the live body at write time is in the new body",
+        "Title, labels, and draft state were not changed without approval"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,74 @@
+{
+  "skill_name": "commit-changes",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "commit this",
+      "expected_output": "Runs detect.py, reads the diff with lockfiles excluded, and writes a header in the history's shape: type(scope): with the type's emoji after the colon, lowercase, imperative, within the longest header seen. The message goes through lint_commit.py - (a temp-dir path, never under .git) and is linted until it exits 0. Prints the confirmation list and commits in the same turn, since the message said to commit, then verifies with git log -1 and removes the message file.",
+      "files": [],
+      "assertions": [
+        "detect.py ran before the message was drafted",
+        "The header matches the history's shape, including the emoji after the colon when shape: shows one for that type",
+        "lint_commit.py ran on the message and exited 0 before the commit",
+        "The message file path printed by lint_commit.py is not under .git",
+        "git add, git commit -F, git log -1, and rm ran as separate commands, with no $(...) or &&",
+        "No Co-Authored-By trailer was added when detect.py reported co-author 0/20 and no instruction asked for one"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "what should the commit message be for this?",
+      "expected_output": "Message mode: drafts and lints the message, prints it with the confirmation list, and never stages or commits.",
+      "files": [],
+      "assertions": [
+        "No git add or git commit ran",
+        "A full header (and body, when history carries bodies) was printed",
+        "The answer did not ask 'Commit this?' as if a commit were the next step without the user asking"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "stage and commit everything",
+      "expected_output": "The diff mixes two concerns (a bug fix in one directory and a new script in another). The skill names each concern (A and B) and asks the user to pick one, combine on purpose, or reframe. Nothing is committed until the user answers.",
+      "files": [],
+      "assertions": [
+        "The two concerns were named separately, each in one line",
+        "The user was asked to pick, combine, or reframe before any commit",
+        "No git commit ran before the answer",
+        "The skill did not split the change into two commits on its own"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "commit",
+      "expected_output": "detect.py reports one untracked file and a secret? flag on .env.local. The skill stops once and asks which untracked files to include, naming the secret flag, and does not stage .env.local without an explicit yes.",
+      "files": [],
+      "assertions": [
+        "The skill stopped and asked before staging, naming the untracked file and the secret? flag",
+        "The flagged file was not staged without an explicit yes",
+        "Approved untracked files were staged with git add <paths>, not git add -A"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "ok write me a commit message, then I'll look at it",
+      "expected_output": "Drafts and lints the message, prints the confirmation list, and ends with the typed go/no-go prompt. A later 'commit' in a new message is what authorizes the commit; nothing is committed in this turn.",
+      "files": [],
+      "assertions": [
+        "No git commit ran in this turn",
+        "The turn ended with 'Commit this? Say \"commit\", or name a different message.'"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "commit this, the commit-msg hook runs commitlint",
+      "expected_output": "The commit-msg hook rejects the message. The skill shows the hook's output verbatim and stops; it does not retry with --no-verify or rewrite the message on its own.",
+      "files": [],
+      "assertions": [
+        "The hook's output was shown verbatim",
+        "--no-verify was never passed",
+        "No second commit attempt ran without the user asking"
+      ]
+    }
+  ]
+}

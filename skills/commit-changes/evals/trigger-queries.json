@@ -1,0 +1,14 @@
+[
+  { "query": "commit this", "should_trigger": true },
+  { "query": "stage and commit the fix", "should_trigger": true },
+  { "query": "write a commit message for what I have staged", "should_trigger": true },
+  { "query": "what should the commit say for this diff?", "should_trigger": true },
+  { "query": "ship this", "should_trigger": true },
+  { "query": "amend the last commit with these changes", "should_trigger": true },
+  { "query": "open a PR for this branch", "should_trigger": false },
+  { "query": "push my branch to origin", "should_trigger": false },
+  { "query": "split this into three commits, one per package", "should_trigger": false },
+  { "query": "squash the last 4 commits and reword them", "should_trigger": false },
+  { "query": "review my changes before I commit", "should_trigger": false },
+  { "query": "what does commitlint's header-max-length do?", "should_trigger": false }
+]
