@@ -42,6 +42,7 @@
         "The report's last line starts with 'Nothing applied. For an agent:'",
         "After the report, one line offers to post the findings to #285",
         "If the report has questions, the post offer says they post as questions for the author, and the handoff line asks the author each question before acting on it",
+        "If the report has questions, none carries a 'Recommended:' or 'No recommendation:' line",
         "In a planning mode, the offer says that mode has to be turned off first",
         "If the PR names an issue, the report has a Spec footer line even when Spec has no findings"
       ]

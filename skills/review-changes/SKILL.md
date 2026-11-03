@@ -157,7 +157,7 @@ Each finding has:
 - An `Evidence:` line: the command and the failing output for Reproduced, or the file:line steps for Traced. Leave it out when the prose already shows the whole path. When §4 changed the severity, say why here.
 - A diff of the fix when it is a few lines, in a ```` ```diff ```` fence so the `-` and `+` lines don't render as a list. A heavy lift gets the approach in a sentence. In Suggest mode, name the file, the symbol, and the change precisely enough that someone without this conversation can make it.
 
-A question differs in two places. Its title asks which side is right and names the source. In place of the fix, two lines lettered after its number, so the user answers with the label they see: `2a. If <source> holds:` and the code fix, then `2b. If <source> is out of date:` and the `source_fix`. Then one line, `Recommended: 2a, <evidence>.`, when the evidence favors a side (the source predates the change, the code contradicts a test, the author commented on the thread). Else `No recommendation: <what would settle it>.`
+A question differs in two places. Its title asks which side is right and names the source. In place of the fix, two lines lettered after its number, so the user answers with the label they see: `2a. If <source> holds:` and the code fix, then `2b. If <source> is out of date:` and the `source_fix`. Then one line, `Recommended: 2a, <evidence>.`, when the evidence favors a side (the source predates the change, the code contradicts a test, the author commented on the thread). Else `No recommendation: <what would settle it>.` In Suggest mode, leave that line out: the author holds the context to pick, and the two `If` lines already name the source.
 
 A cut is one line: `file:line`, tag, what it is, what replaces it.
 
