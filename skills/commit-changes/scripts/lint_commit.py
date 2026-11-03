@@ -35,7 +35,7 @@ CHARS = {
     "’": "curly apostrophe: replace with straight apostrophe",
 }
 NON_IMPERATIVE = re.compile(
-    r"^(?:\w+\([^)]*\)|\w+)?:?\s*"
+    r"^(?:\w+\([^)]*\)|\w+)?!?:?\s*[^\w\s]*\s*"
     r"(added|fixed|updated|removed|refactored|changed|moved|renamed|deleted|created|"
     r"adding|fixing|updating|removing|refactoring|changing|moving|renaming|deleting|creating)\b",
     re.IGNORECASE,

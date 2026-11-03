@@ -40,6 +40,18 @@ class LintCommit(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertTrue(any("not imperative" in line for line in lines))
 
+    def test_verb_after_emoji_or_breaking_marker_flagged(self):
+        for subject in (
+            "fix(x): 🐛 added the thing",
+            "feat(x)!: added the thing",
+            "feat!: added the thing",
+            "feat(x)!: 🐛 added the thing",
+        ):
+            with self.subTest(subject=subject):
+                code, lines = run(subject + "\n")
+                self.assertEqual(code, 1)
+                self.assertTrue(any("not imperative" in line for line in lines))
+
     def test_over_length_subject_flagged(self):
         subject = "fix(commit): " + "a very long subject line that goes way past the limit"
         code, lines = run(subject + "\n")
