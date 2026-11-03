@@ -35,8 +35,9 @@ When a source has a convention, follow it. When none does, use the fallback and 
 
 ## In any agent
 
-- To ask the user something, use the agent's question tool if it has one. Otherwise ask in plain text with numbered choices, and wait for the answer.
-- Scratch files (body, file list) go in a temp dir, never under `.git`: in a linked worktree `git rev-parse --git-dir` points into the main checkout, and some hosts refuse writes there (Claude Code inside a worktree does). Run `mktemp -d` once as its own command and reuse the printed path as a literal, written `<tmp>` below. Never rebuild it with `$(...)`.
+- To ask the user something, use the agent's question tool if it has one. Otherwise ask in plain text with numbered choices, and wait for the answer. A go/no-go is a typed prompt the user can answer with an edit.
+- Read-only lookups prefer a flag over a pipe (`--jq`, `-n 50`) and may pipe when no flag does it. Mutating steps run one per call. Never use `$(...)` or backticks, and never write a file with `>`; the scripts take files so no host needs them.
+- Scratch files (body, file list) go in a temp dir, never under `.git`: in a linked worktree `git rev-parse --git-dir` points into the main checkout, and some hosts refuse writes there. Run `mktemp -d` once as its own command and reuse the printed path as a literal, written `<tmp>` below. Never rebuild it with `$(...)`.
 
 ## Process
 

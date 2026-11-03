@@ -7,7 +7,7 @@ Read in SKILL.md §3. The findings come from PR threads, extracted per [extracti
 - When a finding carries `probe`, start there: run or trace exactly those inputs against that `expected`, not the thread's narrative.
 - Check that the trigger can happen: follow the callers and the guards before the line.
 - For a broken rule, check that the rule says what the finding claims and that the line breaks it. A rule or quote the thread cites that isn't in the repo is checked with grep and `git log`; not found is evidence for Refuted. For a cut, check the callers, settings, or platform feature it relies on.
-- When running code is cheap and allowed, reproduce it: an existing test, a new test, or a short script. Run existing tests in place. Put anything new in a temporary worktree, never the user's tree: `git worktree add --detach <tmp> <rev>`, then `git worktree remove --force <tmp>` after. If it can't run, trace instead.
+- When running code is cheap and allowed, reproduce it: an existing test, a new test, or a short script. Run existing tests in place. Put anything new in a temporary worktree, never the user's tree: `git worktree add --detach <tmp> <rev>`, write the file there through the shell (you have no file-editing tools), then `git worktree remove --force <tmp>` after. If it can't run, trace instead.
 - Label each finding:
   - Reproduced: something you ran fails at the revision, through the entry point the trigger names (the editor, the CLI, the request), not a helper run on its own. A helper's output alone is Traced at most. Evidence is the command and the failing line of output.
   - Traced: you followed it from trigger to wrong result, or from the rule to the line that breaks it, without running anything. Evidence is the file:line steps.

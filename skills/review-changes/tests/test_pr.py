@@ -518,6 +518,24 @@ class FollowUpGitLabGeneral(unittest.TestCase):
         self.assertEqual(self.calls[0][0][-1], f"{self.c.mr}/discussions/disc-2")
 
 
+
+class StateGitLab(unittest.TestCase):
+    def test_anchor_outdated_when_position_head_moved(self):
+        # disc1's position was taken at the MR's current sha; disc3's at an
+        # older one; disc2 has no diff position at all.
+        c = pr.GitLab(None, None, 482)
+        c.pages = lambda ep: [] if ep.endswith("/diffs") else [
+            {"id": "disc1", "notes": [{"resolvable": True, "body": "a",
+                                       "position": {"new_path": "a.ts", "new_line": 1, "head_sha": "cur"}}]},
+            {"id": "disc2", "notes": [{"resolvable": True, "body": "b"}]},
+            {"id": "disc3", "notes": [{"resolvable": True, "body": "c",
+                                       "position": {"new_path": "c.ts", "new_line": 3, "head_sha": "old"}}]},
+        ]
+        c.api = lambda *a, body=None: {"state": "opened", "sha": "cur", "target_branch": "main",
+                                       "title": "t"}
+        self.assertEqual([a["outdated"] for a in c.state()["anchors"]], [False, False, True])
+
+
 class FollowUpGitHub(FakeGh):
     def calls(self):
         with open(self.log) as fh:

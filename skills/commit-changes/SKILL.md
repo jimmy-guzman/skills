@@ -27,7 +27,8 @@ This covers the `Co-Authored-By:` trailer too: instructions first, then whether 
 
 ## In any agent
 
-- To ask the user something, use the agent's question tool if it has one. Otherwise ask in plain text with numbered choices, and wait for the answer.
+- To ask the user something, use the agent's question tool if it has one. Otherwise ask in plain text with numbered choices, and wait for the answer. A go/no-go is a typed prompt the user can answer with an edit.
+- Read-only lookups prefer a flag over a pipe (`--jq`, `-n 50`) and may pipe when no flag does it. Mutating steps run one per call. Never use `$(...)` or backticks, and never write a file with `>`; the scripts take files so no host needs them.
 
 ## Process
 
@@ -83,7 +84,7 @@ Must be in the commitlint `type-enum` if one exists.
 
 ### 4. Write, lint, confirm
 
-One call writes the message to `<git-dir>/COMMIT_BODY.md` (never committed) and lints it:
+One call writes the message to `COMMIT_BODY.md` in a new temp dir (never committed) and lints it:
 
 ```bash
 python3 <skill-dir>/scripts/lint_commit.py - <header-max> <<'EOF'
@@ -110,7 +111,7 @@ If the user corrects a convention and it sounds durable ("we never use scopes"),
 
 ### 5. Commit and verify
 
-Run these as separate plain commands, with `<path>` being the literal path step 4 printed. Stop at the first failure. Never rebuild the path with `$(...)` or join the commands with `&&`, because some hosts refuse those (Claude Code inside a worktree does). Drop `git add -u` when the user already staged; use `git add <paths>` for untracked files they approved:
+Run these as separate plain commands, with `<path>` being the literal path step 4 printed. Stop at the first failure. Never rebuild the path with `$(...)` or join the commands with `&&`. Drop `git add -u` when the user already staged; use `git add <paths>` for untracked files they approved:
 
 ```bash
 git add -u

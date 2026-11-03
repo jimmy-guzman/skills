@@ -39,6 +39,8 @@ state prints one JSON object:
 GitHub's REST API has no resolved flag, so resolved comes from GraphQL. Where
 GraphQL is blocked, state still works: each anchor's resolved is null and
 threads.unknown counts them. resolve needs GraphQL and fails where it's blocked.
+On GitLab, an anchor is outdated when its diff position was taken at a head
+other than the MR's current one.
 
 post prints one JSON object:
   posted (inline|general|skipped), reason, id
@@ -437,7 +439,7 @@ class GitLab:
                 "path": pos.get("new_path") or pos.get("old_path"),
                 "line": pos.get("new_line") or pos.get("old_line"),
                 "resolved": bool(first.get("resolved")),
-                "outdated": False,
+                "outdated": bool(pos.get("head_sha")) and pos["head_sha"] != mr["sha"],
                 "first_line": first_line(first.get("body", "")),
             })
         state = {"opened": "open", "locked": "open"}.get(mr["state"], mr["state"])

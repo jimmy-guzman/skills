@@ -6,16 +6,16 @@ Stdlib only.
 
 import os
 import re
-import subprocess
 import sys
+import tempfile
 
 USAGE = """\
 Usage:
   lint_commit.py MESSAGE.md [HEADER_MAX]
   lint_commit.py - [HEADER_MAX] < message
 
-With -, reads the message from stdin, writes it to <git-dir>/COMMIT_BODY.md,
-and prints that path first.
+With -, reads the message from stdin, writes it to COMMIT_BODY.md in a new temp
+dir, and prints that path first.
 Prints one line per problem: MESSAGE.md:LINE: message
 Checks, anywhere:
   em dash, en dash, middle dot, curly quotes or apostrophes
@@ -87,10 +87,7 @@ def main(argv):
     try:
         if path == "-":
             text = sys.stdin.read()
-            git_dir = subprocess.run(
-                ["git", "rev-parse", "--absolute-git-dir"], capture_output=True, text=True, check=True
-            ).stdout.strip()
-            path = os.path.join(git_dir, "COMMIT_BODY.md")
+            path = os.path.join(tempfile.mkdtemp(), "COMMIT_BODY.md")
             with open(path, "w", encoding="utf-8") as fh:
                 fh.write(text)
             print(path)
@@ -98,9 +95,6 @@ def main(argv):
             with open(path, encoding="utf-8") as fh:
                 text = fh.read()
         lines = text.splitlines()
-    except subprocess.CalledProcessError:
-        print("error: - needs a git repository", file=sys.stderr)
-        return 2
     except (OSError, UnicodeDecodeError) as e:
         print(f"error: can't read {path}: {e}", file=sys.stderr)
         return 2

@@ -131,10 +131,11 @@ round of `new` findings isn't sent round again; it counts as unverified.
 - **Tree-guard.** `snapshot.py --guard <before>` diffs the tree against the
   pin when verification starts and again once every batch is back; any stray
   edit is reverted and saved to a patch file that gets reported.
-- **No shell compounds.** Every step is one plain `python3 scripts/...` call
-  taking file paths, with no `$(...)`, `&&`, or pipes. Some hosts refuse
-  those, notably a Claude Code session that itself runs inside a worktree,
-  so the scripts do the compound git work instead of the agent's shell.
+- **No shell compounds for mutations.** Every mutating step is one plain
+  `python3 scripts/...` call taking file paths. Read-only lookups prefer a
+  flag over a pipe and may pipe when no flag does it. Nothing uses `$(...)`,
+  backticks, or `>`: some hosts block or always prompt on those, so the
+  scripts do the compound git work instead of the agent's shell.
 - **No edit tools for reviewers/verifiers.** Denied where the host supports
   it, and run in disposable git worktrees where it supports that too,
   removed afterward by `snapshot.py --cleanup` so no shell aims git at

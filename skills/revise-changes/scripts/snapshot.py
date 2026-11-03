@@ -2,7 +2,7 @@
 """Save the working tree as a commit, or undo edits made since one.
 
 One plain command in place of a shell pipeline, so hosts that refuse $(...),
-&& chains, or pipes (a Claude Code session running inside a worktree) can run it.
+&& chains, or pipes can run it.
 Stdlib only. Runs from the repo root whatever the working directory.
 
 Usage:
