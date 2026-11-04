@@ -1,12 +1,12 @@
 ---
 name: use-slack
 description: >
-  Reads and searches Slack as the user through their browser session (xoxc
-  token plus d cookie), no Slack app or bot needed. Use when the user shares a
+  Reads and searches Slack as the user through their browser session (the d
+  cookie), no Slack app or bot needed. Use when the user shares a
   Slack link, asks what was said in a channel or thread, wants messages
   searched, a thread summarized, a user or channel looked up, or a message
   posted or replied to. Not for building Slack apps or bots.
-compatibility: Requires python3 and SLACK_XOXC_TOKEN, SLACK_D_COOKIE (optionally SLACK_URL) in the environment.
+compatibility: Requires python3 and SLACK_D_COOKIE, SLACK_URL (optionally SLACK_XOXC_TOKEN) in the environment.
 ---
 
 # use-slack
@@ -23,11 +23,11 @@ python3 scripts/slack.py conversations.replies channel=C0123ABCD ts=1730730000.1
 
 Env vars, usually exported from `~/.zshrc`:
 
-- `SLACK_XOXC_TOKEN`: `xoxc-...` token from the logged-in web client.
-- `SLACK_D_COOKIE`: value of the `d` cookie (`xoxd-...`) for the workspace domain.
-- `SLACK_URL`: `https://<workspace>.slack.com`. Optional; falls back to `https://slack.com`.
+- `SLACK_D_COOKIE`: value of the `d` cookie (`xoxd-...`), from DevTools > Application > Cookies on `https://app.slack.com`.
+- `SLACK_URL`: `https://<workspace>.slack.com`.
+- `SLACK_XOXC_TOKEN`: optional. The script fetches a fresh `xoxc-...` token from the workspace page with the cookie when this is unset or rejected.
 
-If a var is missing in the agent's shell, run with `zsh -ic 'python3 scripts/slack.py ...'` so `~/.zshrc` loads. On `invalid_auth` or `not_authed`, the session expired: ask the user to copy a fresh token (DevTools console on the web client: `JSON.parse(localStorage.localConfig_v2).teams[<team_id>].token`) and `d` cookie (Application > Cookies). Never print either value.
+If a var is missing in the agent's shell, run with `zsh -ic 'python3 scripts/slack.py ...'` so `~/.zshrc` loads. On "the d cookie expired", ask the user to copy a fresh `d` cookie. Never print the cookie or token.
 
 ## Common calls
 

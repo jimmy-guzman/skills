@@ -1,34 +1,49 @@
 #!/usr/bin/env python3
-"""Call any Slack Web API method as the user, via the browser session (xoxc token + d cookie).
+"""Call any Slack Web API method as the user, via the browser session (d cookie).
 
 Usage:
   slack.py <method> [key=value ...]
 
-Env: SLACK_XOXC_TOKEN, SLACK_D_COOKIE, SLACK_URL (https://<workspace>.slack.com).
+Env: SLACK_D_COOKIE, SLACK_URL (https://<workspace>.slack.com).
+Optional SLACK_XOXC_TOKEN; without it, or when it has rotated, the token is
+fetched from the workspace page using the cookie.
 Values that look like JSON (arrays, objects) pass through as strings; Slack parses them.
 Prints the JSON response. Exit 1 when Slack returns ok=false.
 """
 
 import json
 import os
+import re
 import sys
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
 
+UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/130 Safari/537.36"
+TOKEN_RE = re.compile(r'"api_token":"(xoxc-[^"]+)"')
 
-def call(method, params):
-    missing = [v for v in ("SLACK_XOXC_TOKEN", "SLACK_D_COOKIE") if not os.environ.get(v)]
-    if missing:
-        raise SystemExit(f"missing env: {', '.join(missing)} (try: zsh -ic '...')")
-    base = (os.environ.get("SLACK_URL") or "https://slack.com").rstrip("/")
+
+def fetch_token(base, cookie):
+    req = urllib.request.Request(f"{base}/", headers={"Cookie": f"d={cookie}", "User-Agent": UA})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            html = resp.read()
+    except urllib.error.HTTPError as e:
+        html = e.read()  # Slack serves the signed-in page with a 403; the body still has the token
+    m = TOKEN_RE.search(html.decode("utf-8", "replace"))
+    if not m:
+        raise SystemExit("no token on the workspace page: the d cookie expired, copy a fresh one")
+    return m.group(1)
+
+
+def post(base, method, params, token, cookie):
     req = urllib.request.Request(
         f"{base}/api/{method}",
         data=urllib.parse.urlencode(params).encode(),
         headers={
-            "Authorization": f"Bearer {os.environ['SLACK_XOXC_TOKEN']}",
-            "Cookie": f"d={os.environ['SLACK_D_COOKIE']}",
+            "Authorization": f"Bearer {token}",
+            "Cookie": f"d={cookie}",
             "Content-Type": "application/x-www-form-urlencoded",
         },
     )
@@ -42,6 +57,20 @@ def call(method, params):
             if attempt == 2:
                 raise SystemExit("HTTP 429 three times, giving up") from None
             time.sleep(int(e.headers.get("Retry-After", "5")))
+
+
+def call(method, params):
+    missing = [v for v in ("SLACK_D_COOKIE", "SLACK_URL") if not os.environ.get(v)]
+    if missing:
+        raise SystemExit(f"missing env: {', '.join(missing)} (try: zsh -ic '...')")
+    base = os.environ["SLACK_URL"].rstrip("/")
+    cookie = os.environ["SLACK_D_COOKIE"]
+    token = os.environ.get("SLACK_XOXC_TOKEN")
+    if token:
+        out = post(base, method, params, token, cookie)
+        if out.get("error") not in ("invalid_auth", "not_authed"):
+            return out
+    return post(base, method, params, fetch_token(base, cookie), cookie)
 
 
 def main(argv):

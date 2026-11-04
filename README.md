@@ -45,12 +45,11 @@ pnpx skills add jimmy-guzman/skills --skill use-slack -g
 It needs your Slack browser session in the environment, e.g. in `~/.zshrc`:
 
 ```sh
-export SLACK_XOXC_TOKEN="xoxc-..."  # DevTools console: Object.values(JSON.parse(localStorage.localConfig_v2).teams).map(t => [t.name, t.token])
-export SLACK_D_COOKIE="xoxd-..."    # DevTools > Application > Cookies > the `d` cookie
+export SLACK_D_COOKIE="xoxd-..."  # DevTools > Application > Cookies > https://app.slack.com > `d`
 export SLACK_URL="https://<workspace>.slack.com"
 ```
 
-Together these are your Slack login: keep them out of repos and chats. Logging out of Slack in the browser revokes them, so redo this step on `invalid_auth`.
+The script gets the `xoxc` token from the workspace page with the cookie, so there's no token to copy. The cookie is your Slack login: keep it out of repos and chats. Logging out of Slack in the browser revokes it, so copy a fresh one when the script says it expired.
 
 ## Adding a skill
 
