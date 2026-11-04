@@ -28,7 +28,29 @@ They cover both sides of a change. As the author: plan it, commit it, submit it 
 ### Other
 
 - [`fix-dep-vulns`](skills/fix-dep-vulns/SKILL.md): triage and fix dependency vulnerabilities in pnpm, uv, pip, and Cargo projects, preferring lockfile refreshes and parent upgrades over overrides.
+- [`use-slack`](skills/use-slack/SKILL.md): read, search, and (after confirmation) post to Slack as the user through their browser session, no app or bot needed.
 - [`talk-plainly`](skills/talk-plainly/SKILL.md): reply like a direct, busy peer, answer first, with no filler or generated-sounding patterns.
+
+## Setup
+
+### `use-slack`
+
+Install just this skill, in the current project or globally:
+
+```sh
+pnpx skills add jimmy-guzman/skills --skill use-slack
+pnpx skills add jimmy-guzman/skills --skill use-slack -g
+```
+
+It needs your Slack browser session in the environment, e.g. in `~/.zshrc`:
+
+```sh
+export SLACK_XOXC_TOKEN="xoxc-..."  # DevTools console: Object.values(JSON.parse(localStorage.localConfig_v2).teams).map(t => [t.name, t.token])
+export SLACK_D_COOKIE="xoxd-..."    # DevTools > Application > Cookies > the `d` cookie
+export SLACK_URL="https://<workspace>.slack.com"
+```
+
+Together these are your Slack login: keep them out of repos and chats. Logging out of Slack in the browser revokes them, so redo this step on `invalid_auth`.
 
 ## Adding a skill
 
