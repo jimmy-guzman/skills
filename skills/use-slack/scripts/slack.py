@@ -7,6 +7,7 @@ Usage:
 Env: SLACK_D_COOKIE, SLACK_URL (https://<workspace>.slack.com).
 Optional SLACK_XOXC_TOKEN; without it, or when it has rotated, the token is
 fetched from the workspace page using the cookie.
+key=@- reads that value from stdin (one key at most), for multi-line text.
 Values that look like JSON (arrays, objects) pass through as strings; Slack parses them.
 Prints the JSON response. Exit 1 when Slack returns ok=false.
 """
@@ -81,6 +82,11 @@ def main(argv):
     if bad:
         raise SystemExit(f"expected key=value, got: {' '.join(bad)}")
     params = dict(a.split("=", 1) for a in argv[1:])
+    stdin_keys = [k for k, v in params.items() if v == "@-"]
+    if len(stdin_keys) > 1:
+        raise SystemExit("only one key can read stdin (@-)")
+    if stdin_keys:
+        params[stdin_keys[0]] = sys.stdin.read().removesuffix("\n")
     out = call(argv[0], params)
     json.dump(out, sys.stdout, indent=1)
     print()

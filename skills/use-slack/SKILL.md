@@ -38,7 +38,17 @@ If a var is missing in the agent's shell, run with `zsh -ic 'python3 scripts/sla
 | Channel history | `conversations.history channel=C... limit=50 oldest=<unix ts>` |
 | Find a channel id | `search.messages query="in:#name" count=1`, or `conversations.list types=public_channel,private_channel limit=1000` (paginate with `cursor`) |
 | Who is U... | `users.info user=U...` |
-| Post / reply | `chat.postMessage channel=C... text=... thread_ts=<parent ts>` |
+| Post / reply | `chat.postMessage channel=C... text=... thread_ts=<parent ts>` (`text=@-` reads stdin) |
+
+For multi-line text, links, or quotes, pass `text=@-` and feed a quoted heredoc outside the `zsh -ic '...'` string so nothing needs escaping:
+
+```sh
+zsh -ic 'python3 scripts/slack.py chat.postMessage channel=C0123ABCD thread_ts=1730730000.123456 text=@-' <<'EOF'
+All addressed:
+• <https://github.com/o/r/pull/1|PR #1>
+_posted via use-slack_
+EOF
+```
 
 Message links look like `https://<ws>.slack.com/archives/C0123ABCD/p1730730000123456`: channel is `C0123ABCD`, ts is the digits with a dot before the last six (`1730730000.123456`). A `?thread_ts=` query param is the thread parent.
 

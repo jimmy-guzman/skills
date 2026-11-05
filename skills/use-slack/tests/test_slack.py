@@ -13,18 +13,19 @@ import threading
 import time
 import typing
 import unittest
+import urllib.parse
 
 SCRIPT = pathlib.Path(__file__).resolve().parents[1] / "scripts" / "slack.py"
 
 
-def run(*args, url=None, token="xoxc-test"):
+def run(*args, url=None, token="xoxc-test", stdin=None):
     env = {k: v for k, v in os.environ.items() if not k.startswith("SLACK_")}
     env["SLACK_D_COOKIE"] = "xoxd-test"
     env["SLACK_URL"] = url or "http://127.0.0.1:9"
     if token:
         env["SLACK_XOXC_TOKEN"] = token
     return subprocess.run([sys.executable, "-I", str(SCRIPT), *args],
-                          env=env, capture_output=True, text=True, timeout=30, check=False)
+                          env=env, input=stdin, capture_output=True, text=True, timeout=30, check=False)
 
 
 class Always429(http.server.BaseHTTPRequestHandler):
@@ -45,6 +46,7 @@ class FakeSlack(http.server.BaseHTTPRequestHandler):
 
     page = '<script>{"api_token":"xoxc-fresh","x":1}</script>'
     seen: typing.ClassVar[list[str]] = []
+    forms: typing.ClassVar[list[dict]] = []
 
     def do_GET(self):
         body = self.page if self.headers.get("Cookie") == "d=xoxd-test" else "<html>sign in</html>"
@@ -53,6 +55,8 @@ class FakeSlack(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         token = self.headers.get("Authorization", "").removeprefix("Bearer ")
         type(self).seen.append(token)
+        body = self.rfile.read(int(self.headers.get("Content-Length", 0))).decode()
+        type(self).forms.append(dict(urllib.parse.parse_qsl(body)))
         ok = token == "xoxc-fresh"
         self._send(json.dumps({"ok": ok} if ok else {"ok": False, "error": "invalid_auth"}),
                    "application/json")
@@ -76,15 +80,28 @@ def serve(handler):
 class SlackTest(unittest.TestCase):
     def setUp(self):
         FakeSlack.seen.clear()
+        FakeSlack.forms.clear()
         FakeSlack.page = '<script>{"api_token":"xoxc-fresh","x":1}</script>'
 
-    def _run_fake(self, token):
+    def _run_fake(self, token, *args, stdin=None):
         srv, url = serve(FakeSlack)
         try:
-            return run("auth.test", url=url, token=token)
+            return run(*(args or ("auth.test",)), url=url, token=token, stdin=stdin)
         finally:
             srv.shutdown()
             srv.server_close()
+
+    def test_at_dash_reads_value_from_stdin(self):
+        r = self._run_fake("xoxc-fresh", "chat.postMessage", "channel=C1", "text=@-",
+                           stdin="a 'q' \"q\"\n• <https://x|y>\n")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(FakeSlack.forms, [{"channel": "C1", "text": "a 'q' \"q\"\n• <https://x|y>"}])
+
+    def test_two_stdin_keys_is_a_usage_error(self):
+        r = run("chat.postMessage", "text=@-", "blocks=@-")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("only one key can read stdin", r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
 
     def test_fetches_token_from_cookie_when_unset(self):
         r = self._run_fake(token=None)
