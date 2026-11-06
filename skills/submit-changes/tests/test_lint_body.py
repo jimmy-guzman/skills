@@ -145,6 +145,22 @@ class Phrases(unittest.TestCase):
         for word in ("robust", "comprehensive", "properly"):
             self.assertIn(f'self-grading word "{word}"', joined)
 
+    def test_skipped_steps(self):
+        for phrase in (
+            "`pnpm dev` was not run.",
+            "Not run in dev.",
+            "This wasn't tested locally.",
+            "Untested in staging.",
+            "Didn't run against prod.",
+        ):
+            code, out = run(f"### Why\n\nBroken.\n\n### Review\n\n{phrase}\n")
+            self.assertEqual(code, 1, phrase)
+            self.assertIn("manual check", "\n".join(out), phrase)
+
+    def test_unverified_behavior_passes(self):
+        body = "### Why\n\nBroken.\n\n### Review\n\nThe retry path never ran against the real API.\n"
+        self.assertEqual(run(body), (0, []))
+
     def test_plain_claims_pass(self):
         self.assertEqual(run("- `a.ts`: the guard rejects empty input; `guard.test.ts` fails on main\n"), (0, []))
 

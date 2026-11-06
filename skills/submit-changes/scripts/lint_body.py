@@ -77,6 +77,16 @@ SELF_GRADING = re.compile(
     r"|enhanc(?:e|es|ed|ing)|leverag(?:e|es|ed|ing)|streamlin(?:e|es|ed|ing))\b",
     re.IGNORECASE,
 )
+# "`pnpm dev` was not run" offers a manual check as the missing proof. The fix
+# is a test, not a manual run. A behavior no test can reach ("the retry path
+# never ran against the real API") passes.
+SKIPPED_STEP = re.compile(
+    r"`[^`]+`\s+(?:was|were|has|have|is)?\s*(?:not|n't|never)\s+(?:been\s+)?(?:run|tested|executed)\b"
+    r"|\b(?:wasn't|weren't|was not|were not|not|never|didn't)\s+(?:been\s+)?(?:run|ran|tested|tried|verified|checked)\s+"
+    r"(?:in|on|against|with|via)?\s*(?:the\s+)?(?:dev|development|staging|prod|production|locally|local|ci|a browser|the browser)\b"
+    r"|\b(?:untested|not tested)\s+(?:in|on)\s+(?:dev|staging|prod|production|ci)\b",
+    re.IGNORECASE,
+)
 TEST_CLAIM = re.compile(
     r"\b(?:adds?|added|new|wrote|writes?|introduc(?:es|ed))\b[^.;]{0,30}?"
     r"\b(?:unit |integration |e2e |snapshot |regression )?tests?\b",
@@ -184,6 +194,8 @@ def lint(lines, files=None):
 
         for am in ASSERTIONS.finditer(stripped):
             problems.append((n, f'assertion without evidence "{am.group(0)}": show the before and after, or cut'))
+        for km in SKIPPED_STEP.finditer(stripped):
+            problems.append((n, f'manual check "{km.group(0)}": write a test for the behavior, or name what no test can reach'))
         for sm in SELF_GRADING.finditer(stripped):
             problems.append((n, f'self-grading word "{sm.group(1)}": cut it or say what it means'))
         if files is not None:
