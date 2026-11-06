@@ -22,9 +22,9 @@ USAGE = """\
 Usage:
   pr.py state   <pr> [--provider P] [--repo R] [--host H]
   pr.py threads <pr> [--include-resolved] [--provider P] [--repo R] [--host H]
-  pr.py reply   <pr> --thread ID --body-file F [--resolve] [--allow-closed]
-                [--dry-run] [--provider P] [--repo R] [--host H]
-  pr.py reply   <pr> --batch FILE [--allow-closed] [--dry-run]
+  pr.py reply   <pr> --thread ID --body-file F [--commit SHA] [--resolve]
+                [--allow-closed] [--dry-run] [--provider P] [--repo R] [--host H]
+  pr.py reply   <pr> --batch FILE [--commit SHA] [--allow-closed] [--dry-run]
   pr.py resolve <pr> --thread ID [--provider P] [--repo R] [--host H]
 
 <pr> is a number (285), a ref (#285, !482), or a PR/MR URL.
@@ -64,6 +64,11 @@ thread is checked before the first reply. Writes are sent one at a time,
 a second apart, per GitHub's rate-limit guidance. Prints one JSON object per entry,
 one per line, in the single-reply shape plus "index" and "thread".
 
+--commit SHA replaces every <!--commit--> in the bodies with SHA, so Fixed replies
+drafted before the commit need no editing after it. A body that still holds
+<!--commit--> is never posted: without --dry-run, reply exits 2 before the first
+reply. --dry-run prints it as is.
+
 resolve prints one JSON object:
   resolved (true), id
 resolve (and reply --resolve) needs GraphQL on GitHub and fails with exit 5
@@ -86,6 +91,7 @@ Examples:
   pr.py reply 285 --thread 501 --body-file /tmp/r.md
   pr.py reply !482 --thread 9988 --body-file /tmp/r.md --resolve
   pr.py reply 285 --batch /tmp/replies.json
+  pr.py reply 285 --batch /tmp/replies.json --commit 5f924ea
   pr.py resolve 285 --thread PRRT_abc123
 """
 
@@ -93,6 +99,9 @@ Examples:
 # its secondary rate limit; GitLab gets the same pacing. REVIEW_PR_WRITE_PAUSE overrides
 # it (tests set 0).
 WRITE_PAUSE = float(os.environ.get("REVIEW_PR_WRITE_PAUSE", "1"))
+
+
+PLACEHOLDER = "<!--commit-->"
 
 
 class Fail(Exception):
@@ -447,6 +456,15 @@ def cmd_reply(args):
     else:
         entries = [(args.thread, args.body_file, args.resolve)]
     bodies = [read_reply_body(f) for _, f, _ in entries]
+    if args.commit is not None:
+        if not re.fullmatch(r"[0-9a-f]{7,40}", args.commit):
+            raise Fail(2, f"--commit {args.commit!r} isn't a commit SHA")
+        bodies = [b.replace(PLACEHOLDER, args.commit) for b in bodies]
+    if not args.dry_run:
+        left = [tid for (tid, _, _), b in zip(entries, bodies) if PLACEHOLDER in b]
+        if left:
+            raise Fail(2, f"{PLACEHOLDER} left in the body for {', '.join(left)}; "
+                          "pass --commit SHA; nothing replied")
 
     c, _ = client(args)
     ctx = c.state()
@@ -521,6 +539,7 @@ def main(argv):
     p.add_argument("--allow-closed", action="store_true")
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--batch")
+    p.add_argument("--commit")
     try:
         args = p.parse_args(argv)
     except SystemExit:

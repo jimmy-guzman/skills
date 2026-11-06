@@ -348,6 +348,35 @@ class EndToEndGitHub(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertIn("--batch replaces", err)
 
+    def test_batch_commit_fills_placeholder(self):
+        code, out, err = self.run_batch([("PRRT_1", "Fixed in <!--commit-->.", False)],
+                                        "--commit", "abc1234")
+        self.assertEqual((code, [o["replied"] for o in out]), (0, [True]), err)
+        self.assertIn("Fixed in abc1234.", self.posted()[0]["body"])
+
+    def test_batch_leftover_placeholder_replies_nothing(self):
+        code, _, err = self.run_batch([("PRRT_1", "Refuted.", False),
+                                       ("PRRT_1", "Fixed in <!--commit-->.", False)])
+        self.assertEqual(code, 2)
+        self.assertIn("<!--commit--> left", err)
+        self.assertFalse(os.path.exists(self.log))  # refused before any gh call
+
+    def test_batch_quoted_braces_commit_left_alone(self):
+        body = "Refuted: `f'{commit}'` is intentional."
+        code, out, err = self.run_batch([("PRRT_1", body, False)])
+        self.assertEqual((code, [o["replied"] for o in out]), (0, [True]), err)
+        self.assertIn(body, self.posted()[0]["body"])
+
+    def test_batch_dry_run_shows_placeholder(self):
+        code, out, err = self.run_batch([("PRRT_1", "Fixed in <!--commit-->.", False)], "--dry-run")
+        self.assertEqual((code, out[0]["body"]), (0, "Fixed in <!--commit-->."), err)
+
+    def test_batch_commit_must_look_like_a_sha(self):
+        code, _, _ = self.run_batch([("PRRT_1", "Fixed in <!--commit-->.", False)],
+                                      "--commit", "$(x)")
+        self.assertEqual(code, 2)
+        self.assertFalse(os.path.exists(self.log))
+
     def test_batch_pauses_between_writes_only(self):
         self.env["REVIEW_PR_WRITE_PAUSE"] = "0.3"
         start = time.monotonic()

@@ -25,6 +25,7 @@ If the user pasted review comments as text, with no live PR/MR to fetch from or 
 ## In any agent
 
 - Paths like `scripts/pr.py` are relative to this skill's directory. Resolve them to absolute paths, and run them with the repo as the working directory, because `gh` and `glab` find the project from there. Run `python3 scripts/pr.py --help` if a flag is unclear.
+- Read-only lookups prefer a flag over a pipe (`--jq`, `-n 50`) and may pipe when no flag does it. Mutating steps run one per call. Never use `$(...)` or backticks, never build a command around a loop variable, and never write a file with `>`: write files with the agent's file tool. A guard can't tell what a command assembled at runtime will do, so it may refuse the whole call.
 - Reply and resolve only through `scripts/pr.py`. When it refuses, never edit it and never go another way (a connector, an MCP tool, a raw API call). Say why it refused and offer what the refusal allows.
 - To ask the user something, use the agent's question tool if it has one (2 to 4 choices, plus free text). Otherwise ask in plain text with numbered choices, and wait for the answer. A go/no-go is a typed prompt the user can answer with an edit. Put the choice the evidence favors first, mark it recommended, and name the evidence in one clause (a `file:line`, a commit, an issue's date). When nothing favors one, say so; don't guess. Word the question in the Voice below.
 - In a read-only or planning mode, run §1 to §3 and §5 (they only read), print the findings and the draft replies in the conversation, and stop there: no edits, no posts, no snapshot. Say so.
@@ -57,7 +58,7 @@ Once verification is done, read [references/apply.md](references/apply.md) and f
 
 One reply per verified thread. Write each body to its own temp file, list them in one JSON file, `[{"thread": "<id>", "body_file": "<F>"}, ...]`, and run `python3 scripts/pr.py reply <pr> --batch <file> --dry-run`, which prints every body without posting. One call, not a shell loop: it checks every thread before the first reply, and there's no loop variable to collide with one the shell owns (`path` in zsh is tied to `PATH`). The body by label:
 
-- **Fixed** (Reproduced or Traced): what changed, inline code for symbols and files, a short fenced diff when it clarifies more than prose, the commit short-SHA once one exists (never before).
+- **Fixed** (Reproduced or Traced): what changed, inline code for symbols and files, a short fenced diff when it clarifies more than prose, and `<!--commit-->` where the commit short-SHA goes. Write the placeholder, never a SHA by hand: §7 passes `--commit` and the script fills it in.
 - **Refuted**: why, citing the evidence from §3: the guard or caller that makes the trigger unreachable, or the run that passed on it. For a claim that cites a rule or quote that isn't in the repo, say what was searched and that it wasn't found.
 - **Unverified**: what was tried, and what would settle it. Ask the author for that if they're the one who can supply it.
 
@@ -72,11 +73,11 @@ End with two questions, and act on each only on its own explicit yes:
 - `Post these replies? Say "post", or name the threads to post.` Replies go to a shared system, so a bare "fix these" or "address the comments" never posts on its own; the user said address, not publish. If the user asked up front to post without seeing drafts ("reply to the reviewers"), skip the question and post.
 - If anything was applied and nothing has been committed yet: `Commit these fixes? Say "commit", or name a different message.`
 
-A Fixed reply describes code the PR doesn't have until it's pushed. Before posting, if applied fixes aren't on the PR yet (uncommitted, or committed but not pushed), ask whether to commit and push first, even when the user asked up front to post. After the commit, put its short-SHA into the Fixed bodies before §7.
+A Fixed reply describes code the PR doesn't have until it's pushed. Before posting, if applied fixes aren't on the PR yet (uncommitted, or committed but not pushed), ask whether to commit and push first, even when the user asked up front to post. After the commit, rerun the §5 dry-run with `--commit <short-sha>` and check every Fixed body shows the SHA. If the commit, the push, or that dry-run fails, or a Fixed body still shows `<!--commit-->`, stop and report. Don't post, even when the user asked up front to.
 
 ### 7. Post
 
-Rerun the batch without `--dry-run`, keeping only the approved threads. A retry is safe: an identical body the current user already posted on the thread comes back as `"replied": "skipped"`.
+Rerun the batch without `--dry-run`, keeping only the approved threads, with `--commit <short-sha>` when any body holds `<!--commit-->`. The script refuses to post a body with `<!--commit-->` left in it (exit 2, nothing replied); that's a stop, not a thing to work around by editing the bodies. A retry is safe: an identical body the current user already posted on the thread comes back as `"replied": "skipped"`.
 
 Set `"resolve": true` on a thread's entry only when the user said to resolve this round, and only on a thread with a `node_id` on GitHub: without one, the script can't resolve it, so say so instead. The default is reply-only; resolving is never implied by applying a fix, writing a reply, or approving a post. Then report what was posted: `Posted 4 replies.` plus anything skipped or refused and why.
 
