@@ -16,6 +16,7 @@ Read by the verifier in SKILL.md §4. You may be a reviewer resumed for this: yo
   - Traced: you followed it from trigger to wrong result, or from the rule to the line that breaks it, without running anything. Evidence is the file:line steps.
   - Unverified: you can't settle it either way. Evidence is what would.
   - Refuted: evidence is the proof. Either the file:line of the guard or caller that makes the trigger unreachable, or a run that passes on the exact trigger. A passing test counts only if you read it and it asserts the outcome for that trigger; for a scoping or filtering finding, it also needs keys whose correct values differ; a shared fixture that both the correct and broken behavior would satisfy doesn't refute it. Reasoning alone is not a refutation: label it Unverified.
+- A finding with a `source_fix` is a question for the author. Try to settle it with the rules in [reviewer-common.md](reviewer-common.md) (look up unknown terms, weigh the sources). When the evidence picks a side, set `settles` to `code` or `source` and put the deciding file:line or doc line in `evidence`. Otherwise leave `settles` null and list in `evidence` what you checked and why it didn't settle it. Settle only on evidence: a wrongly settled question costs more than asking.
 - If running or tracing hasn't settled a finding after three tries, stop: label it Unverified and say what would settle it.
 - Change a finding's severity, up or down, only with evidence.
 - A problem you notice that the findings don't name is not evidence for the finding you're checking, and a note about it in `evidence` is read by nobody. Return it in `new` as its own finding, in the finding shape from [reviewer-common.md](reviewer-common.md) (`path`, `line`, `quote`, `severity`, `effort`, `trigger`, `does`, `sees`, `fix`, `probe`), with ids `V1`, `V2`, and so on. Another verifier checks it, so quote the exact line. A problem the change didn't cause goes in `left_out` as one line, the way reviewers do.
@@ -24,10 +25,10 @@ Return one JSON object and nothing else, with all three keys, empty lists when t
 
 ```json
 {
-  "verdicts": [{"id": "B1", "label": "Reproduced", "evidence": "`pnpm test tabs -t \"closes last tab\"` fails: expected \"t2\", received null.", "severity": null, "why": null}],
+  "verdicts": [{"id": "B1", "label": "Reproduced", "evidence": "`pnpm test tabs -t \"closes last tab\"` fails: expected \"t2\", received null.", "severity": null, "why": null, "settles": null}],
   "new": [],
   "left_out": []
 }
 ```
 
-`verdicts` has one object per finding you were given. Set `severity` and `why` (one line) only when you changed the severity.
+`verdicts` has one object per finding you were given. Set `severity` and `why` (one line) only when you changed the severity. Set `settles` only on a finding with a `source_fix`.
