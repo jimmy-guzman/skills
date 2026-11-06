@@ -35,7 +35,8 @@ general comment. Every post starts with
 state prints one JSON object:
   provider, ref, state (open|closed|merged), draft, head_sha, base_ref, title,
   author, body (the PR description), threads {open, resolved, unknown, anchors[]},
-  reviewed_shas[], reviewed_at_head, files [{path, additions, deletions}]
+  reviewed_shas[], reviewed_at_head, last_reviewed_sha (newest marker, or null),
+  files [{path, additions, deletions}]
 GitHub's REST API has no resolved flag, so resolved comes from GraphQL. Where
 GraphQL is blocked, state still works: each anchor's resolved is null and
 threads.unknown counts them. resolve needs GraphQL and fails where it's blocked.
@@ -286,9 +287,11 @@ class GitHub:
         except Fail:
             known = {}
         threads = group_threads(self.pages(f"{base}/pulls/{self.number}/comments"))
-        bodies = [t[0]["body"] for t in threads]
-        bodies += [c["body"] for c in self.pages(f"{base}/issues/{self.number}/comments")]
-        bodies += [r.get("body") or "" for r in self.pages(f"{base}/pulls/{self.number}/reviews")]
+        bodies = [(t[0].get("created_at"), t[0]["body"]) for t in threads]
+        bodies += [(c.get("created_at"), c["body"])
+                   for c in self.pages(f"{base}/issues/{self.number}/comments")]
+        bodies += [(r.get("submitted_at"), r.get("body") or "")
+                   for r in self.pages(f"{base}/pulls/{self.number}/reviews")]
         anchors = []
         for notes in threads:
             c, t = notes[0], match(known, notes)
@@ -430,7 +433,7 @@ class GitLab:
         anchors, bodies = [], []
         for d in discussions:
             notes = d.get("notes") or []
-            bodies += [n.get("body", "") for n in notes]
+            bodies += [(n.get("created_at"), n.get("body", "")) for n in notes]
             first = notes[0] if notes else {}
             if not first.get("resolvable"):
                 continue
@@ -597,10 +600,16 @@ def client(args):
     return (GitHub if provider == "github" else GitLab)(repo, host, number), provider
 
 
+def review_marks(bodies):
+    """(time, sha) for every review marker, oldest first. ISO 8601 times sort as text."""
+    return sorted((t or "", m) for t, b in bodies for m in MARKER_RE.findall(b or ""))
+
+
 def cmd_state(args):
     c, provider = client(args)
     s = c.state()
-    reviewed = sorted({m for b in s["bodies"] for m in MARKER_RE.findall(b or "")})
+    marks = review_marks(s["bodies"])
+    reviewed = sorted({m for _, m in marks})
     head = s["head_sha"]
     print(json.dumps({
         "provider": provider,
@@ -620,6 +629,7 @@ def cmd_state(args):
         },
         "reviewed_shas": reviewed,
         "reviewed_at_head": any(head.startswith(r) or r.startswith(head) for r in reviewed),
+        "last_reviewed_sha": marks[-1][1] if marks else None,
         "files": s["files"],
     }, indent=1))
 

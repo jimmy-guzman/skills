@@ -16,7 +16,7 @@
         "The Spec footer line names issue #41 and lists only the verdicts that name a finding",
         "Every evidence label in the numbered list is Reproduced or Traced",
         "The off-by-one in the last-tab close path is a Must fix finding labeled Reproduced, with the failing command",
-        "Any finding where the code and issue #41 disagree sits under Questions, titled as a question naming the issue, with an 'If issue #41 holds:' line and an 'If issue #41 is out of date:' line, and is not counted in 'Not ready:'",
+        "Any finding where the code and issue #41 disagree sits under Questions, titled as a question naming the issue, with an 'If issue #41 holds:' line and an 'If issue #41 is out of date:' line, and on its own makes the verdict 'Ready once answered:', not 'Not ready:'",
         "Each question ends with a 'Recommended:' line naming its evidence, or a 'No recommendation:' line saying what would settle it",
         "scripts/check_quotes.py ran before the report",
         "Verification of the first reviewer's findings started before the last reviewer returned",
@@ -65,15 +65,16 @@
     {
       "id": 4,
       "prompt": "review !482 again, I fixed the stuff from last time",
-      "expected_output": "Preflight triggers on open threads or a matching review marker and asks Skip, Novel only, or Full review before reviewing.",
+      "expected_output": "pr.py state returns a last_reviewed_sha older than the head, so the re-review starts without asking: all reviewers on the delta since that SHA, one Bugs reviewer on the full MR keeping only Must fix findings, and each open thread checked against the new head.",
       "files": [
         "evals/files/gitlab-mr-482/"
       ],
       "assertions": [
-        "The user is asked to choose before any reviewer runs",
-        "The question names what triggered it",
-        "With Novel only, findings matching an existing thread on file:line and subject are absent",
-        "With Novel only, the report title is 'Supplemental review (N existing threads skipped)'"
+        "No Skip / Novel only / Full review question is asked",
+        "The report title is 'Re-review since <short sha>' and the 'Reviewed:' line names the delta and the full-MR bug pass",
+        "Findings outside the delta are all Must fix",
+        "Each open thread is listed as fixed, still open, or not from this change",
+        "If the last reviewed SHA is not an ancestor of the head, a full review runs and the 'Reviewed:' line says why"
       ]
     },
     {
@@ -159,7 +160,7 @@
         "scripts/check_quotes.py ran and a verifier labeled each finding",
         "The 'Reviewed:' line says one reviewer, small change (not 'no spec source')",
         "The Spec footer line names issue #52",
-        "The line after 'Change:' starts with 'Ready.' or 'Not ready:'"
+        "The line after 'Change:' starts with 'Ready.', 'Ready once answered:', or 'Not ready:'"
       ]
     },
     {
@@ -173,7 +174,7 @@
         "Exactly one reviewer ran, with the Standards and Spec briefs, not Bugs",
         "No finding has a Bugs id (B-prefixed)",
         "The 'Reviewed:' line says docs only",
-        "The line after 'Change:' starts with 'Ready.' or 'Not ready:'"
+        "The line after 'Change:' starts with 'Ready.', 'Ready once answered:', or 'Not ready:'"
       ]
     },
     {
@@ -188,7 +189,7 @@
         "No finding has a Spec id (P-prefixed), and no Spec footer line is printed",
         "The Standards reviewer's JSON (or the Standards footer line) carries a Consistency verdict",
         "The 'Reviewed:' line says no spec source",
-        "The line after 'Change:' starts with 'Ready.' or 'Not ready:'"
+        "The line after 'Change:' starts with 'Ready.', 'Ready once answered:', or 'Not ready:'"
       ]
     },
     {

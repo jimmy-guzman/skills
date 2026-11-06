@@ -58,7 +58,8 @@ elif ep.endswith("/files"):
 elif ep.endswith("/reviews") and post:
     print(json.dumps({"id": 7001}))
 elif ep.endswith("/reviews"):
-    print(json.dumps([[{"id": 1, "body": ""}]]))
+    print(json.dumps([[{"id": 1, "body": "<!-- review-changes: 0f0f0f0 -->",
+                        "submitted_at": "2026-02-01T00:00:00Z"}]]))
 elif "/reviews/" in ep and ep.endswith("/comments"):
     sent = [json.loads(json.loads(l)["body"]) for l in open(os.environ["FAKE_LOG"])
             if "/reviews" in l and '"POST"' in l]
@@ -67,6 +68,7 @@ elif "/reviews/" in ep and ep.endswith("/comments"):
                        for i, c in enumerate(made)]]))
 elif ep.endswith("/comments") and not post and "/pulls/" in ep:
     print(json.dumps([[{"id": 991, "path": "src/tabs.ts", "line": 83,
+                        "created_at": "2026-01-01T00:00:00Z",
                         "body": "<!-- review-changes: 1a2b3c4 -->\nsame body"},
                        {"id": 992, "in_reply_to_id": 991, "path": "src/tabs.ts", "line": 83,
                         "body": "a reply"}]
@@ -170,6 +172,14 @@ class Targets(unittest.TestCase):
             with self.assertRaises(pr.Fail):
                 pr.parse_lines(bad)
 
+    def test_last_reviewed_is_newest_not_alphabetical(self):
+        marks = pr.review_marks([
+            ("2026-01-02T00:00:00Z", "<!-- review-changes: aaaaaaa -->\nnew"),
+            ("2026-01-01T00:00:00Z", "<!-- review-changes: fffffff -->\nold"),
+            (None, "no marker"),
+        ])
+        self.assertEqual(marks[-1][1], "aaaaaaa")
+
     def test_marker_stripped_for_dedupe(self):
         self.assertEqual(pr.norm("<!-- review-changes: abc1234 -->\nbody\n"), "body")
 
@@ -215,6 +225,8 @@ class EndToEndGitHub(FakeGh):
                          ("open", "1a2b3c4d5e6f", "main", "Closes #41"))
         self.assertEqual(out["threads"]["open"], 1)
         self.assertTrue(out["reviewed_at_head"])
+        # The review body's marker is newer than the inline comment's.
+        self.assertEqual(out["last_reviewed_sha"], "0f0f0f0")
 
     def test_state_without_graphql(self):
         # Some sessions answer every GraphQL call with 403. state must still work,
@@ -534,6 +546,18 @@ class StateGitLab(unittest.TestCase):
         c.api = lambda *a, body=None: {"state": "opened", "sha": "cur", "target_branch": "main",
                                        "title": "t"}
         self.assertEqual([a["outdated"] for a in c.state()["anchors"]], [False, False, True])
+
+    def test_newest_marker_by_note_time(self):
+        c = pr.GitLab(None, None, 482)
+        c.pages = lambda ep: [] if ep.endswith("/diffs") else [
+            {"id": "d1", "notes": [{"body": "<!-- review-changes: aaaaaaa -->",
+                                    "created_at": "2026-03-01T00:00:00Z"}]},
+            {"id": "d2", "notes": [{"body": "<!-- review-changes: bbbbbbb -->",
+                                    "created_at": "2026-01-01T00:00:00Z"}]},
+        ]
+        c.api = lambda *a, body=None: {"state": "opened", "sha": "cur", "target_branch": "main",
+                                       "title": "t"}
+        self.assertEqual(pr.review_marks(c.state()["bodies"])[-1][1], "aaaaaaa")
 
 
 class FollowUpGitHub(FakeGh):

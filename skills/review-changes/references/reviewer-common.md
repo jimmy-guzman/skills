@@ -12,6 +12,7 @@ Read by every reviewer in SKILL.md §3, alongside its own role file.
 - Never suggest a fix that needs a lint rule disabled, a shorter form that reads worse, or deleting a test because it is small.
 - The fix is the smallest change that works. Prefer one that deletes code. Never add a layer, option, or config the problem doesn't need.
 - A choice the spec made on purpose, which causes no wrong behavior and breaks no rule, is a judgment call, not a finding. A plan labeled `author's own` decides what to build, not how: its choice of approach or pattern is a judgment call only where the user or the ticket made it. Test strength (the Tests bullet in reviewer-bugs.md) and whether a job runs where the shipped code runs are never judgment calls. A comment calling something deliberate, or older code doing the same, excuses neither wrong behavior nor a broken rule. The one exception is a `shortcut:` (or `ponytail:`) comment that names its limit and when to upgrade: that is a decision, not a finding, unless the load the repo expects already crosses the limit.
+- A design choice the author made without writing down why (in the description, a comment, or the spec), where a reasonable alternative exists and the choice causes no wrong behavior, is a question for the author, not a fix: return it with `fix` as the question ("Why X over Y?") and `source_fix` as "Write the reason in the PR description." It lands under Questions.
 - Wrong behavior that only outside input reaches (a paste, a file another app wrote, a URL) is a finding, not a judgment call: that input is the trust boundary. Rare is not hypothetical.
 - When existing thread anchors are passed in (file:line and first line), drop any finding that matches one on file:line and subject, unless you materially extend it.
 - Anything you haven't settled after three tries, a finding or not (a claim, a source conflict, a trace), stops there. Return it in `probe` if there's something to run or trace, otherwise as one `left_out` line saying what would settle it.
@@ -60,7 +61,7 @@ Return one JSON object and nothing else: no preamble, no summary, no code fence.
 - `source`: Standards and Spec only, the rule or spec line in a few words.
 - `trigger`, `does`, `sees`: concrete inputs or state, what the code does, what the user ends up seeing. One sentence each.
 - `fix`: a diff when it is a few lines, otherwise the approach in a sentence. `ran`: the command and result, or null.
-- `source_fix`: Spec findings, and Standards' docs-vs-code findings when covering for Spec: the edit to the source that would settle the finding if the source is the wrong side. Null on every other finding.
+- `source_fix`: Spec findings, Standards' docs-vs-code findings when covering for Spec, and unwritten design choices (above): the edit to the source that would settle the finding if the source is the wrong side. Null on every other finding.
 - `probe`: `{"inputs": [...], "expected": "...", "why": "..."}` when you want the verifier to run or trace something you didn't settle yourself, null otherwise. `why` is the concrete reason to suspect this input, not every boundary gets one.
 - `tag`: delete, reuse, stdlib, native, yagni, shrink, merge, or split. A `reuse` cut names the existing path in `replace`.
 - `left_out`: judgment calls and problems the diff didn't cause, one string each: file:line, kind, why.

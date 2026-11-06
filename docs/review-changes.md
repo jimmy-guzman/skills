@@ -165,9 +165,10 @@ findings post as draft notes and publish together, and the summary follows
 as a general comment; if the user already has unpublished drafts on the MR,
 the script refuses rather than publish those too. A finding outside the diff
 becomes a general comment. Every comment carries a
-`<!-- review-changes: <head_sha> -->` marker. The next run's preflight step
-detects that marker to know the PR was already reviewed at that head, with
-or without a summary. `edit`, `delete`, `reply`, and `resolve` fix or
+`<!-- review-changes: <head_sha> -->` marker. The next run's preflight reads the
+newest marker, with or without a summary: at the current head it asks before
+reviewing again; at an older head it reviews only the delta since then, plus
+a must-fix Bugs pass on the full PR. `edit`, `delete`, `reply`, and `resolve` fix or
 dismiss a posted finding later.
 
 ## Scripts at a glance

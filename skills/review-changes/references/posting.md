@@ -55,7 +55,7 @@ On GitLab, exit 7 means the user already has unpublished draft notes on the MR, 
   +  const active = next[Math.min(index, next.length - 1)] ?? null;
   ```
   ````
-- A question posts as the report shows it: the question title and both `If` lines, so the author picks the side. When the user answered it ("2a" or "2b"), post only that side, with a command title like any finding.
+- A question posts as the report shows it: the question title and both `If` lines, so the author picks the side. When the user answered it ("2a" or "2b"), post only that side, with a command title like any finding. A design-choice question posts as its title and the one Answer line.
 - A finding about a new test, with no line yet, anchors on the nearest sibling test and names it in the body ("sibling of `test_x`").
 - A finding with no file (for example "the description is empty") leaves out `--path` and `--line` and becomes one general comment.
 - A line outside the diff can't take an inline comment. The script posts a general comment instead, outside the review, and says why in `reason`. The body already names the `file:line`, so nothing is lost.
@@ -67,7 +67,7 @@ On GitLab, exit 7 means the user already has unpublished draft notes on the MR, 
 Unless the user declined it, the summary is the batch's last entry, with no `path` or `line`. The body is two lines: the verdict, recounted over the posted findings, then `Reviewed at <short sha> against <sources>.` Nothing else: the threads already carry the findings, so leave out the `Change:` line, the Standards and Spec footer, any list of findings, the `Left out:` line, and the agent handoff line. A post-merge batch (`--allow-closed`) adds a third line saying these are post-merge follow-ups. Put a blank line between lines, as in the findings, and keep it when patching the summary later.
 
 ```text
-Not ready: 1 Major (1). 1 question (2).
+Not ready: 1 Major (1), 1 should fix (3). 1 question (2).
 
 Reviewed at 1a2b3c4 against AGENTS.md and issue #41.
 ```
@@ -103,4 +103,4 @@ When the user decides a posted finding no longer holds as scored (lower severity
 
 1. Reply on the finding's thread saying so, in a few words: `pr.py reply <pr> --comment <id> --body-file <tmp>`.
 2. Resolve the thread: `pr.py resolve <pr> --comment <id>`.
-3. If a summary was posted, patch it (the review body on GitHub, or the general comment on GitLab, that starts with the `<!-- review-changes: <sha> -->` marker) with `pr.py edit <pr> --comment <summary-id> --review --body-file <tmp>` (`--general` in place of `--review` when `post` said `general`), so its verdict still matches what the threads show: recount it and note the change in a few words, e.g. `Ready. 3 findings. 1 question (2). (1 downgraded to nice to have, resolved.)` Don't leave it stale.
+3. If a summary was posted, patch it (the review body on GitHub, or the general comment on GitLab, that starts with the `<!-- review-changes: <sha> -->` marker) with `pr.py edit <pr> --comment <summary-id> --review --body-file <tmp>` (`--general` in place of `--review` when `post` said `general`), so its verdict still matches what the threads show: recount it and note the change in a few words, e.g. `Ready once answered: 2. (1 downgraded to nice to have, resolved.)` Don't leave it stale.

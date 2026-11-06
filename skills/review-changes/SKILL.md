@@ -74,7 +74,7 @@ Then choose the reviewer count from §3's rules, using the file list. Unless rul
 ### 2. Find the sources
 
 - **Standards**: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, `.cursor/rules/`, `CONTRIBUTING.md` (whichever the repo has), the docs they point to, and any file or URL the user named, as in "review against taste.md".
-- **Spec**: issues referenced in the commits or the PR (fetch them), the PR description, a plan file, a path the user passed, and the repo's own spec, design, and decision docs. If an issue or doc was already fetched earlier in this conversation, reuse that content instead of re-fetching: write it to a temp file and pass that path in `Sources:` below. With more than one spec source, append each into that same temp file as it's found, so there's one path to pass on. A plan written in this conversation goes into that temp file (write one if there's none yet) under a `plan (author's own)` heading, so reviewers don't excuse its choices of approach as decisions. When none of an issue, a plan file, or a PR description exists, say so in the report; §3 then runs Spec's docs-vs-code check inside Standards instead of as its own reviewer.
+- **Spec**: issues referenced in the commits or the PR (fetch them), the PR description, a plan file, a path the user passed, and the repo's own spec, design, and decision docs. If an issue or doc was already fetched earlier in this conversation, reuse that content instead of re-fetching: write it to a temp file and pass that path in `Sources:` below. With more than one spec source, append each into that same temp file as it's found, so there's one path to pass on. A plan written in this conversation goes into that temp file (write one if there's none yet) under a `plan (author's own)` heading, so reviewers don't excuse its choices of approach as decisions. When none of an issue, a plan file, or a PR description exists, say so in the report; §3 then runs Spec's docs-vs-code check inside Standards instead of as its own reviewer. For a PR, also flag a missing or thin description (a title restated, no why, no design choices) on the `Reviewed:` line as `no PR description` or `thin PR description`: findings that are really unwritten design choices come from it.
 
 ### 3. Pick and run the reviewers
 
@@ -111,7 +111,7 @@ Each reviewer returns one JSON object: a summary of the change, findings, cuts, 
 
 The reviewer that found an issue is the worst judge of it.
 
-Reviewers and verifiers are told not to edit, and one sometimes does anyway. After the report, run `python3 scripts/snapshot.py --cleanup <target>...` with each reviewer worktree the host kept (a kept one may mean an edit) and each branch the host made for one (in Claude Code, `worktree-agent-<id>`, left behind even when the worktree is gone). It removes them and prints JSON; tell the user any target with a non-empty `dirty` list or an `error`. Guard the tree too, now and again once every batch below is back, whatever the revision. Run `python3 scripts/snapshot.py --guard <before>`, where `<before>` is the §1 snapshot, or the post-apply one in a re-review. It reverts any change since `<before>` and prints JSON; when `changed` is true, tell the user the `files` and the `patch` path holding what was reverted. Their own edits during the run land in it too. When it trips after step 2, drop the labels for findings in the files it touched and verify them again with one fresh verifier. If that one edits too, label them Unverified.
+Reviewers and verifiers are told not to edit, and one sometimes does anyway. After the report, run `python3 scripts/snapshot.py --cleanup <target>...` with each reviewer worktree the host kept (a kept one may mean an edit) and each branch the host made for one (in Claude Code, `worktree-agent-<id>`, left behind even when the worktree is gone). It removes them and prints JSON; tell the user any target with a non-empty `dirty` list or an `error`. Guard the tree too, now and again once every batch below is back, whatever the revision. Run `python3 scripts/snapshot.py --guard <before>`, where `<before>` is the §1 snapshot, or the post-apply one in §6's re-review. It reverts any change since `<before>` and prints JSON; when `changed` is true, tell the user the `files` and the `patch` path holding what was reverted. Their own edits during the run land in it too. When it trips after step 2, drop the labels for findings in the files it touched and verify them again with one fresh verifier. If that one edits too, label them Unverified.
 
 Each reviewer's findings are one batch. Run steps 1 and 2 on a batch as soon as its reviewer returns; don't wait for the others.
 
@@ -136,7 +136,10 @@ Each reviewer's findings are one batch. Run steps 1 and 2 on a batch as soon as 
 The report is read top to bottom once, so each line earns its place. Order: `Change:`, the verdict, `Reviewed:`, the groups, the footer, `Worth an issue`, `Left out:`, the closing line.
 
 - `Change:` two or three sentences on what the change does, from the Bugs reviewer's `summary` (the lone reviewer's when Bugs didn't run). Never write it yourself: you haven't read the diff.
-- The verdict. `Not ready:` when Must fix has anything, with counts and finding numbers. Else `Ready.` and the count of findings, or `Ready. Nothing to fix.` Questions never make it Not ready; append their count and numbers: `1 question (2).`
+- The verdict, first match wins:
+  - `Not ready:` when Must fix or Should fix has anything, with counts and finding numbers: `Not ready: 1 Major (1), 2 should fix (3, 4).` Append questions: `1 question (2).`
+  - `Ready once answered:` when only questions stand in the way, with their numbers: `Ready once answered: 2, 5.` The author may answer and be done, or the answer may become a fix.
+  - `Ready.` and the count of Nice to have findings, or `Ready. Nothing to fix.`
 - `Reviewed:` what was reviewed, against which sources, the load Bugs judged scale against (when it reported one), then what ran: `Ran the tab tests.` or `Nothing was run.` Say nothing about what wasn't run.
 
 Group the findings by what to do, and number straight through so "apply 1-4" spans groups:
@@ -144,7 +147,7 @@ Group the findings by what to do, and number straight through so "apply 1-4" spa
 - **Must fix**: Critical and Major findings that aren't questions.
 - **Questions**: every finding with a `source_fix`. The code and a spec or doc disagree, and the source may be the side that's wrong, so the user picks. A question that merged with a Bugs or rule finding on the same lines isn't one: that finding stands on its own evidence.
 - **Nice to have**: Minor findings whose `sees` (or `does`, if `sees` is empty) names no effect a user hits today: a cosmetic fix (naming, comment-only, typo) or a trigger only reachable in a hypothetical or future config.
-- **Should fix**: every other finding, and all cuts.
+- **Should fix**: every other finding, and all cuts, as long as it names a concrete cost: a written rule it breaks, a branch no test covers, code that must change together with other code, or a trap at a `file:line`. Should fix blocks the merge, so a finding that is only taste goes to Nice to have.
 
 Inside a group, worst first, cuts last. Leave out an empty group. Put a blank line after each group label, so a list that starts past 1 still renders as a list.
 
@@ -158,6 +161,8 @@ Each finding has:
 - A diff of the fix when it is a few lines, in a ```` ```diff ```` fence so the `-` and `+` lines don't render as a list. A heavy lift gets the approach in a sentence. In Suggest mode, name the file, the symbol, and the change precisely enough that someone without this conversation can make it.
 
 A question differs in two places. Its title asks which side is right and names the source. In place of the fix, two lines lettered after its number, so the user answers with the label they see: `2a. If <source> holds:` and the code fix, then `2b. If <source> is out of date:` and the `source_fix`. Then one line, `Recommended: 2a, <evidence>.`, when the evidence favors a side (the source predates the change, the code contradicts a test, the author commented on the thread). Else `No recommendation: <what would settle it>.` In Suggest mode, leave that line out: the author holds the context to pick, and the two `If` lines already name the source.
+
+A design-choice question has the question as its title and, in place of the a/b lines, one line: `Answer, or write the reason in the PR description (a code comment when there is no PR).`
 
 A cut is one line: `file:line`, tag, what it is, what replaces it.
 
@@ -173,7 +178,7 @@ Print the report as plain markdown, never inside a code fence: a fence shows it 
 ````text
 Change: Closing a tab now picks a neighbour instead of leaving none active, and each tab remembers its caret so switching back restores it. A retry wrapper is added around the note read.
 
-Not ready: 1 Major (1). 1 question (2).
+Not ready: 1 Major (1), 1 should fix (3). 1 question (2).
 Reviewed: uncommitted changes (6 files, lockfile left out) against AGENTS.md and issue #41. Load assumed: one user, desktop app. Ran the tab tests.
 
 Must fix
@@ -235,7 +240,7 @@ Spec (issue #52): none.
 
 Before writing the last line, say the mode out loud: Apply or Suggest. Then close with:
 
-- **Apply**: `Say "apply", or name the numbers.` With questions, add `For a question, pick a side: "2a" or "2b".`
+- **Apply**: `Say "apply", or name the numbers.` With a two-sided question, add `For a question, pick a side: "2a" or "2b".`
 - **Suggest**: `Nothing applied. For an agent: verify each item against the current code, fix the ones that still hold, and skip the rest with a one-line reason.` With questions, add `Ask the author each question before acting on it.` The report must stand alone here, because it gets handed to the author or pasted to their agent: don't refer to the conversation, and reprint it in full after any cut.
 
 The report holds only what to act on. Judgment calls, unverified, refuted, and quote-not-found findings only get counted in the `Left out:` line, by kind. "Worth an issue" lists at most three; the rest count there as "N more worth an issue". Leave out the `Left out:` line when it has nothing. Never write the counts from memory: before the report, write every reviewer's and verifier's `left_out` line and every dropped finding to one temp file. Merge duplicates into one entry and leave out anything promoted to "Worth an issue". Then number what remains `L1`, `L2`, one line each: `file:line`, kind, and why, with what would settle an unverified one and the proof for a refuted one. The `Left out:` counts are a tally of that file by kind. On "show left out", print that file, then one line per none Spec verdict with what the reviewer checked.
@@ -246,7 +251,7 @@ Don't trim the report. When it runs past eight numbered items, add this above th
 This is long. Anything to cut? For example "drop nice to have", "must fix only", or numbers.
 ```
 
-For a PR, rerun `scripts/pr.py state`, then add one line after the report, outside it, so the report still hands off clean: `Post these to <ref>, plus a summary comment? Say "post", or name the numbers. Say "no summary" to post only the findings.` With questions, add `Questions post as questions for the author; answer one first ("2a") to post only that side.` Say if the PR merged or closed during the review, and if a read-only or planning mode must be turned off first. Then wait.
+For a PR, rerun `scripts/pr.py state`, then add one line after the report, outside it, so the report still hands off clean: `Post these to <ref>, plus a summary comment? Say "post", or name the numbers. Say "no summary" to post only the findings.` With questions, add `Questions post as questions for the author.` With a two-sided one, add `Answer one first ("2a") to post only that side.` Say if the PR merged or closed during the review, and if a read-only or planning mode must be turned off first. Then wait.
 
 Then stop. Don't edit anything yet.
 
@@ -262,7 +267,7 @@ Only when the user asks ("post these", "comment on the PR", "leave inline"). Rea
 
 Applies to the report and to every question asked.
 
-- Verdict first: the report opens with `Ready.` or `Not ready:`; a question opens with the choice it asks for.
+- Verdict first: the report's verdict, right after `Change:`, is `Ready.`, `Ready once answered:`, or `Not ready:`; a question opens with the choice it asks for.
 - Evidence does the arguing: the command and output, or the `file:line` chain, not editorializing on top of it.
 - Name `file:line` precisely. Never "somewhere in the diff" or "the relevant function".
 - Don't restate what a label already says (severity, effort, evidence); say only what the label can't.
