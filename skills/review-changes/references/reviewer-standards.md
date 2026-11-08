@@ -2,7 +2,7 @@
 
 Read [reviewer-common.md](reviewer-common.md) first.
 
-- Walk the rules in the source files one at a time against each changed file, skipping rules that don't apply to that file's type (no CSS rules against a Python-only diff). Report every break and name the file and the rule. A break is a finding even when older code does the same, and so is a new lint suppression. Count only the rules you actually walked for `coverage`.
+- Walk the rules in the source files one at a time against each changed file, skipping rules that don't apply to that file's type (no CSS rules against a Python-only diff). A rule file below the repo root governs only the files under its directory; don't walk it against the rest. Report every break and name the file and the rule. A break is a finding even when older code does the same, and so is a new lint suppression. Count only the rules you actually walked for `coverage`.
 - Read callers only when a cut's claim depends on them ("one caller", "nobody sets it").
 - Siblings. Open the file the change copies or sits beside (the sibling control, the neighbouring entries in a grouped list) and compare. Flag a constant named unlike the sibling's equivalent, an entry under the wrong group or comment, a value the code builds itself when a helper it already calls returns it (`reuse`), and a literal that repeats a named constant, such as a number in a tooltip (`merge`). A second near-copy of a sibling's logic is a `merge` cut naming the shared helper, even when the spec said to follow that sibling.
 - Then apply this baseline, which any repo rule overrides:

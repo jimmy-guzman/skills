@@ -73,7 +73,7 @@ Then choose the reviewer count from §3's rules, using the file list. Unless rul
 
 ### 2. Find the sources
 
-- **Standards**: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, `.cursor/rules/`, `CONTRIBUTING.md` (whichever the repo has), the docs they point to, and any file or URL the user named, as in "review against taste.md".
+- **Standards**: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, `.cursor/rules/`, `CONTRIBUTING.md` (whichever the repo has), any `AGENTS.md`, `CLAUDE.md`, or `REVIEW.md` in a changed file's directory or its parents (Codex and Claude Code both scope rules per directory, so these hold rules the root file doesn't), the docs they point to, and any file or URL the user named, as in "review against taste.md".
 - **Spec**: issues referenced in the commits or the PR (fetch them), the PR description, a plan file, a path the user passed, and the repo's own spec, design, and decision docs. If an issue or doc was already fetched earlier in this conversation, reuse that content instead of re-fetching: write it to a temp file and pass that path in `Sources:` below. With more than one spec source, append each into that same temp file as it's found, so there's one path to pass on. A plan written in this conversation goes into that temp file (write one if there's none yet) under a `plan (author's own)` heading, so reviewers don't excuse its choices of approach as decisions. When none of an issue, a plan file, or a PR description exists, say so in the report; §3 then runs Spec's docs-vs-code check inside Standards instead of as its own reviewer. For a PR, also flag a missing or thin description (a title restated, no why, no design choices) on the `Reviewed:` line as `no PR description` or `thin PR description`: findings that are really unwritten design choices come from it.
 
 ### 3. Pick and run the reviewers
@@ -133,14 +133,15 @@ Each reviewer's findings are one batch. Run steps 1 and 2 on a batch as soon as 
 
 ### 5. Report and stop
 
-The report is read top to bottom once, so each line earns its place. Order: `Change:`, the verdict, `Reviewed:`, the groups, the footer, `Worth an issue`, `Left out:`, the closing line.
+The report is read top to bottom once, so each line earns its place. Order: `Change:`, the verdict, `Reviewed:`, `Scope:`, the groups, the footer, `Worth an issue`, `Left out:`, the closing line.
 
-- `Change:` two or three sentences on what the change does, from the Bugs reviewer's `summary` (the lone reviewer's when Bugs didn't run). Never write it yourself: you haven't read the diff.
+- `Change:` two or three sentences on what the change does and how, from the Bugs reviewer's `summary` (the lone reviewer's when Bugs didn't run). Never write it yourself: you haven't read the diff.
 - The verdict, first match wins:
   - `Not ready:` when Must fix or Should fix has anything, with counts and finding numbers: `Not ready: 1 Major (1), 2 should fix (3, 4).` Append questions: `1 question (2).`
   - `Ready once answered:` when only questions stand in the way, with their numbers: `Ready once answered: 2, 5.` The author may answer and be done, or the answer may become a fix.
   - `Ready.` and the count of Nice to have findings, or `Ready. Nothing to fix.`
 - `Reviewed:` what was reviewed, against which sources, the load Bugs judged scale against (when it reported one), then what ran: `Ran the tab tests.` or `Nothing was run.` Say nothing about what wasn't run.
+- `Scope:` the Spec reviewer's Scope verdict as it wrote it, with finding ids swapped for report numbers: `Scope: all 6 files within issue #41.` or `Scope: 2 of 6 files outside issue #41: src/lib/retry.ts (3), .eslintrc (4).` A file whose finding §4 refuted comes off the line; one whose finding was unverified or its quote not found keeps its name with no number. Left out when Spec didn't run (§3 rule 4).
 
 Group the findings by what to do, and number straight through so "apply 1-4" spans groups:
 
@@ -171,15 +172,16 @@ Labels:
 - Severity and effort: from the reviewer, as the verifier left them. [references/reviewer-common.md](references/reviewer-common.md) defines both; when merged duplicates disagree, keep the worse.
 - Evidence: Reproduced or Traced, from §4. Nothing else reaches the numbered list.
 
-The footer is one line per source, written after §4 from what survived. `Standards (<source>): <finding numbers, or none>. Walked N rules against M changed files.` Then `Spec (<source>):` with only the verdicts that name a finding, as `Completeness 2. Scope 5.`; when none does, `Spec (<source>): none.` The reviewer's sentence on what it checked for a none verdict stays out of the report; "show left out" prints it. Under §3's rule 4, Spec didn't run: leave its line out, and a Consistency finding rides on the Standards line.
+The footer is one line per source, written after §4 from what survived. `Standards (<source>): <finding numbers, or none>. Walked N rules against M changed files.` Then `Spec (<source>):` with only the verdicts that name a finding, as `Completeness 2. Correctness 5.`, leaving out Scope, which has its own line above; when none does, `Spec (<source>): none.` The reviewer's sentence on what it checked for a none verdict stays out of the report; "show left out" prints it. Under §3's rule 4, Spec didn't run: leave its line out, and a Consistency finding rides on the Standards line.
 
 Print the report as plain markdown, never inside a code fence: a fence shows it raw, and the first diff fence closes it early. The fences around the examples below belong to this file only.
 
 ````text
-Change: Closing a tab now picks a neighbour instead of leaving none active, and each tab remembers its caret so switching back restores it. A retry wrapper is added around the note read.
+Change: Closing a tab now picks a neighbour instead of leaving none active, and each tab remembers its caret so switching back restores it. Both live in the tabs store, with the caret as a new field on TabState. A retry wrapper is added around the note read, in a new module.
 
 Not ready: 1 Major (1), 1 should fix (3). 1 question (2).
 Reviewed: uncommitted changes (6 files, lockfile left out) against AGENTS.md and issue #41. Load assumed: one user, desktop app. Ran the tab tests.
+Scope: 1 of 6 files outside issue #41: src/lib/retry.ts (3).
 
 Must fix
 
@@ -229,10 +231,11 @@ Say "apply", or name the numbers. For a question, pick a side: "2a" or "2b".
 With nothing to report:
 
 ```text
-Change: Date parsing now accepts a two-digit year and reads it as 2000 to 2099.
+Change: Date parsing now accepts a two-digit year and reads it as 2000 to 2099. One new branch in the existing parser, no new helper.
 
 Ready. Nothing to fix.
 Reviewed: uncommitted changes (2 files) against AGENTS.md and issue #52. Load assumed: one user, CLI. Nothing was run.
+Scope: all 2 files within issue #52.
 
 Standards (AGENTS.md): none. Walked 12 rules against 2 changed files.
 Spec (issue #52): none.

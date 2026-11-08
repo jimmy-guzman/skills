@@ -28,7 +28,7 @@ Return one JSON object and nothing else: no preamble, no summary, no code fence.
 
 ```json
 {
-  "summary": "Closing a tab now picks a neighbour instead of leaving none active, and each tab remembers its caret so switching back restores it.",
+  "summary": "Closing a tab now picks a neighbour instead of leaving none active, and each tab remembers its caret so switching back restores it. Both live in the tabs store, with the caret as a new field on TabState. A retry wrapper is added around the note read, in a new module.",
   "findings": [
     {
       "id": "B1",
@@ -56,7 +56,7 @@ Return one JSON object and nothing else: no preamble, no summary, no code fence.
 }
 ```
 
-- `summary`: two or three sentences on what the change does, for someone who hasn't seen the diff.
+- `summary`: two or three sentences on what the change does and how, for someone who hasn't seen the diff: the behavior, then the approach (the layer it touches, what it reuses or builds new). The reader judges direction from this line without opening the diff.
 - `id`: B, S, or P (Spec), plus a number. Cuts use C.
 - `path` and `line`: null for a finding with no file, such as an empty description. `line` is N or N-M at the reviewed revision.
 - `quote`: the one line of code the finding rests on, exactly. For deleted code, the deleted line itself, with `removed` true and `line` its number in the old file (the `-` side of `diff.patch`); `path` is the new path unless the whole file was deleted, and `old_path` the old one when the file was renamed.
@@ -71,6 +71,6 @@ Return one JSON object and nothing else: no preamble, no summary, no code fence.
 - `left_out`: judgment calls and problems the diff didn't cause, one string each: file:line, kind, why.
 - Bugs adds `"load": "many users and processes, from the README."`, the load it judged scale against.
 - Standards adds `"coverage": "Walked 12 rules from AGENTS.md against 6 changed files."`, and, when covering for a Spec reviewer that isn't running, `"verdicts": {"Consistency": [...]}`.
-- Spec adds `"verdicts"`: `{"Completeness": ["P1"], "Scope": "none: only tabs.ts and types.ts change."}` and so on.
+- Spec adds `"verdicts"`: `{"Completeness": ["P1"], "Scope": "1 of 6 files outside issue #41: src/lib/retry.ts (C1)."}` and so on.
 - `context`: a rough share of your context window used by the time you return ("under a quarter", "about a third", "over half"). §4 uses it to decide whether you can take on verification.
 - Keep every key, with empty lists when there's nothing.

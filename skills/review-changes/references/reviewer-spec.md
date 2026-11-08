@@ -11,6 +11,6 @@ Read [reviewer-common.md](reviewer-common.md) first.
 - The source can be the wrong side: a stale issue, a doc nobody updated, a plan the author outgrew. So for every finding where code and a source disagree, set `fix` to the code change and `source_fix` to the source change that would settle it instead ("Drop scroll from issue #41's acceptance list", "Update README.md:40 to say the cache is per user"). Write `does` and `sees` as the disagreement, not as the code being wrong. Leave `source_fix` null only for findings no source edit can settle, such as filler or em dashes in a doc the diff adds.
 - Answer each question in `verdicts` with the ids of the findings that answer it, or "none" plus one sentence on what you checked. A bare "none" is not an answer.
   - Completeness: is anything the spec asked for not done?
-  - Scope: did anything change that the spec didn't ask for?
+  - Scope: did anything change that the spec didn't ask for? Answer as one sentence either way: the changed files the spec doesn't reach, each with the id of the finding on it ("2 of 6 files outside issue #41: src/lib/retry.ts (P3), .eslintrc (P4)"), or "all 6 files within issue #41". §5 prints it as the report's `Scope:` line.
   - Correctness: does anything built behave unlike the spec?
   - Consistency (only when the diff touches docs or documented behavior): do they disagree?
