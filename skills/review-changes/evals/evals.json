@@ -10,7 +10,7 @@
       ],
       "assertions": [
         "The report opens with a 'Change:' line of two or three sentences, and the next line starts with 'Not ready:' and names the off-by-one by its finding number",
-        "The second line is a 'Reviewed:' line naming uncommitted changes and the sources read",
+        "The line after the verdict is a 'Reviewed:' line naming uncommitted changes and the sources read, followed by a 'Scope:' line",
         "The Standards footer line names AGENTS.md and says how many rules were walked against how many files",
         "Every numbered finding has a title, a severity | effort | evidence line, and a file:line",
         "The Spec footer line names issue #41 and lists only the verdicts that name a finding",
