@@ -67,13 +67,13 @@ Then pick the mode. The user's words win ("just suggest", "don't apply", "for th
 
 With the mode picked, build the pack, a temp dir reviewers and verifiers read instead of each running git and rediscovering the code: write the diff to a file in a temp dir, then `python3 scripts/pack.py --diff <file> --out <dir> --rev <sha>`. It writes `diff.patch`, `files/<path>` at the revision, `callers.txt` (git grep hits for the symbols the diff defines or touches), and `tests.txt` (test files naming a changed file). In read-only mode, drop `--rev` and pass the untracked files as `--extra <path>...`. Build it once per revision. It prints a one-line summary; hand the pack path to every reviewer and verifier, and never read the pack yourself.
 
-Then choose the reviewer count from §3's rules, using the file list. Unless rule 2 or 3 applies, spawn the Bugs reviewer now with §3's brief and `Sources: none`: it needs no sources, and it's usually the slowest, so §2 shouldn't hold it. Spawn the rest after §2.
+Then choose the reviewer count from §3's rules, using the file list; a rule 2 or 3 pick is final only after §2 finds no sensitive path (§3 rule 1). Unless rule 2 or 3 applies, spawn the Bugs reviewer now with §3's brief and `Sources: none`: it needs no sources, and it's usually the slowest, so §2 shouldn't hold it. Spawn the rest after §2.
 
 `pr.py state` takes a number, ref, or URL. It prints JSON with the PR's state, head SHA, base branch, description, thread anchors, file list, and `reviewed_at_head`. If the script fails, say why, read state, description, base branch, and head SHA with `gh api repos/{owner}/{repo}/pulls/<n>` or `glab mr view`, and treat thread state as unknown.
 
 ### 2. Find the sources
 
-- **Standards**: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, `.cursor/rules/`, `CONTRIBUTING.md` (whichever the repo has), any `AGENTS.md`, `CLAUDE.md`, or `REVIEW.md` in a changed file's directory or its parents (Codex and Claude Code both scope rules per directory, so these hold rules the root file doesn't), the docs they point to, and any file or URL the user named, as in "review against taste.md".
+- **Standards**: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, `.cursor/rules/`, `CONTRIBUTING.md` (whichever the repo has), any `AGENTS.md`, `CLAUDE.md`, or `REVIEW.md` in a changed file's directory or its parents (Codex and Claude Code both scope rules per directory, so these hold rules the root file doesn't), the docs they point to, and any file or URL the user named, as in "review against taste.md". Note any changed path these mark as sensitive, high-risk, or always deep-reviewed: §3 rule 1 uses it.
 - **Spec**: issues referenced in the commits or the PR (fetch them), the PR description, a plan file, a path the user passed, and the repo's own spec, design, and decision docs. If an issue or doc was already fetched earlier in this conversation, reuse that content instead of re-fetching: write it to a temp file and pass that path in `Sources:` below. With more than one spec source, append each into that same temp file as it's found, so there's one path to pass on. A plan written in this conversation goes into that temp file (write one if there's none yet) under a `plan (author's own)` heading, so reviewers don't excuse its choices of approach as decisions. When none of an issue, a plan file, or a PR description exists, say so in the report; §3 then runs Spec's docs-vs-code check inside Standards instead of as its own reviewer. For a PR, also flag a missing or thin description (a title restated, no why, no design choices) on the `Reviewed:` line as `no PR description` or `thin PR description`: findings that are really unwritten design choices come from it.
 
 ### 3. Pick and run the reviewers
@@ -97,13 +97,13 @@ Without subagents, read the briefs and make the passes yourself, one at a time, 
 
 Pick how many reviewers run, first rule that matches (§1 already decided this and may have started Bugs):
 
-1. **The user asks for a full or thorough review**: all three reviewers, regardless of the rules below. Name the sources read in the `Reviewed:` line.
+1. **The user asks for a full or thorough review**, or the diff touches a path a Standards source marks as sensitive: all three reviewers, regardless of the rules below. Name the sources read in the `Reviewed:` line, and the path and source when a sensitive path triggered it.
 2. **Docs-only diff**: every file left after §1's exclusions is Markdown, plain text, or an image. One fresh reviewer, the Standards and Spec briefs only; nothing for Bugs to check. Say "docs only" in the `Reviewed:` line.
 3. **Small change**: at most 50 lines in at most 3 files (from §1's file list, after exclusions). One fresh reviewer with all three briefs. Say "one reviewer, small change" in the `Reviewed:` line.
 4. **No spec source**: the diff touches code, and §2 found none of an issue, a plan file, or a PR description. Two reviewers: Bugs and Standards. Spec doesn't run as its own reviewer; give Standards the Spec brief's docs-vs-code check too, and it answers Spec's Consistency question in its own `verdicts`. The Spec footer line is left out of the report; a Consistency finding, if any, rides on the Standards line. Say "no spec source" in the `Reviewed:` line.
 5. **Otherwise**: all three reviewers. Name the sources read in the `Reviewed:` line.
 
-When the user asks for a thorough review, also run the Bugs reviewer twice, each with fresh context, and merge both lists. Two runs catch bugs one run misses, and §4 removes what doesn't hold.
+Under rule 1, also run the Bugs reviewer twice, each with fresh context, and merge both lists. Two runs catch bugs one run misses, and §4 removes what doesn't hold.
 
 Each reviewer returns one JSON object: a summary of the change, findings, cuts, left-out notes, `context` (how full its window is, for §4), plus coverage from Standards and verdicts from Spec (or from Standards, under rule 4). Work from that, not prose.
 
