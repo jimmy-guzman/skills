@@ -81,6 +81,7 @@ List every cost with its evidence:
 - A failed CI run fixed by a later commit.
 - A fix or revert after merge.
 - A plan step that turned out wrong, or a Not doing item that came back.
+- A design question the review asked that the author answered with a standing rule (how this repo always does it), not a reason specific to this change. The rule lives nowhere review-changes reads, so the next PR gets the same question.
 - The reason a closed PR died: wrong approach, duplicate, scope.
 - In a session: a user correction, a redo, a denied tool call, a skill step that misfired.
 
@@ -102,7 +103,7 @@ First one that works:
 
 1. **Code.** Make the mistake fail loudly or become impossible: a type, a rule in the linter the repo already runs, a test that pins the behavior, a shared helper in place of the copy that drifted, a CI check, deleting the confusing thing. Use the repo's existing tools; a new dependency is a question for the user. Small means one reviewable unit, about five files, carrying its own test. Bigger becomes a follow-up line: `Follow-up: <what>, in <files>.`, for plan-changes to pick up.
 2. **The user's own skills.** Only when a skill that ran caused the cost or failed to catch it. A skill is the user's own when it lives in the repo being retro'd, or when its `source` in `~/.agents/.skill-lock.json` is owned by the user's login (`gh api user --jq .login`, `glab api user`). Anyone else's skill: leave it out, no feedback. Edit at the source (the lock file's `skillPath` in a local checkout), never the installed copy under `~/.agents/skills` or `~/.claude/skills`: the next update overwrites it. Checkout not in the current repo: ask for its path. The fix is a Gotchas line, a corrected step, or a trigger phrase or `Not for` in the description, written to that repo's own conventions.
-3. **Docs or memory.** About the repo: the agent doc it already uses (`AGENTS.md`, `CLAUDE.md`), in the section that fits, a rule and its reason in one or two lines. review-changes checks every later diff against these, so the rule pays off on the next review. About how this user works: their memory or personal agent instructions, in whatever form the host keeps them.
+3. **Docs or memory.** About the repo: the agent doc it already uses (`AGENTS.md`, `CLAUDE.md`), the one nearest the code the rule governs, in the section that fits. Write the invariant, the safe path, and the reason in one or two lines, as an outcome rather than a function name that will be renamed. If removing the rule wouldn't change a review, don't write it. review-changes checks every later diff against these, so the rule pays off on the next review. About how this user works: their memory or personal agent instructions, in whatever form the host keeps them.
 
 A doc rule is the fallback, not the default. If code could enforce it, it's code.
 
