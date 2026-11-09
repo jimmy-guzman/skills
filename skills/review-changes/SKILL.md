@@ -128,12 +128,12 @@ Each reviewer's findings are one batch. Run steps 1 and 2 on a batch as soon as 
 
    Without subagents, verify each finding yourself with that file, one at a time, starting from the quoted line rather than the reviewer's explanation.
 3. A verifier's `new` list is a batch of its own: run step 1 on it, then step 2, and the verifier that raised it never verifies it, the same rule as a reviewer and its own findings. One that holds takes a number in §5 like any other finding. The verifier's `left_out` lines join the reviewers' for the `Left out:` count. A `new` list from that second round isn't sent round again: it counts in `Left out:` as unverified. Nothing a verifier wrote in `evidence` about a different problem is a finding until it has been through this.
-4. Keep Reproduced and Traced findings. The rest go to the left-out count in §5 with their reasons.
+4. Keep Reproduced and Traced findings. The rest go to the left-out count in §5 with their reasons. A kept finding with `outside` true (after any verifier change) goes to §5's "Worth an issue", not to a group.
 5. Once every batch is back, merge duplicates across batches into the finding that found the cause. Keep the worse severity and the stronger label, Reproduced over Traced. When the verifiers disagree, one Refuted and one Reproduced or Traced, that's a conflict, not a win: label it Unverified, or send it to one fresh verifier with both pieces of evidence.
 
 ### 5. Report and stop
 
-The report is read top to bottom once, so each line earns its place. Order: `Change:`, the verdict, `Reviewed:`, `Scope:`, the groups, the footer, `Worth an issue`, `Left out:`, the closing line.
+The report is read top to bottom once, so each line earns its place. Order: `Change:`, the verdict, `Reviewed:`, `Scope:`, the groups, the footer, `Worth an issue`, `Left out:`, the closing line. "Worth an issue" findings never count toward the verdict.
 
 - `Change:` two or three sentences on what the change does and how, from the Bugs reviewer's `summary` (the lone reviewer's when Bugs didn't run). Never write it yourself: you haven't read the diff.
 - The verdict, first match wins:
@@ -166,6 +166,8 @@ A question differs in two places. Its title asks which side is right and names t
 A design-choice question has the question as its title and, in place of the a/b lines, one line: `Answer, or write the reason in the PR description (a code comment when there is no PR).`
 
 A cut is one line: `file:line`, tag, what it is, what replaces it.
+
+"Worth an issue" holds verified findings the change didn't cause (`outside`). Show at most three, worst severity first, then Quick win before Heavy lift, labeled `W1`, `W2`, `W3` so the user can name one. Each has the finding's title, label line, `file:line`, one sentence on what the user hits, and the fix (a diff when it is a few lines), then one line: `Recommended: apply here.` for a Quick win in a file this change touches, else `Recommended: file it.` In Suggest mode, leave out the `Recommended:` line: the author decides. Never leave out the label line: it is the cost and risk the user weighs.
 
 Labels:
 
@@ -222,10 +224,15 @@ Standards (AGENTS.md): 4. Walked 12 rules against 6 changed files.
 Spec (issue #41): Completeness 2.
 
 Worth an issue
-- `src/editor/find.ts:52`: hidden matches show "0 / 0" in source mode. Not from this change.
+
+W1. Count hidden matches in the find label
+   Minor | Quick win | Traced
+   `src/editor/find.ts:52`
+   Searching in source mode with matches inside folded blocks shows "0 / 0". Count matches in the full document, not the visible ranges.
+   Recommended: file it.
 
 Left out: 1 judgment call, 2 unverified, 1 refuted. Say "show left out" to see them.
-Say "apply", or name the numbers. For a question, pick a side: "2a" or "2b".
+Say "apply", or name the numbers. For a question, pick a side: "2a" or "2b". For a W item, say "apply W1" or "file W1".
 ````
 
 With nothing to report:
@@ -243,10 +250,10 @@ Spec (issue #52): none.
 
 Before writing the last line, say the mode out loud: Apply or Suggest. Then close with:
 
-- **Apply**: `Say "apply", or name the numbers.` With a two-sided question, add `For a question, pick a side: "2a" or "2b".`
-- **Suggest**: `Nothing applied. For an agent: verify each item against the current code, fix the ones that still hold, and skip the rest with a one-line reason.` With questions, add `Ask the author each question before acting on it.` The report must stand alone here, because it gets handed to the author or pasted to their agent: don't refer to the conversation, and reprint it in full after any cut.
+- **Apply**: `Say "apply", or name the numbers.` With a two-sided question, add `For a question, pick a side: "2a" or "2b".` With W items, add `For a W item, say "apply W1" or "file W1".`
+- **Suggest**: `Nothing applied. For an agent: verify each item against the current code, fix the ones that still hold, and skip the rest with a one-line reason.` With W items, add `W items predate this change: they are for awareness, not for this PR.` With questions, add `Ask the author each question before acting on it.` The report must stand alone here, because it gets handed to the author or pasted to their agent: don't refer to the conversation, and reprint it in full after any cut.
 
-The report holds only what to act on. Judgment calls, unverified, refuted, and quote-not-found findings only get counted in the `Left out:` line, by kind. "Worth an issue" lists at most three; the rest count there as "N more worth an issue". Leave out the `Left out:` line when it has nothing. Never write the counts from memory: before the report, write every reviewer's and verifier's `left_out` line and every dropped finding to one temp file. Merge duplicates into one entry and leave out anything promoted to "Worth an issue". Then number what remains `L1`, `L2`, one line each: `file:line`, kind, and why, with what would settle an unverified one and the proof for a refuted one. The `Left out:` counts are a tally of that file by kind. On "show left out", print that file, then one line per none Spec verdict with what the reviewer checked.
+The report holds only what to act on. Judgment calls, unverified, refuted, and quote-not-found findings only get counted in the `Left out:` line, by kind. "Worth an issue" lists at most three; the rest go into the left-out file and count there as "N more worth an issue". Leave out the `Left out:` line when it has nothing. Never write the counts from memory: before the report, write every reviewer's and verifier's `left_out` line and every dropped finding to one temp file. Merge duplicates into one entry. Then number what remains `L1`, `L2`, one line each: `file:line`, kind, and why, with what would settle an unverified one and the proof for a refuted one. The `Left out:` counts are a tally of that file by kind. On "show left out", print that file, then one line per none Spec verdict with what the reviewer checked.
 
 Don't trim the report. When it runs past eight numbered items, add this above the last line, and treat what the user keeps as the list:
 
@@ -254,7 +261,7 @@ Don't trim the report. When it runs past eight numbered items, add this above th
 This is long. Anything to cut? For example "drop nice to have", "must fix only", or numbers.
 ```
 
-For a PR, rerun `scripts/pr.py state`, then add one line after the report, outside it, so the report still hands off clean: `Post these to <ref>, plus a summary comment? Say "post", or name the numbers. Say "no summary" to post only the findings.` With questions, add `Questions post as questions for the author.` With a two-sided one, add `Answer one first ("2a") to post only that side.` Say if the PR merged or closed during the review, and if a read-only or planning mode must be turned off first. Then wait.
+For a PR, rerun `scripts/pr.py state`, then add one line after the report, outside it, so the report still hands off clean: `Post these to <ref>, plus a summary comment? Say "post", or name the numbers. Say "no summary" to post only the findings.` With W items, add `W items post as one general comment for awareness; say "no awareness" to skip it.` With questions, add `Questions post as questions for the author.` With a two-sided one, add `Answer one first ("2a") to post only that side.` Say if the PR merged or closed during the review, and if a read-only or planning mode must be turned off first. Then wait.
 
 Then stop. Don't edit anything yet.
 

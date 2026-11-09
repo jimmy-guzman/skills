@@ -6,6 +6,7 @@ Read by the verifier in SKILL.md §4. You may be a reviewer resumed for this: yo
 - The pack, when you're given one, holds `diff.patch`, `files/<path>` at the revision, `callers.txt`, and `tests.txt`. Start from the lines a finding rests on and their callers, read in one round; don't reread what you already have. A finding with `removed` true quotes a deleted line: find it on the `-` side of `diff.patch`, at its old-file `line`.
 - Never edit, fix, or format files in the user's tree. You judge findings; the user picks the fixes.
 - When a finding carries `probe`, start there: run or trace exactly those inputs against that `expected`, not the reviewer's narrative.
+- A finding with `outside` true claims the bug predates the change: check that `diff.patch` touches neither its lines nor what feeds them. If the change caused it, set `outside` to false in your verdict and say why.
 - Check that the trigger can happen: follow the callers and the guards before the line.
 - For a broken rule, check that the rule says what the finding claims and that the line breaks it. For a cut, check the callers, settings, or platform feature it relies on.
 - When the code runs on more than one platform (a `cfg`, a per-OS backend in a dependency), say which platforms your trace read. A finding that removes or simplifies cross-platform code on a trace of one platform is Unverified for the others. A finding on CI or build config is Reproduced only when run in the job's image: a run on the host is Traced at most, and a passing host run doesn't refute it.
@@ -19,16 +20,16 @@ Read by the verifier in SKILL.md §4. You may be a reviewer resumed for this: yo
 - A finding with a `source_fix` is a question for the author. Try to settle it with the rules in [reviewer-common.md](reviewer-common.md) (look up unknown terms, weigh the sources). When the evidence picks a side, set `settles` to `code` or `source` and put the deciding file:line or doc line in `evidence`. Otherwise leave `settles` null and list in `evidence` what you checked and why it didn't settle it. Settle only on evidence: a wrongly settled question costs more than asking.
 - If running or tracing hasn't settled a finding after three tries, stop: label it Unverified and say what would settle it.
 - Change a finding's severity, up or down, only with evidence.
-- A problem you notice that the findings don't name is not evidence for the finding you're checking, and a note about it in `evidence` is read by nobody. Return it in `new` as its own finding, in the finding shape from [reviewer-common.md](reviewer-common.md) (`path`, `line`, `quote`, `severity`, `effort`, `trigger`, `does`, `sees`, `fix`, `probe`), with ids `V1`, `V2`, and so on. Another verifier checks it, so quote the exact line. A problem the change didn't cause goes in `left_out` as one line, the way reviewers do.
+- A problem you notice that the findings don't name is not evidence for the finding you're checking, and a note about it in `evidence` is read by nobody. Return it in `new` as its own finding, in the finding shape from [reviewer-common.md](reviewer-common.md) (`path`, `line`, `quote`, `severity`, `effort`, `trigger`, `does`, `sees`, `fix`, `probe`), with ids `V1`, `V2`, and so on. Another verifier checks it, so quote the exact line. A problem the change didn't cause goes in `new` too, with `"outside": true`.
 
 Return one JSON object and nothing else, with all three keys, empty lists when there's nothing:
 
 ```json
 {
-  "verdicts": [{"id": "B1", "label": "Reproduced", "evidence": "`pnpm test tabs -t \"closes last tab\"` fails: expected \"t2\", received null.", "severity": null, "why": null, "settles": null}],
+  "verdicts": [{"id": "B1", "label": "Reproduced", "evidence": "`pnpm test tabs -t \"closes last tab\"` fails: expected \"t2\", received null.", "severity": null, "why": null, "settles": null, "outside": null}],
   "new": [],
   "left_out": []
 }
 ```
 
-`verdicts` has one object per finding you were given. Set `severity` and `why` (one line) only when you changed the severity. Set `settles` only on a finding with a `source_fix`.
+`verdicts` has one object per finding you were given. Set `severity` and `why` (one line) only when you changed the severity. Set `settles` only on a finding with a `source_fix`. Set `outside` only when you changed it.

@@ -18,6 +18,7 @@ Read by every reviewer in SKILL.md §3, alongside its own role file.
   - Weigh the sources. When the spec, the code's own comments and docs, and the tests agree and only the implementation differs, it's a code fix: set `source_fix` null. When the code, its tests, and the PR description agree and only an older spec differs, it's a source fix: put that edit in `fix` and set `source_fix` null.
   - Split out what's needed either way. A missing test, a missing snapshot, or an untested behavior change is its own finding with its own fix. Ask only what is still undecided after that.
 - Wrong behavior that only outside input reaches (a paste, a file another app wrote, a URL) is a finding, not a judgment call: that input is the trust boundary. Rare is not hypothetical.
+- A problem in code the diff didn't touch or cause (it was broken before this change) is still a finding: return it with `"outside": true`, the same shape, so §4 verifies it and the user can weigh its cost. Set `outside` only when the bug exists at the base revision too.
 - When existing thread anchors are passed in (file:line and first line), drop any finding that matches one on file:line and subject, unless you materially extend it.
 - Anything you haven't settled after three tries, a finding or not (a claim, a source conflict, a trace), stops there. Return it in `probe` if there's something to run or trace, otherwise as one `left_out` line saying what would settle it.
 - Return every finding, worst first, as in "Reviewer output".
@@ -36,6 +37,7 @@ Return one JSON object and nothing else: no preamble, no summary, no code fence.
       "line": "88",
       "quote": "const active = next[index] ?? null;",
       "removed": false,
+      "outside": false,
       "severity": "Major",
       "effort": "Quick win",
       "source": null,
@@ -46,12 +48,30 @@ Return one JSON object and nothing else: no preamble, no summary, no code fence.
       "source_fix": null,
       "ran": "`pnpm test tabs -t \"closes last tab\"` fails: expected \"t2\", received null.",
       "probe": null
+    },
+    {
+      "id": "B2",
+      "path": "src/editor/find.ts",
+      "line": "52",
+      "quote": "const label = total ? `${index + 1} / ${total}` : \"0 / 0\";",
+      "removed": false,
+      "outside": true,
+      "severity": "Minor",
+      "effort": "Quick win",
+      "source": null,
+      "trigger": "Searching in source mode with matches inside folded blocks.",
+      "does": "Counts only visible matches.",
+      "sees": "\"0 / 0\" while matches exist.",
+      "fix": "Count matches in the full document, not the visible ranges.",
+      "source_fix": null,
+      "ran": null,
+      "probe": null
     }
   ],
   "cuts": [
     {"id": "C1", "path": "src/lib/retry.ts", "line": "1-40", "quote": "export async function withRetry(", "tag": "yagni", "replace": "Call `readNote` directly."}
   ],
-  "left_out": ["src/editor/find.ts:52: not from this change: hidden matches show \"0 / 0\" in source mode."],
+  "left_out": ["src/store/tabs.ts:30: judgment call: closing picks the right neighbour, not the left; the ticket is silent."],
   "context": "about a third"
 }
 ```
@@ -68,7 +88,8 @@ Return one JSON object and nothing else: no preamble, no summary, no code fence.
 - `source_fix`: Spec findings, Standards' docs-vs-code findings when covering for Spec, and unwritten design choices (above): the edit to the source that would settle the finding if the source is the wrong side. Null on every other finding.
 - `probe`: `{"inputs": [...], "expected": "...", "why": "..."}` when you want the verifier to run or trace something you didn't settle yourself, null otherwise. `why` is the concrete reason to suspect this input, not every boundary gets one.
 - `tag`: delete, reuse, stdlib, native, yagni, shrink, merge, or split. A `reuse` cut names the existing path in `replace`.
-- `left_out`: judgment calls and problems the diff didn't cause, one string each: file:line, kind, why.
+- `outside`: true for a problem the diff didn't cause, false otherwise.
+- `left_out`: judgment calls and what you couldn't settle, one string each: file:line, kind, why.
 - Bugs adds `"load": "many users and processes, from the README."`, the load it judged scale against.
 - Standards adds `"coverage": "Walked 12 rules from AGENTS.md against 6 changed files."`, and, when covering for a Spec reviewer that isn't running, `"verdicts": {"Consistency": [...]}`.
 - Spec adds `"verdicts"`: `{"Completeness": ["P1"], "Scope": "1 of 6 files outside issue #41: src/lib/retry.ts (C1)."}` and so on.

@@ -9,9 +9,9 @@ Every command here uses `scripts/pr.py` in this skill's directory. Resolve it to
 - Post only through `scripts/pr.py`. When it refuses, never edit it and never post another way (a connector, an MCP tool, a raw API call). Say why it refused and offer what the refusal allows.
 - Posting writes to a shared system. If the agent is in a read-only or planning mode, ask the user to leave it first.
 - Use the head SHA from the preflight `state` call. Pass it as `--head` on every post. The script exits 3 when the PR has moved since the review. Then stop, say so, and offer to re-review the new head.
-- The script exits 4 for a closed or merged PR. Offer, in this order: post anyway, which still notifies the author; file an issue with the findings; a follow-up change in Apply mode, if the code is the user's; or drop them. Post anyway only on an explicit yes, by rerunning with `--allow-closed`, and say in the summary comment that these are post-merge follow-ups. File an issue only after a yes. A draft is fine when the user asked.
+- The script exits 4 for a closed or merged PR. Offer, in this order: post anyway, which still notifies the author; an issue with the findings, filed by whatever files issues in this session; a follow-up change in Apply mode, if the code is the user's; or drop them. Post anyway only on an explicit yes, by rerunning with `--allow-closed`, and say in the summary comment that these are post-merge follow-ups. A draft is fine when the user asked.
 - Re-check every `file:line` at the head: write the findings to a temp file and run `python3 <skill-dir>/scripts/check_quotes.py --rev <head> --base <base> <file>` as in §4, with ids matching the report's numbers. Hunks drift under rebase, and the file at head wins. Fix a `moved` line before posting. Don't post a `missing` one.
-- Post the numbered findings only. Left-out items (judgment calls, unverified, refuted, overflow from "Worth an issue") stay off the PR unless the user names them.
+- Post the numbered findings, plus the W items as one general comment unless the user said "no awareness". Left-out items (judgment calls, unverified, refuted, overflow W items) stay off the PR unless the user names them.
 
 ## Post each finding
 
@@ -63,6 +63,8 @@ On GitLab, exit 7 means the user already has unpublished draft notes on the MR, 
 - `--dry-run` prints what would be posted without posting it. Use it when the user wants to see the comments first.
 - `pr.py post` starts every post, finding or summary, with `<!-- review-changes: <head_sha> -->`; don't write it in the body. The next preflight reads it to spot "already reviewed at this SHA", so a run that posts findings without a summary still counts.
 - Post the summary comment unless the user said "no summary" (or otherwise declined it) in the §5 ask.
+
+The W items are one entry with no `path` or `line`, after the findings and before the summary. Its body starts `**Not from this PR, for awareness**`, then each W item shaped like a finding, with its `W1` label and no `Recommended:` line. It doesn't count toward the summary's verdict. When the user declined the summary, the W entry is the batch's last entry with no path, and `pr.py` treats it as the summary: on GitHub it posts as the review body (`posted: review`). Report it as the awareness comment, not as a summary.
 
 Unless the user declined it, the summary is the batch's last entry, with no `path` or `line`. The body is two lines: the verdict, recounted over the posted findings, then `Reviewed at <short sha> against <sources>.` Nothing else: the threads already carry the findings, so leave out the `Change:` and `Scope:` lines, the Standards and Spec footer, any list of findings, the `Left out:` line, and the agent handoff line. A post-merge batch (`--allow-closed`) adds a third line saying these are post-merge follow-ups. Put a blank line between lines, as in the findings, and keep it when patching the summary later.
 

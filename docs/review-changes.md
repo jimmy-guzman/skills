@@ -143,6 +143,15 @@ The report leads with what a reader skims for, before any finding:
 Then the findings, grouped by action and numbered straight through, a footer
 line per source, and a `Left out:` count.
 
+A problem the change didn't cause is still a finding, marked `outside: true`,
+so it gets the same quote check and verification. Up to three that survive
+show under "Worth an issue" as `W1` to `W3`, each with its severity and effort
+label (the cost and risk the user weighs) and a recommendation: apply here for
+a quick win in a touched file, otherwise file it. They never count toward the
+verdict, and a bare "apply" skips them. "apply W1" fixes one in this change;
+"file W1" hands it to whatever files issues in the session, since the skill
+never files one itself. In Suggest mode they are for awareness only.
+
 ## Safety rails
 
 - **Snapshot before review.** `scripts/snapshot.py` stages into a copy of
@@ -184,7 +193,8 @@ GitHub that's one review whose body is the optional summary. On GitLab the
 findings post as draft notes and publish together, and the summary follows
 as a general comment; if the user already has unpublished drafts on the MR,
 the script refuses rather than publish those too. A finding outside the diff
-becomes a general comment. Every comment carries a
+becomes a general comment, and W items post together as one general
+"for awareness" comment unless the user declines it. Every comment carries a
 `<!-- review-changes: <head_sha> -->` marker. The next run's preflight reads the
 newest marker, with or without a summary: at the current head it asks before
 reviewing again; at an older head it reviews only the delta since then, plus

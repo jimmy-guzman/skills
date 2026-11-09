@@ -249,6 +249,22 @@
         "No numbered finding is about the `shortcut:` comment or the in-memory rows list",
         "The 'Reviewed:' line contains 'Load assumed:'"
       ]
+    },
+    {
+      "id": 17,
+      "prompt": "review my changes to src/editor/search.ts, didn't commit yet",
+      "expected_output": "An off-by-one in src/editor/find.ts, a file the diff doesn't touch and that was broken before the change, is reported under \"Worth an issue\" as W1 with its label line (severity | effort | evidence) and a Recommended line. It is not a numbered finding and does not count toward the verdict. The closing line offers \"apply W1\" or \"file W1\".",
+      "files": [
+        "evals/files/outside-bug/"
+      ],
+      "assertions": [
+        "The find.ts bug appears under 'Worth an issue' labeled W1, not as a numbered finding",
+        "W1 has a label line with a severity, an effort (Quick win or Heavy lift), and Reproduced or Traced",
+        "W1 has a 'Recommended:' line",
+        "The verdict line does not count the find.ts bug",
+        "The closing line includes 'apply W1' or 'file W1'",
+        "Nothing is filed and nothing is applied before the user answers"
+      ]
     }
   ]
 }
