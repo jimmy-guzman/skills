@@ -68,8 +68,8 @@ header can't escape it via `../` traversal.
 
 | Reviewer | Hunts for |
 |---|---|
-| **Bugs** | Correctness, security, scale/load, races, symptom-patches vs. root cause |
-| **Standards** | Breaks of the repo's own written rules (AGENTS.md/CLAUDE.md/CONTRIBUTING.md/...), plus cuts (dead code, reinvented stdlib, unneeded deps) and comment hygiene |
+| **Bugs** | Correctness, security, scale/load, races, symptom-patches vs. root cause, weakened gates (a skipped test, a disabled lint rule, a CI step ending in `\|\| true`) |
+| **Standards** | Breaks of the repo's own written rules (AGENTS.md/CLAUDE.md/CONTRIBUTING.md/..., plus any AGENTS.md/CLAUDE.md/REVIEW.md in a changed file's directory or its parents), plus cuts (dead code, reinvented stdlib, unneeded deps) and comment hygiene |
 | **Spec** | Completeness, scope creep, built-vs-asked-for correctness, docs-vs-code consistency |
 
 All three return one JSON object, no prose: `summary`, `findings[]`,
@@ -81,7 +81,7 @@ How many run is decided by the diff, not always "all three":
 
 | Situation | Reviewers run |
 |---|---|
-| User asks for a full/thorough review | All three, Bugs runs twice with fresh context |
+| User asks for a full/thorough review, or the diff touches a path a standards source marks sensitive | All three, Bugs runs twice with fresh context |
 | Docs-only diff | One, with Standards + Spec briefs |
 | Small change (≤50 lines, ≤3 files) | One, with all three briefs |
 | No spec source found | Two, Standards absorbs Spec's docs-vs-code check |
@@ -122,6 +122,26 @@ A verifier that spots a problem the findings don't name returns it in `new`,
 not buried in its evidence. That list is a batch of its own: quote-checked,
 then verified by someone other than the verifier that raised it. A second
 round of `new` findings isn't sent round again; it counts as unverified.
+
+A code-vs-spec disagreement (a finding with a `source_fix`) is a question for
+the author, but the verifier tries to settle it first. When the evidence picks
+a side, it returns `settles: code` or `settles: source`, and the finding leaves
+Questions and takes the winning side as its fix. Only an unsettled one reaches
+the author.
+
+## The report
+
+The report leads with what a reader skims for, before any finding:
+
+- `Change:` two or three sentences on what the change does and how, taken from
+  the Bugs reviewer's summary, since the orchestrator never reads the diff.
+- The verdict: `Not ready:`, `Ready once answered:`, or `Ready.`, with counts
+  and finding numbers.
+- `Reviewed:` what was reviewed, against which sources, and what was run.
+- `Scope:` the Spec reviewer's verdict on which files sit outside the spec.
+
+Then the findings, grouped by action and numbered straight through, a footer
+line per source, and a `Left out:` count.
 
 ## Safety rails
 
@@ -229,6 +249,6 @@ is itself a signal worth noting.
 | Cost | One agent's context, one pass | Several reviewer + verifier subagent turns |
 
 The report-shape conventions line up closely enough (numbered findings
-across groups, a one-line verdict, a `Not checked:` honesty line) that they
+across groups, a one-line verdict, a line on what was checked) that they
 read as the same idea reached from two different directions: ponytail's
 single-agent discipline, and this skill's split-and-verify pipeline.
