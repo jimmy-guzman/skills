@@ -39,6 +39,7 @@ If a var is missing in the agent's shell, run with `zsh -ic 'python3 scripts/sla
 | Find a channel id | `search.messages query="in:#name" count=1`, or `conversations.list types=public_channel,private_channel limit=1000` (paginate with `cursor`) |
 | Who is U... | `users.info user=U...` |
 | Post / reply | `chat.postMessage channel=C... text=... thread_ts=<parent ts>` (`text=@-` reads stdin) |
+| Edit a message | `chat.update channel=C... ts=<msg ts> parse=none text=@-` (without `parse=none`, Slack escapes `<url\|label>` links on edit) |
 
 For multi-line text, links, or quotes, pass `text=@-` and feed a quoted heredoc outside the `zsh -ic '...'` string so nothing needs escaping:
 
