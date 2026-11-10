@@ -58,3 +58,5 @@ Resolve `<@U...>` mentions with `users.info` before quoting messages back, and p
 ## Writes
 
 Every write acts as the user, visible to others. Before any method that changes state (anything other than `auth.test`, `search.*`, `*.list`, `*.info`, `*.history`, `*.replies`), show the exact call and target and wait for an explicit yes in the current message.
+
+When a post has links, ask in the same step whether to show link previews; if not, add `unfurl_links=false unfurl_media=false` to `chat.postMessage`. Decide before posting: an edit with `chat.update` drops existing previews and can't add them back.
