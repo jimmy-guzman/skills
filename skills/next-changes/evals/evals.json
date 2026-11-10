@@ -1,0 +1,42 @@
+{
+  "skill_name": "next-changes",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "what's on my plate?",
+      "expected_output": "Reads review requests, the user's open PRs tagged by review and checks state, assigned issues host-wide, and local branches in the current repo. Ranks review requests first, then the user's blocked PRs, ready to merge, in progress, not started. At most ten lines, each with age, reason, and the handling skill or next action. Ends with one verdict line. Nothing written or fetched.",
+      "files": [],
+      "assertions": [
+        "gh search prs ran with --review-requested=@me and --author=@me, not a per-repo gh pr list",
+        "Review requests on other people's PRs are listed before the user's own PRs",
+        "Every line has an age, a reason, and a Next naming a skill or an action such as merge it",
+        "No more than ten items are listed, with a count of the rest",
+        "No git fetch, comment, label, or push ran",
+        "The output ends with one Verdict line from Nothing needs you, n need you m blocking others, Partial: source not read, or Could not read"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "anything waiting on me? we're on gitlab",
+      "expected_output": "Uses glab api on /merge_requests with scope=all and reviewer_username, scope=created_by_me with detailed_merge_status, and /issues with scope=assigned_to_me. An MR with detailed_merge_status ci_must_pass is listed under the user's blocked PRs. An approved mergeable MR is listed under Ready to merge with Next: merge it.",
+      "files": [],
+      "assertions": [
+        "Host-wide reads went through glab api, not glab mr list in one project",
+        "An MR's reason comes from detailed_merge_status",
+        "A ready MR's Next says merge it and no merge command ran"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "what should I pick up next? gh isn't logged in on this machine. my branch feat/search is pushed and I don't remember opening a PR",
+      "expected_output": "The GitHub reads fail and the output names that source as not read instead of skipping it. Local branches are still read; feat/search is listed as PR state unknown: GitHub not read, with Next: log in to the host, then rerun. The verdict is Partial: GitHub not read, not Nothing needs you.",
+      "files": [],
+      "assertions": [
+        "The failed GitHub source is named on the Read line",
+        "feat/search is listed with PR state unknown and Next: log in to the host, then rerun, not submit-changes",
+        "The verdict is Partial: GitHub not read, not Nothing needs you",
+        "No gh auth login or other write ran"
+      ]
+    }
+  ]
+}

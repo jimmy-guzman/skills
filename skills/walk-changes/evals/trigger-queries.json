@@ -1,0 +1,17 @@
+[
+  { "query": "test this manually before I push", "should_trigger": true },
+  { "query": "try out the new signup form on localhost:3000", "should_trigger": true },
+  { "query": "does it work? the fix for #41 is built", "should_trigger": true },
+  { "query": "walk PR 285 against its acceptance criteria", "should_trigger": true },
+  { "query": "demo this change for me, I need to show it in sprint review", "should_trigger": true },
+  { "query": "curl the new /health endpoint on staging.acme.dev and check the plan's done list", "should_trigger": true },
+  { "query": "run walk-changes on this branch", "should_trigger": true },
+  { "query": "review PR 285", "should_trigger": false },
+  { "query": "explain this diff to me", "should_trigger": false },
+  { "query": "write playwright tests for the signup form", "should_trigger": false },
+  { "query": "the login step fails, fix it", "should_trigger": false },
+  { "query": "open a PR for this branch", "should_trigger": false },
+  { "query": "plan #41", "should_trigger": false },
+  { "query": "what's next on my plate", "should_trigger": false },
+  { "query": "respond to the comments on PR 285", "should_trigger": false }
+]

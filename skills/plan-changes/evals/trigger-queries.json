@@ -18,5 +18,6 @@
   { "query": "plan my week around the oncall rotation", "should_trigger": false },
   { "query": "add the plan from the ticket to the README", "should_trigger": false },
   { "query": "the plan is approved, go build step 1", "should_trigger": false },
-  { "query": "respond to the comments on PR 285", "should_trigger": false }
+  { "query": "respond to the comments on PR 285", "should_trigger": false },
+  { "query": "write a ticket for this", "should_trigger": false }
 ]

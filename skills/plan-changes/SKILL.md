@@ -9,8 +9,8 @@ description: >
   picking up this ticket, where do I start", "what would it take to add X",
   "write a plan for", plan-changes by name, even when they never say "plan".
   Not for implementing a plan that exists, reviewing a diff (review-changes),
-  a PR description (submit-changes), splitting work into tickets, estimating
-  hours, or explaining how code works.
+  a PR description (submit-changes), writing or splitting tickets
+  (propose-changes), estimating hours, or explaining how code works.
 compatibility: >
   Requires git. gh (GitHub) or glab (GitLab) for a ticket on the host; a
   connected tracker tool for Jira or Linear ids.
@@ -142,10 +142,10 @@ Rules for the shape:
 - Test at the highest existing seam that reaches the change. Propose a new seam only when none does, and say so.
 - Two real approaches, meaning the Steps themselves would differ (different files, a different reversal): give each in three lines (files touched, invariant kept, how it reverses) and ask the user to pick before writing Steps. Don't pick for them. A choice that only changes what's inside a step (a flag's shape, a field name) is a §3 question with a recommended answer, not a second approach.
 - `Done means` is an independent check, not "the agent says it works". Prefer something deterministic: a named test, a command and its expected output. review-changes reads this later as the spec, so write it as a checklist it can walk.
-- Verdict: `Needs info` when an Assumed line waiting on someone other than the user would change which steps exist or their order if wrong. A line waiting on the user, or one that only changes what's inside a step, doesn't. `Needs spec` when the ticket doesn't say what done looks like and §3 couldn't settle it. Otherwise `Ready to build`.
+- Verdict: `Needs info` when an Assumed line waiting on someone other than the user would change which steps exist or their order if wrong. A line waiting on the user, or one that only changes what's inside a step, doesn't. `Needs spec` when the ticket doesn't say what done looks like and §3 couldn't settle it; name propose-changes as the next step for writing that ticket. Otherwise `Ready to build`.
 - `Not doing` takes a scope reason only: belongs in a separate ticket, needs a call from an owner outside this conversation, or sits outside the area this plan already touches. Never "low-value," "an edge case," or "not worth it": a known-wrong behavior inside the area this plan touches stays in Steps unless the cut is a scope call, not a value judgment.
 
-Caps: Change 60 words, each step one line, at most 8 steps. Past 8, the change is two tickets; say so. Leave out an empty section.
+Caps: Change 60 words, each step one line, at most 8 steps. Past 8, the change is two tickets; say so, and name propose-changes as the next step for splitting it. Leave out an empty section.
 
 ### 5. Deliver, offer, stop
 

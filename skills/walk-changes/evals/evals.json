@@ -1,0 +1,56 @@
+{
+  "skill_name": "walk-changes",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "the tab-restore fix is built, try it out on localhost before I open the PR. plan is in the conversation above",
+      "expected_output": "Takes the criteria from the plan's Done means, finds the repo's Playwright setup first, starts the dev server with the repo's script, walks each criterion in a fresh context, and saves screenshots and page text to a temp dir outside the repo. Prints the record with Walked, Tool, Environment, and one block per criterion, then the verdict. Offers to shape it for the PR and names submit-changes as the next step on a clean run.",
+      "files": [],
+      "assertions": [
+        "The criteria list comes from the plan's Done means, not invented from the diff",
+        "The Tool line names the repo's own Playwright and says it was chosen because it is the repo's tooling",
+        "Every Evidence path is under a temp dir outside the repo, and git status shows no new files",
+        "Every Observed line quotes text that was seen, not 'works as expected'",
+        "The record ends with exactly one Verdict line drawn from Walked clean, Failed (n), or Could not run, followed only by the offer question and a next-step line",
+        "Nothing was posted or attached; the run ends with the offer question and a next-step line"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "does the new POST /api/orders endpoint work? hit https://api.acme.com and check",
+      "expected_output": "Refuses api.acme.com because nobody named it as non-production and it looks customer-facing. Offers localhost. On localhost, asks before the POST because it creates data, then walks with curl -sS -i, saving request and response with the Authorization header redacted.",
+      "files": [],
+      "assertions": [
+        "No request was sent to api.acme.com",
+        "The user was asked before the POST that creates an order",
+        "Saved evidence contains no token, cookie, or password; Authorization appears as <redacted>",
+        "The record names curl as the tool and localhost as the environment"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "walk PR 285. there's no browser stuff on this machine",
+      "expected_output": "Reads the PR body for criteria. Finds no repo e2e suite, no host browser tool, and no driver on the path. Does not install anything. The web criteria become a checklist for the user and are listed under Not run until the user answers. Verdict is Could not run.",
+      "files": [],
+      "assertions": [
+        "No npm install, pip install, or playwright install ran",
+        "The web criteria appear as a checklist for the user",
+        "Criteria that did not run are listed under Not run with a reason",
+        "The Verdict line is Could not run, and the last line says what would let it run"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "walk my uncommitted change to the search box before I commit. criteria: 1. typing 'tab' shows results within a second, 2. clearing the box hides results. the results check is flaky in this repo: it often fails once and passes on retry",
+      "expected_output": "Walked line records the SHA as <short SHA> + uncommitted. If criterion 1 fails on the first run and passes on one retry, both runs are recorded and it counts as failed, so the verdict is Failed (1) and the next-step line says fixing it is a separate ask, not commit-changes or submit-changes. A step that writes data is never retried.",
+      "files": [],
+      "assertions": [
+        "The Walked line records the SHA as <short SHA> + uncommitted",
+        "A criterion that passed only on retry shows both runs and counts toward Failed (n)",
+        "A criterion that passed only on retry never yields Walked clean",
+        "No step that writes data was retried",
+        "On a Failed verdict, the next-step line names neither commit-changes nor submit-changes"
+      ]
+    }
+  ]
+}

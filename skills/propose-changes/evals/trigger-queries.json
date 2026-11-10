@@ -1,0 +1,15 @@
+[
+  { "query": "write a ticket for this", "should_trigger": true },
+  { "query": "turn this slack thread into a story", "should_trigger": true },
+  { "query": "file a bug: the export button does nothing on safari", "should_trigger": true },
+  { "query": "split this epic into stories that can ship on their own", "should_trigger": true },
+  { "query": "plan-changes said needs spec, can you write the spec as a ticket", "should_trigger": true },
+  { "query": "break the offline mode work into tickets for the team", "should_trigger": true },
+  { "query": "plan #41", "should_trigger": false },
+  { "query": "how long will this ticket take", "should_trigger": false },
+  { "query": "write the PR description for this branch", "should_trigger": false },
+  { "query": "what's on my plate today", "should_trigger": false },
+  { "query": "label and sort the new issues that came in this week", "should_trigger": false },
+  { "query": "implement #88", "should_trigger": false },
+  { "query": "test this manually", "should_trigger": false }
+]

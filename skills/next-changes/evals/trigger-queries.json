@@ -1,0 +1,16 @@
+[
+  { "query": "what's next", "should_trigger": true },
+  { "query": "what needs me today", "should_trigger": true },
+  { "query": "what's on my plate", "should_trigger": true },
+  { "query": "anything waiting on me across my repos?", "should_trigger": true },
+  { "query": "which of my PRs can I merge and which reviews do I owe", "should_trigger": true },
+  { "query": "run next-changes", "should_trigger": true },
+  { "query": "triage the new issues and label them", "should_trigger": false },
+  { "query": "triage these dependabot alerts", "should_trigger": false },
+  { "query": "what did I do this week", "should_trigger": false },
+  { "query": "review PR 285", "should_trigger": false },
+  { "query": "plan PROJ-412", "should_trigger": false },
+  { "query": "respond to the comments on my PR", "should_trigger": false },
+  { "query": "merge PR 262", "should_trigger": false },
+  { "query": "I pushed feat/tabs, what next?", "should_trigger": false }
+]

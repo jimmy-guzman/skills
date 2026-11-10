@@ -1,0 +1,44 @@
+{
+  "skill_name": "recap-changes",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "standup notes please",
+      "expected_output": "Window is since the start of the last working day, Friday when today is Monday. Reads merged and opened PRs, reviews given filtered to the window, and ticket moves. Prints Done, Doing, Blocked with owners, opening with the Read line and ending with one verdict line. Posts nothing.",
+      "files": [],
+      "assertions": [
+        "The window starts at the last working day in the user's local date",
+        "Merged PRs were read with --merged-at, not the boolean --merged alone",
+        "Reviews from gh search --reviewed-by were kept only when a review by the user falls in the window",
+        "Every Blocked line names who or what it waits on",
+        "Nothing was posted, written, or changed",
+        "The output ends with one Verdict line from Full record, Partial: source not read, or Nothing in window"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "sprint review summary for the last two weeks, jira tickets plus github. PROJ-7 has a comment with screenshots showing it working, then a newer comment saying it broke on Safari",
+      "expected_output": "Groups by ticket. Each block says what is true now, its PRs, and the demo evidence from a PR body or ticket comment, else says no demo evidence. PROJ-7 reports the newer Safari failure, not the older screenshots. If the Jira tool is missing, the Read line names it and the verdict is Partial.",
+      "files": [],
+      "assertions": [
+        "The recap is grouped by ticket, not by PR",
+        "Each ticket block points at PR or ticket evidence, or says no demo evidence",
+        "A source that could not be read appears on the Read line and the verdict is Partial",
+        "PROJ-7 reports the newer failure instead of citing the older screenshots"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "manager update for 2026-10-01 to 2026-10-14",
+      "expected_output": "Window is 2026-10-01 to 2026-10-14. Merged, created, and closed reads use the closed range; updated reads take the start only and results are trimmed by review or event date. Work done after 2026-10-14 is left out, and a review given on 2026-10-05 on a PR touched later stays in. Written for a manager: outcomes and blockers. Ends with one verdict line.",
+      "files": [],
+      "assertions": [
+        "--merged-at, --created, and --closed use a closed range like 2026-10-01..2026-10-14",
+        "--updated takes the start only, and reviews are kept by review date",
+        "Nothing dated after 2026-10-14 appears in the recap",
+        "The update is grouped by outcome for a manager, not listed PR by PR",
+        "Nothing was posted, written, or changed"
+      ]
+    }
+  ]
+}

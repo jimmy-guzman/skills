@@ -1,0 +1,13 @@
+[
+  { "query": "what did I do this week", "should_trigger": true },
+  { "query": "standup notes", "should_trigger": true },
+  { "query": "what did I get done yesterday", "should_trigger": true },
+  { "query": "sprint review summary of my tickets", "should_trigger": true },
+  { "query": "write a status update for my manager covering the last two weeks", "should_trigger": true },
+  { "query": "retro PR 285", "should_trigger": false },
+  { "query": "write release notes for v2.3", "should_trigger": false },
+  { "query": "update the changelog", "should_trigger": false },
+  { "query": "what's next on my plate", "should_trigger": false },
+  { "query": "write the PR description", "should_trigger": false },
+  { "query": "post my standup to #team-standup on slack", "should_trigger": false }
+]

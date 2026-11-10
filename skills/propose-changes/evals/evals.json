@@ -1,0 +1,42 @@
+{
+  "skill_name": "propose-changes",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "write a ticket for this: support asked that closed tabs come back after a reload",
+      "expected_output": "Searches the tracker for duplicates in open and closed issues, checks .github/ISSUE_TEMPLATE, and drafts a story in the default shape with checkable acceptance criteria. The question of how many tabs to restore goes to the support lead with an assumed answer. Verdict Needs answers or Ready to file. Nothing filed; ends with the keep, write, file question.",
+      "files": [],
+      "assertions": [
+        "A duplicate search ran against the tracker and covered closed issues",
+        "The Template line names the template followed, or says none: default shape",
+        "Every acceptance criterion is one checkable line about what a user sees",
+        "Each question names an owner and the answer the draft assumes",
+        "The draft ends with exactly one Verdict line from Ready to file, Needs answers (owner), or Duplicate of ref, followed only by the offer question and a next-step line",
+        "No gh issue create or tracker write ran; the run ends with one question offering keep, write, file"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "plan-changes said this is more than one ticket. split the offline mode epic into stories",
+      "expected_output": "Kind epic. Carries over the plan-changes questions. Splits by outcome so each story ships alone, not by layer. Each story has its own acceptance criteria, at most seven. Ends by naming plan-changes as the next step once accepted.",
+      "files": [],
+      "assertions": [
+        "No story is a pure layer slice (backend only or frontend only) that depends on another to be usable",
+        "Every story has its own acceptance criteria, at most seven lines",
+        "Stories are ordered so earlier ones unblock later ones",
+        "The last line names plan-changes as the next step and nothing was planned or built"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "file a bug: export to CSV drops the last row",
+      "expected_output": "Kind bug. Finds a closed issue with the same symptom marked won't fix and stops to show it, asking whether to add to it. If continuing, the Problem section has steps, expected, actual, and environment; a missing repro is a question for the reporter.",
+      "files": [],
+      "assertions": [
+        "The duplicate search found and showed the closed issue with its state before drafting further",
+        "The Problem section has steps to reproduce, expected, actual, and environment, or a question to the reporter for what is missing",
+        "Nothing was filed or commented without a yes"
+      ]
+    }
+  ]
+}
