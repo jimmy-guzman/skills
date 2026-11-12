@@ -61,12 +61,13 @@ One reply per verified thread. Write each body to its own temp file, list them i
 - **Fixed** (Reproduced or Traced): what changed, inline code for symbols and files, a short fenced diff when it clarifies more than prose, and `<!--commit-->` where the commit short-SHA goes. Write the placeholder, never a SHA by hand: §7 passes `--commit` and the script fills it in.
 - **Refuted**: why, citing the evidence from §3: the guard or caller that makes the trigger unreachable, or the run that passed on it. For a claim that cites a rule or quote that isn't in the repo, say what was searched and that it wasn't found.
 - **Unverified**: what was tried, and what would settle it. Ask the author for that if they're the one who can supply it.
+- **Not fixed** (Reproduced or Traced, left per `references/apply.md`): the callers that rely on the old behavior, and why no change on the thread's path alone keeps them working. No `<!--commit-->` placeholder.
 
 A user-excluded thread gets no reply; it's reported in §6 only.
 
 ### 6. Report, then offer to post and commit
 
-Open with a verdict-first line: `4 threads: 2 fixed, 1 refuted, 1 unverified. Skipped 1.` Then the breakdown: what was fixed (and in which file), what was refuted and why, what's unverified and what would settle it, what was skipped and by whose instruction, what's still open. Name each thread's author in the breakdown, so a fabricated or baseless claim is traceable to who made it. Then the drafted replies, each under its thread id and author.
+Open with a verdict-first line: `5 threads: 2 fixed, 1 refuted, 1 unverified, 1 not fixed. Skipped 1.` Then the breakdown: what was fixed (and in which file), what was refuted and why, what's unverified and what would settle it, what was left unfixed and which callers kept it so, what was skipped and by whose instruction, what's still open. Name each thread's author in the breakdown, so a fabricated or baseless claim is traceable to who made it. Then the drafted replies, each under its thread id and author.
 
 End with two questions, and act on each only on its own explicit yes:
 
