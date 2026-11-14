@@ -32,10 +32,8 @@ Errors with --files or --base:
   a backticked path that is not in the diff
   a claim of a new or added test when no test file changed
 Warnings:
-  bullets at any indent: 3+ version arrows (->), more than 25 words
-    (an inline code span counts as one), more than one semicolon
-  Why over 80 words, Approach prose over 100, Review over 60
-  more than 6 top-level bullets or 10 in all
+  bullets at any indent: 3+ version arrows (->), more than one semicolon
+  in the default shape, 4+ bullets that each lead with a file path
 
 Exit codes:
   0 clean, or warnings only
@@ -56,7 +54,6 @@ BULLET = re.compile(r"^( *)- (.*)")
 CODE = re.compile(r"`([^`]+)`")
 LABEL = re.compile(r"^\*\*([A-Za-z]+)\.\*\*")
 HEADING = re.compile(r"^### (Why|Approach|Review)$")
-LABELS = ("Why", "Approach", "Review")
 TICKET = re.compile(
     r"^(?:(?i:closes|fixes|resolves|relates to)\s+)?"
     r"(?:#\d+|[A-Z][A-Z0-9]+-\d+|\[[A-Z][A-Z0-9]+-\d+\]\([^)]+\))\.?$"
@@ -101,16 +98,8 @@ EXTENSIONS = {
     "lock", "sum", "mod", "xml", "csv", "dockerfile", "tf", "hcl",
 }
 PATH = re.compile(r"^(?:[\w.-]+/)*[\w.-]+\.([A-Za-z]\w{0,10})$")
-MAX_WORDS = 25
-MAX_TOP = 6
-MAX_BULLETS = 10
-MAX_LABEL_WORDS = {"Why": 80, "Approach": 100, "Review": 60}
-
-
-def words(text):
-    if text.count("`") % 2:
-        return len(text.split())
-    return len(CODE.sub("x", text).split())
+LEAD = re.compile(r"^`([^`]+)`")
+MAX_PATH_LED = 3
 
 
 def path_like(token):
@@ -136,9 +125,8 @@ def lint(lines, files=None):
     fenced = False
     label = None  # (name, heading line)
     seen = []  # sections in order, with their line numbers
-    counts = {name: 0 for name in LABELS}  # words per section
     filled = set()  # sections with something under the heading
-    top = total = 0
+    path_led = []  # bullets that lead with a file path
     preceded = False  # text other than a ticket line appeared before ### Why
     review_para = False  # inside the Review paragraph itself
     review_done = False  # the Review paragraph has ended
@@ -207,19 +195,14 @@ def lint(lines, files=None):
 
         b = BULLET.match(line)
         if b:
-            indent, text = b.groups()
-            total += 1
-            top += not indent
+            text = b.group(2)
+            lead = LEAD.match(text)
+            if lead and path_like(lead.group(1)):
+                path_led.append(n)
             if text.count("->") >= 3:
                 warn(n, "3+ version arrows on one bullet: would a sub-list read better?")
-            if words(text) > MAX_WORDS:
-                warn(n, f"bullet over {MAX_WORDS} words: is this what changed, or how?")
             if text.count(";") > 1:
                 warn(n, "more than one semicolon in a bullet: two bullets, or one clause fewer?")
-            if label and label[0] != "Approach":
-                counts[label[0]] += words(text)
-        elif label:
-            counts[label[0]] += words(stripped)
 
     if not seen:
         return sorted(problems)
@@ -228,19 +211,12 @@ def lint(lines, files=None):
     for name, at in seen:
         if name not in filled:
             problems.append((at, f"### {name} has nothing under it: write it or drop the heading"))
-        limit = MAX_LABEL_WORDS[name]
-        what = "prose " if name == "Approach" else ""
-        if counts[name] > limit:
-            warn(at, f"{name} runs {counts[name]} {what}words: does the reviewer need all of it?")
     if "Why" not in dict(seen):
         problems.append((seen[0][1], "no ### Why section: the body needs the problem first"))
     if "Review" in dict(seen) and review_end is not None:
         problems.append((review_end, "text after ### Review: the Review paragraph closes the body"))
-    first_label_line = seen[0][1]
-    if top > MAX_TOP:
-        warn(first_label_line, f"{top} top-level bullets: can some share a group?")
-    if total > MAX_BULLETS:
-        warn(first_label_line, f"{total} bullets: is this a file inventory?")
+    if len(path_led) > MAX_PATH_LED:
+        warn(path_led[0], f"{len(path_led)} bullets each lead with a file path: is this a file inventory? group by change")
     if files is not None and test_claims and not any(TEST_FILE.search(f) for f in files):
         for n in test_claims:
             problems.append((n, "claims a test change, but no test file is in the diff"))

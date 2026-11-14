@@ -55,10 +55,6 @@ def shaped(why="Nothing closed the last tab.", approach=None, review=None, ticke
     return "\n\n".join(parts) + "\n"
 
 
-def bullets(n, indent=""):
-    return "".join(f"{indent}- item\n" for _ in range(n))
-
-
 class Characters(unittest.TestCase):
     def test_flagged_with_line_numbers(self):
         code, out = run("ok\nuse — here\nand “quotes”\nit’s\nmid · dot\n2–3\n")
@@ -94,22 +90,6 @@ class Bullets(unittest.TestCase):
         )
         self.assertEqual(run(body), (0, []))
 
-    def test_word_limit_at_any_indent(self):
-        for prefix in ("- ", "- Group:\n  - "):
-            self.assertEqual(run(prefix + words(25) + "\n"), (0, []))
-            code, out = run(prefix + words(26) + "\n")
-            self.assertEqual(code, 0)
-            self.assertIn("warning: bullet over 25 words", out[0])
-
-    def test_code_span_is_one_word(self):
-        self.assertEqual(run("- " + words(24) + " `<img src alt width>`\n"), (0, []))
-
-    def test_unmatched_backtick_splits_on_whitespace(self):
-        self.assertEqual(run("- " + words(24) + " `<img\n"), (0, []))
-        code, out = run("- " + words(24) + " `<img src\n")
-        self.assertEqual(code, 0)
-        self.assertIn("warning: bullet over 25 words", out[0])
-
     def test_semicolons(self):
         self.assertEqual(run("- a; b\n"), (0, []))
         code, out = run("  - a; b; c\n")
@@ -120,15 +100,15 @@ class Bullets(unittest.TestCase):
         body = "- Shape:\n\n  ```diff\n  - " + words(30) + "; a; b\n  ```\n"
         self.assertEqual(run(body), (0, []))
 
-    def test_counts_only_capped_in_default_shape(self):
-        self.assertEqual(run("## Changes\n\n" + bullets(12)), (0, []))
-        code, out = run(shaped(approach="Grouped.") + bullets(7))
+    def test_file_inventory(self):
+        files = "".join(f"  - `f{i}.ts`: change {i}\n" for i in range(4))
+        self.assertEqual(run(shaped(approach="Grouped.") + files[: files.index("  - `f3")]), (0, []))
+        code, out = run(shaped(approach="Grouped.") + files)
         self.assertEqual(code, 0)
-        self.assertIn("warning: 7 top-level bullets", out[0])
-        self.assertEqual(run(shaped(approach="Grouped.") + bullets(2) + bullets(8, "  ")), (0, []))
-        code, out = run(shaped(approach="Grouped.") + bullets(2) + bullets(9, "  "))
-        self.assertEqual(code, 0)
-        self.assertIn("warning: 11 bullets", out[0])
+        self.assertIn(":8: warning: 4 bullets each lead with a file path", out[0])
+        packages = "".join(f"- `pkg{i}`: 1 -> 2\n" for i in range(5))
+        self.assertEqual(run(shaped(approach="Toolchain.") + packages), (0, []))
+        self.assertEqual(run("## Changes\n\n" + files), (0, []))
 
 
 class Phrases(unittest.TestCase):
@@ -177,9 +157,7 @@ class DefaultShape(unittest.TestCase):
         joined = "\n".join(out)
         for message in (
             "Why opens with the change",
-            "warning: Why runs 119 words",
-            "warning: 20 bullets",
-            "warning: bullet over 25 words",
+            "warning: 16 bullets each lead with a file path",
             "warning: more than one semicolon",
             'assertion without evidence "All tests pass"',
             'self-grading word "robust"',
@@ -225,30 +203,11 @@ class DefaultShape(unittest.TestCase):
     def test_run_in_body_without_headings_passes(self):
         self.assertEqual(run("**Why.** Nothing closed the last tab.\n"), (0, []))
 
-    def test_label_limits(self):
-        self.assertEqual(run(shaped(why=words(80), approach=words(100))), (0, []))
-        self.assertEqual(run(shaped(why=words(80), review=words(60))), (0, []))
-        code, out = run(shaped(why=words(81)))
-        self.assertEqual(code, 0)
-        self.assertIn(":1: warning: Why runs 81 words", out[0])
-        code, out = run(shaped(approach=words(101)))
-        self.assertEqual(code, 0)
-        self.assertIn(":5: warning: Approach runs 101 prose words", out[0])
-        code, out = run(shaped(review=words(61)))
-        self.assertEqual(code, 0)
-        self.assertIn(":5: warning: Review runs 61 words", out[0])
-
-    def test_approach_bullets_not_counted_as_prose(self):
-        self.assertEqual(run(shaped(approach=words(100)) + bullets(2)), (0, []))
-
     def test_warnings_pass_errors_fail(self):
-        code, out = run(shaped(why=words(81), approach="A robust fix."))
+        code, out = run(shaped(why="- a; b; c", approach="A robust fix."))
         self.assertEqual(code, 1)
         self.assertEqual(len(out), 2)
-        self.assertEqual(sum(":1: warning:" in line for line in out), 1)
-
-    def test_ticket_line_not_counted(self):
-        self.assertEqual(run(shaped(why=words(80), approach=words(100), ticket="Closes #1.")), (0, []))
+        self.assertEqual(sum(":3: warning:" in line for line in out), 1)
 
     def test_empty_section(self):
         code, out = run(shaped() + "\n### Review\n")
