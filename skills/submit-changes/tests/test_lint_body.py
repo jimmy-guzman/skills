@@ -12,7 +12,7 @@ import unittest
 
 HERE = os.path.dirname(__file__)
 SCRIPT = os.path.join(HERE, "..", "scripts", "lint_body.py")
-EXAMPLES = os.path.join(HERE, "..", "references", "examples.md")
+EXAMPLES = os.path.join(HERE, "..", "references", "voice.md")
 
 
 def write(text, suffix):
