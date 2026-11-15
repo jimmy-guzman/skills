@@ -33,7 +33,7 @@ Host commands for `submit-changes`. Read Gotchas before running anything.
 
 ## Lookups
 
-Run independent lookups as parallel calls in one turn. An error is a failed lookup: report it, never read it as "none found".
+Run independent lookups as parallel calls in one turn. An error is a failed lookup: report it, never read it as "none found". For an MR in another project, add `-R <group>/<project>` to each `glab mr` and `glab issue` command below, pass `<group>/<project>` as the argument to `glab repo view`, and in `glab api` paths replace `:id` with the URL-encoded path (`group%2Fproject`).
 
 MR for the current branch. An error saying no merge request was found means none exists. Any other error, such as an HTTP 401 or 403, is a failed lookup: stop and say so, never fall through to create mode.
 
@@ -42,7 +42,7 @@ glab mr view -F json \
   | jq '{iid, draft, title, description, target_branch, labels, web_url}'
 ```
 
-MR by number or URL. Take the iid from `!482` or the URL's trailing number; for a URL in another project add `-R <group>/<project>`:
+MR by number or URL. Take the iid from `!482` or the URL's trailing number:
 
 ```bash
 glab mr view <iid> -F json \

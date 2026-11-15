@@ -19,6 +19,7 @@ CHANGED.txt holds one changed path per line (git diff --name-only).
 
 Errors, anywhere:
   em dash, en dash, middle dot, curly quotes or apostrophes
+  arrows or box corners in a plain fence: mermaid for a flow, console for command output
 Errors outside fenced code blocks:
   assertions without evidence ("tests pass", "tested locally", ...)
   self-grading words ("robust", "comprehensive", "properly", ...)
@@ -26,7 +27,8 @@ Errors when the body uses the default shape (a "### Why", "### Approach"
 or "### Review" heading):
   a run-in label such as **Why.** in place of a heading
   a section heading with nothing under it, or one that appears twice
-  Why first (only a ticket line may precede it), Review last
+  Why first, Review last
+  a ticket line above ### Why: it goes under the heading
   Why opening with "This PR", "This change", "Adds", and the like
 Errors with --files or --base:
   a backticked path that is not in the diff
@@ -99,6 +101,8 @@ EXTENSIONS = {
 }
 PATH = re.compile(r"^(?:[\w.-]+/)*[\w.-]+\.([A-Za-z]\w{0,10})$")
 LEAD = re.compile(r"^`([^`]+)`")
+PLAIN_FENCES = {"", "text", "txt", "plain", "plaintext"}
+DRAWING = re.compile(r"->|→|[┌┐┘]")
 MAX_PATH_LED = 3
 
 
@@ -123,11 +127,14 @@ def lint(lines, files=None):
         problems.append((n, "warning: " + message))
 
     fenced = False
+    plain_fence = False  # an unlabelled or text fence, where a drawing doesn't belong
+    drawn = False  # this plain fence was already flagged
     label = None  # (name, heading line)
     seen = []  # sections in order, with their line numbers
     filled = set()  # sections with something under the heading
     path_led = []  # bullets that lead with a file path
-    preceded = False  # text other than a ticket line appeared before ### Why
+    preceded = False  # text appeared before ### Why
+    ticket_above = None  # line of a ticket reference above every heading
     review_para = False  # inside the Review paragraph itself
     review_done = False  # the Review paragraph has ended
     review_end = None  # line of the first text after the Review paragraph
@@ -140,10 +147,15 @@ def lint(lines, files=None):
                 problems.append((n, message))
         if line.lstrip().startswith("```"):
             fenced = not fenced
+            plain_fence = fenced and line.strip().strip("`").strip().lower() in PLAIN_FENCES
+            drawn = False
             if label:
                 filled.add(label[0])
             continue
         if fenced:
+            if plain_fence and not drawn and DRAWING.search(line):
+                drawn = True
+                problems.append((n, "arrows or boxes in a plain fence: draw a flow as a ```mermaid block; fence command output as ```console"))
             continue
         stripped = line.strip()
         if not stripped:
@@ -161,7 +173,9 @@ def lint(lines, files=None):
             seen.append((name, n))
             label = (name, n)
             if name == "Why" and preceded:
-                problems.append((n, "### Why must come first: only the ticket line may precede it"))
+                problems.append((n, "### Why must come first: nothing goes above it"))
+            if name == "Why" and ticket_above:
+                problems.append((ticket_above, "ticket line above ### Why: move it under the heading, as Why's first line"))
             preceded = True
             continue
         if line.startswith(("## ", "### ")):
@@ -171,7 +185,12 @@ def lint(lines, files=None):
         m = LABEL.match(stripped)
         if m:
             run_in.append((n, f"run-in label **{m.group(1)}.**: use a ### heading"))
-        if not TICKET.match(stripped):
+        if TICKET.match(stripped):
+            if not seen and ticket_above is None:
+                ticket_above = n
+            if label and label[0] == "Why" and "Why" not in filled:
+                continue  # Why's first line may be the ticket; the problem follows it
+        elif not seen:
             preceded = True
         if label and label[0] not in filled:
             filled.add(label[0])

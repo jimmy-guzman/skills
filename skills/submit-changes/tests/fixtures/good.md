@@ -1,6 +1,6 @@
-Closes #321.
-
 ### Why
+
+Closes #321.
 
 Screenshots drew too small to read, and nothing opened them bigger. Markdown has no size syntax, so a resized image is saved as `<img src alt width>`, the one form GitHub, Obsidian, VS Code and pandoc all honor.
 

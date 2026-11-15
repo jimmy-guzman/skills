@@ -4,6 +4,7 @@ Run from the skill folder: python3 -m unittest discover -s tests
 """
 
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -11,6 +12,7 @@ import unittest
 
 HERE = os.path.dirname(__file__)
 SCRIPT = os.path.join(HERE, "..", "scripts", "lint_body.py")
+EXAMPLES = os.path.join(HERE, "..", "references", "examples.md")
 
 
 def write(text, suffix):
@@ -44,10 +46,7 @@ def words(n):
 
 
 def shaped(why="Nothing closed the last tab.", approach=None, review=None, ticket=None):
-    parts = []
-    if ticket:
-        parts.append(ticket)
-    parts.append(f"### Why\n\n{why}")
+    parts = [f"### Why\n\n{ticket}\n\n{why}" if ticket else f"### Why\n\n{why}"]
     if approach is not None:
         parts.append(f"### Approach\n\n{approach}")
     if review is not None:
@@ -95,6 +94,21 @@ class Bullets(unittest.TestCase):
         code, out = run("  - a; b; c\n")
         self.assertEqual(code, 0)
         self.assertIn("warning: more than one semicolon", out[0])
+
+    def test_drawing_in_a_plain_fence(self):
+        for fence in ("```", "```text", "```txt"):
+            for drawing in ("a -> b", "a --> b", "a → b", "┌─┐"):
+                code, out = run(f"{fence}\n{drawing}\n{drawing}\n```\n")
+                self.assertEqual(code, 1, (fence, drawing))
+                self.assertEqual(len(out), 1)
+                self.assertIn(":2: arrows or boxes in a plain fence", out[0])
+
+    def test_drawings_allowed_elsewhere(self):
+        tree = "```txt\nsrc/\n├── a.ts\n│   └── b.ts\n└── c.ts\n```\n"
+        self.assertEqual(run(tree), (0, []))
+        self.assertEqual(run("```mermaid\nflowchart LR\n  a --> b\n```\n"), (0, []))
+        self.assertEqual(run("```rust\nfn f() -> u8 { 1 }\n```\n"), (0, []))
+        self.assertEqual(run("```console\n  --> src/lib.rs:4:9\n```\n"), (0, []))
 
     def test_fenced_blocks_skipped(self):
         body = "- Shape:\n\n  ```diff\n  - " + words(30) + "; a; b\n  ```\n"
@@ -164,6 +178,7 @@ class DefaultShape(unittest.TestCase):
             "`CHANGELOG.md` is not in the diff",
             "run-in label **Testing.**",
             "### Review has nothing under it",
+            "ticket line above ### Why",
         ):
             self.assertIn(message, joined)
 
@@ -171,9 +186,25 @@ class DefaultShape(unittest.TestCase):
         self.assertEqual(run(shaped()), (0, []))
         self.assertEqual(run(shaped(ticket="Closes #1.")), (0, []))
 
-    def test_ticket_forms_may_precede_why(self):
+    def test_ticket_forms_open_why(self):
         for ticket in ("#12", "fixes PROJ-9", "Relates to [PROJ-9](https://x.atlassian.net/browse/PROJ-9)."):
             self.assertEqual(run(shaped(ticket=ticket)), (0, []))
+
+    def test_ticket_above_why(self):
+        code, out = run("Closes #1\n\n" + shaped())
+        self.assertEqual(code, 1)
+        self.assertEqual(len(out), 1)
+        self.assertIn(":1: ticket line above ### Why", out[0])
+
+    def test_ticket_line_does_not_hide_the_opener(self):
+        code, out = run(shaped(ticket="Closes #1", why="Adds a tab."))
+        self.assertEqual(code, 1)
+        self.assertIn("Why opens with the change", out[0])
+
+    def test_ticket_alone_is_an_empty_why(self):
+        code, out = run("### Why\n\nCloses #1\n")
+        self.assertEqual(code, 1)
+        self.assertIn("### Why has nothing under it", out[0])
 
     def test_why_must_come_first(self):
         code, out = run("Some preamble.\n\n" + shaped())
@@ -307,6 +338,15 @@ class Usage(unittest.TestCase):
             capture_output=True, text=True, check=False,
         )
         self.assertEqual(p.returncode, 2)
+
+
+class Examples(unittest.TestCase):
+    def test_examples_lint_clean(self):
+        with open(EXAMPLES, encoding="utf-8") as fh:
+            bodies = re.findall(r"^````markdown\n(.*?)^````$", fh.read(), re.DOTALL | re.MULTILINE)
+        self.assertEqual(len(bodies), 4)
+        for body in bodies:
+            self.assertEqual(run(body), (0, []), body.splitlines()[2])
 
 
 if __name__ == "__main__":
