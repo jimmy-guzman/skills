@@ -21,7 +21,7 @@ Host commands for `submit-changes`. Read Gotchas before running anything.
 - **Always `--yes`.** The skill already confirmed with the user. glab's own prompt hangs the call.
 - **Never `--draft` on update.** It flips a ready MR back to draft.
 - **Changing `--title` on a draft MR needs `--draft` too.** GitLab tracks draft status via a `Draft:`/`WIP:` prefix on the title; `glab mr update` only re-adds that prefix when `--draft` or `--wip` is also passed, so a bare `--title` replacement silently drops it and takes the MR out of draft. Use the `draft` value already fetched for the current MR: if it's true and the title is changing, pass `--draft` alongside `--title`. This is the one case where `--draft` on update is correct, the opposite of the gotcha above.
-- **Uploading screenshots.** Ask the user for image paths. Uploads are project-scoped, so they work before the MR exists. Upload through `glab api`, which handles the host and auth, and use the returned `markdown` field in the body:
+- **Uploading screenshots.** Use the images §3 captured or found in the session; ask the user for paths only when it has none. Uploads are project-scoped, so they work before the MR exists. Upload through `glab api`, which handles the host and auth, and use the returned `markdown` field in the body:
 
   ```bash
   glab api --method POST projects/:id/uploads --form "file=@before.png" | jq -r .markdown

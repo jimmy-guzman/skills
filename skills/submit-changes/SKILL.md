@@ -62,7 +62,7 @@ It holds every host command named below and the gotchas for that CLI.
 
 **Mode.**
 
-- **describe**: the user named a PR by number or URL. Fetch it with _Lookups: PR by number or URL_. Skip the branch checks; nothing local is touched. A PR in another repo points every §1 lookup and template read at that repo, through the host (the reference file says how), never the local filesystem.
+- **describe**: the user named a PR by number or URL. Fetch it with _Lookups: PR by number or URL_. Skip the branch checks; nothing local is touched unless §3 gets a yes for its worktrees. A PR in another repo points every §1 lookup and template read at that repo, through the host (the reference file says how), never the local filesystem.
 - **update**: the current branch already has a PR (_Lookups: PR for the current branch_).
 - **create**: otherwise.
 
@@ -193,16 +193,20 @@ Diff against the fetched remote base, never the local one. A stale local base sh
 3. The ticket: a tracker tool for Jira or Linear ids, the host's issue view for `#n`. Often the slowest step; skip it when 1 or 2 answers.
 4. The user, asked in §5. Never the diff.
 
-### 3. Decide the evidence
+### 3. Gather the evidence
 
-Evidence is a before and an after.
+Evidence is what a reviewer can't get from the diff: a before and an after, or for a feature the after alone. Producing it is part of submitting. What each change gets:
 
-- UI change (the diff touches `.vue`, `.tsx`, `.jsx`, `.svelte`, `.css`, `.scss`, chart or plot code, or the ticket is visual): screenshots. Draft `### Before` and `### After` headings with a `<!-- before -->` / `<!-- after -->` placeholder under each; how real images get in is host-specific (see Gotchas in the reference file). A table, one row per pair, only for a real series of screens or states. Never fabricate a screenshot.
-- Anything else: the test that failed before and passes now, or the output that changed.
+- Bug fix: the test that pins it fails at base and passes after, or the same input on both sides with each output.
+- UI change (the diff touches `.vue`, `.tsx`, `.jsx`, `.svelte`, `.css`, `.scss`, chart or plot code, or the ticket is visual): the same screens on both revisions.
+- Faster or cheaper: the same workload on both sides.
+- Refactor: the existing tests that cover the moved code pass on both sides.
+- Feature or new API: the after only, as real output or the new screen.
+- Docs, chores, bumps: none.
 
-Never state a before you didn't observe. A test that is new in this diff and was never run against the base is "new test", not "failed before".
+Take what the session already holds first: a run of the new test failing before the fix, screenshots, benchmark or command output. One counts only while it still matches: an after taken before a later edit to what it shows is stale, and a before from a test edited since says nothing about the final one. Look at every image again. Produce only what is missing, following [references/evidence.md](references/evidence.md): the before in a worktree at the merge base, never the user's tree. Start as soon as §2 knows what changed, and draft §4 while it runs (in the background where the agent can). Describe mode would run someone else's code: ask first, with the question tool.
 
-Prove it when you can: create or update mode, the user's own change, the clean tree §0 checked, and a test with no side effects. Delete the non-test files the diff adds, then put the rest back at the base with `git checkout <remote>/<base> -- <paths>` (git refuses the whole checkout when any path is new there). Run the new test, then `git reset -q --hard HEAD`: §0 confirmed the tree was clean, so that restores everything and loses nothing. A failure there and a pass at `HEAD` is the evidence: the command and its one failing line, in a fenced block under Approach. A pass on both sides means the test doesn't pin the fix: say so under Review and don't call it evidence.
+A failure doesn't block the PR: it gets a line in the §5 summary with the reason. A UI change left without images gets `### Before` and `### After` headings with a `<!-- before -->` / `<!-- after -->` placeholder under each, for the user to fill. A test that passes on both sides doesn't pin the fix: say so under Review and don't call it evidence. State only a before that was observed, by the session or by this step, and never fabricate a screenshot.
 
 ### 4. Draft title and body
 
@@ -251,11 +255,12 @@ Before the title and body, print a short list of the conventions you found. One 
 - Assignee: you
 - Draft: yes
 - Not set: attribution footer (recent MRs have none)
+- Evidence: the new test fails at base and passes here (from this session); screenshots of 2 states
 - Rebased onto `origin/develop` (was 3 behind)
 - Will force-with-lease push `feat-x` to origin first
 ```
 
-The sync line from §2 is always present when the branch was behind. The push line is required whenever §0 or §2 left `HEAD` off the remote: a plain push for a new branch, new commits, or a merge; a force-with-lease push after a rebase. Without it the PR shows the old remote.
+The evidence line from §3 is present whenever the change type calls for evidence, and names anything that failed or was skipped, with the reason. The sync line from §2 is always present when the branch was behind. The push line is required whenever §0 or §2 left `HEAD` off the remote: a plain push for a new branch, new commits, or a merge; a force-with-lease push after a rebase. Without it the PR shows the old remote.
 
 For describe and update, also show what changed against the current description.
 
