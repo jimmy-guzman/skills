@@ -4,6 +4,13 @@ Read this only when the user asks to post ("post these", "comment on the PR", "l
 
 Every command here uses `scripts/pr.py` in this skill's directory. Resolve it to an absolute path, and run it with the repo as the working directory, because `gh` and `glab` find the project from there. Run `python3 scripts/pr.py --help` if a flag is unclear.
 
+## Contents
+
+- Before the first post
+- Post each finding
+- Fix or remove a posted comment
+- Downgrade or dismiss a posted finding
+
 ## Before the first post
 
 - Post only through `scripts/pr.py`. When it refuses, never edit it and never post another way (a connector, an MCP tool, a raw API call). Say why it refused and offer what the refusal allows.
