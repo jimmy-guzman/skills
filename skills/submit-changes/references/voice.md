@@ -57,7 +57,7 @@ What the change holds decides what the body says, not its size. Description leng
 
 No em dashes, en dashes, middle dots, curly quotes, sign-offs, or emoji; the attribution footer from Principle is the one exception, added after the lint. No summary of the summary. No self-grading ("robust", "comprehensive", "properly"). No hedges once a fact is settled. No assertion standing in for evidence ("tests pass", "tested locally", "fully backward compatible"). The §5 lint enforces this section. In the chat turn around the draft, no chatty opener ("Great, let's...") or closing pleasantry ("Let me know if you need anything else!"); start with the content and end with the thing itself or its next-action line.
 
-**With a template**, its headings and order win. Fill each section in this voice: Why's rules where it asks for motivation, Approach's where it asks for the changes. Handle unused sections the way recent merged PRs do; when they don't settle it, delete a section with nothing to say rather than writing "N/A". Never leave the template's HTML comments in. An AI disclosure field gets the tool and the extent, truthfully.
+**With a template**, its headings and order win. Fill each section in this voice: Why's rules where it asks for motivation, Approach's where it asks for the changes. Handle unused sections the way recent merged PRs do; when they don't settle it, delete a section with nothing to say rather than writing "N/A". Remove the template's instruction comments; keep a comment that recent merged PRs still carry (a bot or check reads it). An AI disclosure field gets the tool and the extent, truthfully.
 
 ## Examples
 
