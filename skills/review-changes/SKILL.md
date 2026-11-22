@@ -36,6 +36,7 @@ If the user pasted findings from a bot or a person, read [references/pasted-find
 ## Gotchas
 
 - A reviewer or verifier that fails on an API error (budget, rate limit, overload) does not mean the host has no subagents. Say what failed and ask to retry it. Solo passes are only for hosts that can't run subagents at all.
+- A reviewer's `left_out` line that names a concrete trigger and hands it to another reviewer ("left to the bugs reviewer") is a finding, not a note. Send it through §4 with its batch. Counted as unverified, nobody checks it, and it comes back as a fix after review.
 - Diff a PR with git, not `gh pr diff` or `glab mr diff`. Those take no pathspecs, so §1's exclusions can't reach the reviewers, and they don't fetch the head, so `git show <sha>:<path>` fails.
 
 ## Process
