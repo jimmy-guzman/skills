@@ -70,6 +70,9 @@ elif any(x.endswith("/pulls/285/comments") for x in a):
          "body": "the diff moved past me", "user": {"login": "sam"},
          "created_at": "2026-01-03T00:00:00Z"},
     ] if os.environ.get("FAKE_EXTRA") else [])]))
+elif any(x.endswith("/pulls/285/commits") for x in a):
+    print(json.dumps([[{"sha": "abc1234def5678"}]
+                      + ([] if os.environ.get("FAKE_CAPPED") else [{"sha": "1a2b3c4d5e6f"}])]))
 elif any(x.endswith("/pulls/285") for x in a):
     print(json.dumps({"state": "open" if state == "OPEN" else "closed",
                       "merged_at": "2026-01-01T00:00:00Z" if state == "MERGED" else None,
@@ -104,6 +107,9 @@ if endpoint.endswith("/discussions") and "--paginate" in a:
         {"body": "general note, not a diff thread", "author": {"username": "sam"},
          "created_at": "2026-01-01T00:00:00Z", "resolvable": False, "resolved": False,
          "position": None}]}))
+elif endpoint.endswith("merge_requests/482/commits") and "--paginate" in a:
+    print(json.dumps({"id": "abc1234def5678"}))
+    print(json.dumps({"id": "1a2b3c4d5e6f"}))
 elif endpoint.endswith("merge_requests/482"):
     print(json.dumps({"state": "opened", "sha": "1a2b3c4d5e6f", "target_branch": "main",
                       "title": "Tabs", "description": "Closes #41", "author": {"username": "sam"}}))
@@ -371,6 +377,24 @@ class EndToEndGitHub(unittest.TestCase):
         code, out, err = self.run_batch([("PRRT_1", "Fixed in <!--commit-->.", False)], "--dry-run")
         self.assertEqual((code, out[0]["body"]), (0, "Fixed in <!--commit-->."), err)
 
+    def test_batch_commit_not_on_the_pr_replies_nothing(self):
+        code, _, err = self.run_batch([("PRRT_1", "Fixed in <!--commit-->.", False)],
+                                      "--commit", "2e3b2a1")
+        self.assertEqual(code, 2)
+        self.assertIn("isn't one of #285's commits", err)
+        self.assertEqual(self.posted(), [])
+
+    def test_batch_head_commit_past_the_listing_cap_is_accepted(self):
+        code, out, err = self.run_batch([("PRRT_1", "Fixed in <!--commit-->.", False)],
+                                        "--commit", "1a2b3c4", FAKE_CAPPED="1")
+        self.assertEqual((code, [o["replied"] for o in out]), (0, [True]), err)
+
+    def test_batch_dry_run_also_checks_the_commit(self):
+        code, out, err = self.run_batch([("PRRT_1", "Fixed in <!--commit-->.", False)],
+                                        "--commit", "2e3b2a1", "--dry-run")
+        self.assertEqual((code, out), (2, []))
+        self.assertIn("isn't one of #285's commits", err)
+
     def test_batch_commit_must_look_like_a_sha(self):
         code, _, _ = self.run_batch([("PRRT_1", "Fixed in <!--commit-->.", False)],
                                       "--commit", "$(x)")
@@ -425,6 +449,17 @@ class EndToEndGitLab(unittest.TestCase):
         _, out, _ = self.run_pr("threads", "!482")
         self.assertEqual({t["id"]: t["outdated"] for t in out["threads"]},
                          {"disc1": False, "disc3": True, "disc2": False})
+
+    def test_reply_commit_must_be_on_the_mr(self):
+        with open(self.body, "w") as fh:
+            fh.write("Fixed in <!--commit-->.")
+        ok, out, err = self.run_pr("reply", "!482", "--thread", "disc1", "--body-file", self.body,
+                                   "--commit", "abc1234", "--dry-run")
+        self.assertEqual((ok, out["body"]), (0, "Fixed in abc1234."), err)
+        code, _, err = self.run_pr("reply", "!482", "--thread", "disc1", "--body-file", self.body,
+                                   "--commit", "2e3b2a1")
+        self.assertEqual(code, 2)
+        self.assertIn("isn't one of !482's commits", err)
 
     def test_resolve_on_non_resolvable_thread_fails(self):
         code, _, err = self.run_pr("resolve", "!482", "--thread", "disc2")

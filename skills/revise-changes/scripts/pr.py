@@ -67,7 +67,10 @@ one per line, in the single-reply shape plus "index" and "thread".
 --commit SHA replaces every <!--commit--> in the bodies with SHA, so Fixed replies
 drafted before the commit need no editing after it. A body that still holds
 <!--commit--> is never posted: without --dry-run, reply exits 2 before the first
-reply. --dry-run prints it as is.
+reply. --dry-run prints it as is. SHA must be (a prefix of) the PR's head or one
+of its listed commits (GitHub lists only the first 250), dry run included:
+anything else exits 2 with nothing replied, so a SHA guessed before the commit
+exists, or one that was never pushed, can't be posted.
 
 resolve prints one JSON object:
   resolved (true), id
@@ -221,6 +224,9 @@ class GitHub:
     def me(self):
         return self.api("user")["login"]
 
+    def commits(self):
+        return [c["sha"] for c in self.pages(f"repos/{{owner}}/{{repo}}/pulls/{self.number}/commits")]
+
     def thread_map(self):
         """Thread node id and resolved, keyed by the thread's first comment id."""
         out, after = {}, []
@@ -367,6 +373,9 @@ class GitLab:
             })
         return out
 
+    def commits(self):
+        return [c["id"] for c in self.pages(f"{self.mr}/commits")]
+
     def reply(self, thread, body):
         res = self.api("-X", "POST", f"{self.mr}/discussions/{thread['id']}/notes",
                        body={"body": body})
@@ -472,6 +481,11 @@ def cmd_reply(args):
         raise Fail(4, f"{ctx['ref']} is {ctx['state']}; nothing replied. "
                       "Pass --allow-closed only if the user asked to "
                       "reply on it anyway")
+    # GitHub lists at most 250 of a PR's commits, so check the head first.
+    if args.commit is not None and not ctx["head_sha"].startswith(args.commit) \
+            and not any(sha.startswith(args.commit) for sha in c.commits()):
+        raise Fail(2, f"--commit {args.commit} isn't one of {ctx['ref']}'s commits; push it "
+                      "first and pass its real short SHA; nothing replied")
     all_threads = c.threads()
     threads = [find_thread(all_threads, t) for t, _, _ in entries]
     for (tid, _, resolve), t in zip(entries, threads):
