@@ -29,7 +29,6 @@ They cover both sides of a change. As the author: plan it, commit it, submit it 
 
 - [`fix-dep-vulns`](skills/fix-dep-vulns/SKILL.md): triage and fix dependency vulnerabilities in pnpm, uv, pip, and Cargo projects, preferring lockfile refreshes and parent upgrades over overrides.
 - [`use-slack`](skills/use-slack/SKILL.md): read, search, and (after confirmation) post to Slack as the user through their browser session, no app or bot needed.
-- [`talk-plainly`](skills/talk-plainly/SKILL.md): reply like a direct, busy peer, answer first, with no filler or generated-sounding patterns.
 
 ## Setup
 
